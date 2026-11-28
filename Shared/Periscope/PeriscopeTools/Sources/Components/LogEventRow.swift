@@ -17,20 +17,7 @@ struct LogEventRow: View {
         let row = stylesheet.row[density]
         let type = stylesheet.typography
         VStack(alignment: .leading, spacing: row.lineSpacing) {
-            HStack(spacing: row.headerSpacing) {
-                LogLevelBadge(level: event.level)
-                if let exitMode = event.spanExitMode {
-                    SpanExitBadge(mode: exitMode)
-                }
-                Text(event.eventName)
-                    .font(type.eventName)
-                    .foregroundStyle(.secondary)
-                Spacer()
-                Text(event.date, format: .dateTime.hour().minute().second())
-                    .font(type.timestamp)
-                    .monospacedDigit()
-                    .foregroundStyle(.tertiary)
-            }
+            LogEventHeader(event: event)
             Text(event.message)
                 .font(type.message)
                 .lineLimit(row.messageLineLimit)
@@ -62,3 +49,34 @@ struct LogLevelBadge: View {
             .foregroundStyle(tint)
     }
 }
+
+private struct LogEventHeader: View {
+    let event: StoredLogEvent
+    @Environment(\.stylesheet) private var stylesheet
+    @Environment(\.logRowDensity) private var density
+
+    var body: some View {
+        HStack(spacing: stylesheet.row[density].headerSpacing) {
+            LogLevelBadge(level: event.level)
+            if let exitMode = event.spanExitMode {
+                SpanExitBadge(mode: exitMode)
+            }
+            Text(event.eventName)
+                .font(stylesheet.typography.eventName)
+                .foregroundStyle(.secondary)
+            Spacer()
+            Text(event.date, format: .dateTime.hour().minute().second())
+                .font(stylesheet.typography.timestamp)
+                .monospacedDigit()
+                .foregroundStyle(.tertiary)
+        }
+    }
+}
+
+#if DEBUG
+    #Preview {
+        PeriscopeToolsPreview { fixture in
+            PeriscopeViewer(store: fixture.store)
+        }
+    }
+#endif

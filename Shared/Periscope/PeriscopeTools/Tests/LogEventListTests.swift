@@ -18,14 +18,13 @@ struct LogEventListTests {
 
         // A non-trivial depth closure: album-1 events indent one level below
         // photos, so the row's indentation path is exercised.
-        let host = UIHostingController(rootView: NavigationStack {
-            LogEventList(
-                events: events,
-                store: store,
-                scopePath: { _ in "app / photos" },
-                depth: { $0.primaryScope == album.id ? 1 : 0 },
-            )
-        })
+        let list = LogEventList(
+            events: events,
+            store: store,
+            scopePath: { _ in "app / photos" },
+            depth: { $0.primaryScope == album.id ? 1 : 0 },
+        )
+        let host = UIHostingController(rootView: NavigationStack { list })
         try await showHosted(host) { _ in
             #expect(await waitUntil { host.view.window != nil })
         }

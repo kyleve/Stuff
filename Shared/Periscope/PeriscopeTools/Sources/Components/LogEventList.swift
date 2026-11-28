@@ -14,16 +14,21 @@ struct LogEventList: View {
 
     var body: some View {
         List(events) { event in
-            NavigationLink {
-                LogEventDetailView(
-                    event: event,
-                    scopePath: scopePath(event),
-                    store: store,
-                )
-            } label: {
-                LogEventRow(event: event, scopePath: scopePath(event), depth: depth(event))
-            }
+            LogEventLink(
+                event: event,
+                scopePath: scopePath(event),
+                store: store,
+                depth: depth(event),
+            )
         }
         .listStyle(.plain)
     }
 }
+
+#if DEBUG
+    #Preview {
+        PeriscopeToolsPreview { fixture in
+            PeriscopeViewer(store: fixture.store)
+        }
+    }
+#endif

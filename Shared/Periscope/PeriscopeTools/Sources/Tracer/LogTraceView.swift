@@ -39,7 +39,7 @@ public struct LogTraceView: View {
                 )
             }
             Section("Leading up to it") {
-                content
+                LogTraceTrail(model: model, store: store)
             }
         }
         .listStyle(.plain)
@@ -53,9 +53,13 @@ public struct LogTraceView: View {
             await model.load()
         }
     }
+}
 
-    @ViewBuilder
-    private var content: some View {
+private struct LogTraceTrail: View {
+    let model: LogTraceModel
+    let store: PeriscopeStore
+
+    var body: some View {
         switch model.state {
             case .loading:
                 ProgressView()
@@ -67,16 +71,16 @@ public struct LogTraceView: View {
                     .foregroundStyle(.secondary)
             case let .loaded(trail):
                 ForEach(trail) { event in
-                    NavigationLink {
-                        LogEventDetailView(
-                            event: event,
-                            scopePath: model.scopePath(for: event),
-                            store: store,
-                        )
-                    } label: {
-                        LogEventRow(event: event, scopePath: model.scopePath(for: event))
-                    }
+                    LogEventLink(event: event, scopePath: model.scopePath(for: event), store: store)
                 }
         }
     }
 }
+
+#if DEBUG
+    #Preview {
+        PeriscopeToolsPreview { fixture in
+            LogTraceView(store: fixture.store, origin: fixture.event)
+        }
+    }
+#endif

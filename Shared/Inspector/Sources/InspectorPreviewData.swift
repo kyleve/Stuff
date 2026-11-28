@@ -51,6 +51,37 @@
     /// In-memory fixtures so the inspector previews standalone, without any host
     /// app or on-disk store.
     enum InspectorPreviewData {
+        @MainActor static let defaultsDomain: InspectorConfiguration.DefaultsDomain = {
+            let name = "Inspector.preview.defaults"
+            let defaults = UserDefaults(suiteName: name)!
+            defaults.setPersistentDomain(["Show Details": true], forName: name)
+            return .init(
+                id: .init(rawValue: "defaults"),
+                title: "Preferences",
+                userDefaults: defaults,
+                persistentDomainName: name,
+            )
+        }()
+
+        static let files = InspectorConfiguration.FileContainer(
+            id: .init(rawValue: "files"),
+            title: "Files",
+            rootURL: FileManager.default.temporaryDirectory.appending(path: "InspectorPreview"),
+        )
+
+        @MainActor static var configuration: InspectorConfiguration {
+            .init(
+                title: "Inspector",
+                fileContainers: [files],
+                defaultsDomains: [defaultsDomain],
+                swiftDataSources: [],
+            )
+        }
+
+        @MainActor static let modeController = InspectorModeController(
+            userDefaults: UserDefaults(suiteName: "Inspector.preview.control")!,
+        )
+
         @MainActor
         static func populatedConfiguration() -> InspectorSwiftDataConfiguration {
             let container = makeContainer()
@@ -159,18 +190,20 @@
                     ProgressView()
                 }
             }
-            .task {
-                await model.loadEntities()
-                guard let book = model.entities.first(where: { $0.name == "InspectorPreviewBook" })
-                else {
-                    return
-                }
-                entity = book
-                do {
-                    row = try await model.rows(for: book).rows.first
-                } catch {
-                    model.report(error)
-                }
+            .task { await loadBook() }
+        }
+
+        private func loadBook() async {
+            await model.loadEntities()
+            guard let book = model.entities.first(where: { $0.name == "InspectorPreviewBook" })
+            else {
+                return
+            }
+            entity = book
+            do {
+                row = try await model.rows(for: book).rows.first
+            } catch {
+                model.report(error)
             }
         }
     }
@@ -195,19 +228,53 @@
                     ProgressView()
                 }
             }
-            .task {
-                await model.loadEntities()
-                guard let author = model.entities
-                    .first(where: { $0.name == "InspectorPreviewAuthor" })
-                else {
-                    return
-                }
-                entity = author
-                do {
-                    rowID = try await model.rows(for: author).rows.first?.persistentID
-                } catch {
-                    model.report(error)
-                }
+            .task { await loadAuthor() }
+        }
+
+        private func loadAuthor() async {
+            await model.loadEntities()
+            guard let author = model.entities
+                .first(where: { $0.name == "InspectorPreviewAuthor" })
+            else {
+                return
+            }
+            entity = author
+            do {
+                rowID = try await model.rows(for: author).rows.first?.persistentID
+            } catch {
+                model.report(error)
+            }
+        }
+    }
+
+    @MainActor
+    struct InspectorFilesPreview: View {
+        let container = InspectorPreviewData.files
+        let item = InspectorFileItem(
+            url: InspectorPreviewData.files.rootURL.appending(path: "Example.txt"),
+            isDirectory: false,
+            isSymbolicLink: false,
+            isHidden: false,
+            byteCount: 240,
+            modificationDate: nil,
+            deletionProhibition: nil,
+        )
+        let fileSystem = InspectorFileSystem(
+            configuredContainerRoots: [InspectorPreviewData.files.rootURL],
+            protectedStoreURLs: [],
+            unresolvedProtectionRoots: [],
+        )
+
+        var body: some View {
+            NavigationStack {
+                InspectorFileBrowserContent(
+                    isEmpty: false,
+                    items: [item],
+                    container: container,
+                    fileSystem: fileSystem,
+                    preview: { _ in },
+                    delete: { _ in },
+                )
             }
         }
     }

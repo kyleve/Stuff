@@ -33,6 +33,8 @@ import TestHostSupport
 
 ## Public API
 
+- `hostedAccessibilityObjects(in:)` walks native and virtual accessibility elements. `activateHostedButton(_:in:matching:)` waits for and activates a visible button. `waitForHostedState(_:in:until:)` names a stalled interaction and reports its mounted labels. Link and import `AccessibilitySnapshotParser` in test bundles that exercise SwiftUI accessibility on a fresh simulator.
+
 - `show(_:loadAndPlaceView:timeout:perform:)` — hosts a `UIViewController` in the test host's main window for the duration of `perform`, driving the real UIKit appearance lifecycle (`addChild` → attach → `didMove(toParent:)`, reversed on teardown) and restoring `layer.speed` even if the body throws. Synchronous and async-body overloads keep the view hosted while their body runs.
 - `hostKeyWindow()` — the host's designated window (see below), or `nil` before the scene connects.
 - `waitFor(timeout:predicate:)` — pump the run loop until a predicate holds.

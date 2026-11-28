@@ -18,7 +18,7 @@ public struct LogHierarchyView: View {
     }
 
     public var body: some View {
-        content
+        ScopeHierarchyContent(model: model, store: store)
             .navigationTitle("Hierarchy")
             .navigationBarTitleDisplayMode(.inline)
             .periscopeBroadwayRoot()
@@ -29,9 +29,13 @@ public struct LogHierarchyView: View {
                 await model.run()
             }
     }
+}
 
-    @ViewBuilder
-    private var content: some View {
+private struct ScopeHierarchyContent: View {
+    let model: LogHierarchyModel
+    let store: PeriscopeStore
+
+    var body: some View {
         switch model.state {
             case .loading:
                 ProgressView()
@@ -49,20 +53,7 @@ public struct LogHierarchyView: View {
                     description: Text("No log scopes have been defined yet."),
                 )
             case let .loaded(forest):
-                List {
-                    OutlineGroup(forest, children: \.children) { node in
-                        NavigationLink {
-                            ScopeEventsView(
-                                store: store,
-                                scopeID: node.id,
-                                scopePath: model.path(for: node.id),
-                            )
-                        } label: {
-                            ScopeTreeRow(node: node)
-                        }
-                    }
-                }
-                .listStyle(.plain)
+                ScopeHierarchyOutline(forest: forest, model: model, store: store)
         }
     }
 }
@@ -70,18 +61,47 @@ public struct LogHierarchyView: View {
 /// One scope in the outline: its name and a subtree event count.
 private struct ScopeTreeRow: View {
     let node: ScopeNode
+    let store: PeriscopeStore
+    let scopePath: () -> String
 
     @Environment(\.stylesheet) private var stylesheet
 
     var body: some View {
-        HStack {
-            Text(node.name)
-                .font(stylesheet.typography.scopeName)
-            Spacer()
-            Text("\(node.subtreeCount)")
-                .font(stylesheet.typography.scopeCount)
-                .monospacedDigit()
-                .foregroundStyle(.secondary)
+        NavigationLink {
+            ScopeEventsView(store: store, scopeID: node.id, scopePath: scopePath())
+        } label: {
+            HStack {
+                Text(node.name)
+                    .font(stylesheet.typography.scopeName)
+                Spacer()
+                Text("\(node.subtreeCount)")
+                    .font(stylesheet.typography.scopeCount)
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+            }
         }
     }
 }
+
+private struct ScopeHierarchyOutline: View {
+    let forest: [ScopeNode]
+    let model: LogHierarchyModel
+    let store: PeriscopeStore
+
+    var body: some View {
+        List {
+            OutlineGroup(forest, children: \.children) { node in
+                ScopeTreeRow(node: node, store: store, scopePath: { model.path(for: node.id) })
+            }
+        }
+        .listStyle(.plain)
+    }
+}
+
+#if DEBUG
+    #Preview {
+        PeriscopeToolsPreview { fixture in
+            LogHierarchyView(store: fixture.store)
+        }
+    }
+#endif

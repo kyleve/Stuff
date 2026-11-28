@@ -20,7 +20,7 @@ public struct SpanTreeView: View {
     }
 
     public var body: some View {
-        content
+        SpanTreeContent(model: model, store: store)
             .navigationTitle("Span Tree")
             .navigationBarTitleDisplayMode(.inline)
             .environment(\.logRowDensity, .load(from: .standard))
@@ -32,9 +32,13 @@ public struct SpanTreeView: View {
                 await model.run()
             }
     }
+}
 
-    @ViewBuilder
-    private var content: some View {
+private struct SpanTreeContent: View {
+    let model: SpanTreeModel
+    let store: PeriscopeStore
+
+    var body: some View {
         switch model.state {
             case .loading:
                 ProgressView()
@@ -52,72 +56,62 @@ public struct SpanTreeView: View {
                     description: Text("No measured spans have been recorded yet."),
                 )
             case let .loaded(tree):
-                List {
-                    OutlineGroup(tree, children: \.children) { node in
-                        NavigationLink {
-                            LogEventDetailView(
-                                event: node.began,
-                                scopePath: model.scopePath(for: node.began),
-                                store: store,
-                            )
-                        } label: {
-                            SpanTreeRow(node: node)
-                        }
-                    }
-                }
-                .listStyle(.plain)
+                SpanTreeOutline(tree: tree, model: model, store: store)
         }
     }
 }
 
-/// One span in the tree: its name, exit chip (or "open"), duration, and start.
 private struct SpanTreeRow: View {
     let node: SpanNode
-
+    let scopePath: () -> String
+    let store: PeriscopeStore
     @Environment(\.stylesheet) private var stylesheet
     @Environment(\.logRowDensity) private var density
 
     var body: some View {
         let row = stylesheet.row[density]
-        let type = stylesheet.typography
-        VStack(alignment: .leading, spacing: row.lineSpacing) {
-            HStack(spacing: row.headerSpacing) {
-                Text(node.name)
-                    .font(type.spanName)
-                Spacer()
-                status
+        NavigationLink {
+            LogEventDetailView(event: node.began, scopePath: scopePath(), store: store)
+        } label: {
+            VStack(alignment: .leading, spacing: row.lineSpacing) {
+                SpanTreeHeader(node: node)
+                SpanTreeTiming(node: node)
             }
-            HStack(spacing: row.headerSpacing) {
-                Text(timing)
-                    .font(type.spanAge)
-                    .monospacedDigit()
-                    .foregroundStyle(.secondary)
-                Text(node.begin, format: .dateTime.hour().minute().second())
-                    .font(type.spanDetail)
-                    .monospacedDigit()
-                    .foregroundStyle(.tertiary)
-            }
+            .padding(.vertical, row.verticalPadding)
         }
-        .padding(.vertical, row.verticalPadding)
     }
+}
 
-    /// The exit chip, or a word for a span that has no chip to show: "open"
-    /// while it runs, "ended" for a closed span whose row recorded no exit.
-    @ViewBuilder
-    private var status: some View {
-        switch node.outcome {
-            case .open:
-                Text("open")
-                    .font(stylesheet.typography.spanDetail)
-                    .foregroundStyle(.secondary)
-            case let .ended(ended):
-                if let mode = ended.mode {
-                    SpanExitBadge(mode: mode)
-                } else {
-                    Text("ended")
-                        .font(stylesheet.typography.spanDetail)
-                        .foregroundStyle(.secondary)
-                }
+private struct SpanTreeHeader: View {
+    let node: SpanNode
+    @Environment(\.stylesheet) private var stylesheet
+    @Environment(\.logRowDensity) private var density
+
+    var body: some View {
+        HStack(spacing: stylesheet.row[density].headerSpacing) {
+            Text(node.name)
+                .font(stylesheet.typography.spanName)
+            Spacer()
+            SpanOutcomeLabel(node: node)
+        }
+    }
+}
+
+private struct SpanTreeTiming: View {
+    let node: SpanNode
+    @Environment(\.stylesheet) private var stylesheet
+    @Environment(\.logRowDensity) private var density
+
+    var body: some View {
+        HStack(spacing: stylesheet.row[density].headerSpacing) {
+            Text(timing)
+                .font(stylesheet.typography.spanAge)
+                .monospacedDigit()
+                .foregroundStyle(.secondary)
+            Text(node.begin, format: .dateTime.hour().minute().second())
+                .font(stylesheet.typography.spanDetail)
+                .monospacedDigit()
+                .foregroundStyle(.tertiary)
         }
     }
 
@@ -137,3 +131,52 @@ private struct SpanTreeRow: View {
         }
     }
 }
+
+private struct SpanOutcomeLabel: View {
+    let node: SpanNode
+    @Environment(\.stylesheet) private var stylesheet
+
+    var body: some View {
+        switch node.outcome {
+            case .open:
+                Text("open")
+                    .font(stylesheet.typography.spanDetail)
+                    .foregroundStyle(.secondary)
+            case let .ended(ended):
+                if let mode = ended.mode {
+                    SpanExitBadge(mode: mode)
+                } else {
+                    Text("ended")
+                        .font(stylesheet.typography.spanDetail)
+                        .foregroundStyle(.secondary)
+                }
+        }
+    }
+}
+
+private struct SpanTreeOutline: View {
+    let tree: [SpanNode]
+    let model: SpanTreeModel
+    let store: PeriscopeStore
+
+    var body: some View {
+        List {
+            OutlineGroup(tree, children: \.children) { node in
+                SpanTreeRow(
+                    node: node,
+                    scopePath: { model.scopePath(for: node.began) },
+                    store: store,
+                )
+            }
+        }
+        .listStyle(.plain)
+    }
+}
+
+#if DEBUG
+    #Preview {
+        PeriscopeToolsPreview { fixture in
+            SpanTreeView(store: fixture.store)
+        }
+    }
+#endif

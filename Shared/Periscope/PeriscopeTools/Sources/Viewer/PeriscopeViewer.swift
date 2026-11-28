@@ -29,7 +29,7 @@ public struct PeriscopeViewer: View {
     /// reliably hosts on the pushing stack's bar — matching the sibling
     /// developer tools — and every push lands on that one stack (no
     /// cross-surface toolbar/back-stack bleed).
-    private enum Mode: Hashable, CaseIterable {
+    fileprivate enum Mode: Hashable, CaseIterable {
         case logs
         case hierarchy
 
@@ -44,7 +44,7 @@ public struct PeriscopeViewer: View {
     /// The span surfaces reachable from the Logs toolbar's Spans menu, pushed
     /// onto the host stack via `navigationDestination` (a menu keeps the bar
     /// uncrowded and both surfaces discoverable).
-    private enum SpanDestination: Hashable, Identifiable {
+    fileprivate enum SpanDestination: Hashable, Identifiable {
         case tree
         case history
 
@@ -66,7 +66,7 @@ public struct PeriscopeViewer: View {
     }
 
     public var body: some View {
-        content
+        LogViewerContent(model: model, store: store, mode: mode)
             .navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { toolbarContent }
@@ -112,158 +112,96 @@ public struct PeriscopeViewer: View {
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
         ToolbarItem(placement: .principal) {
-            Picker("View", selection: $mode) {
-                ForEach(Mode.allCases, id: \.self) { mode in
-                    Text(mode.label).tag(mode)
-                }
-            }
-            .pickerStyle(.segmented)
-            .fixedSize()
+            LogViewerModePicker(mode: $mode)
         }
         if mode == .logs {
             ToolbarItem(placement: .primaryAction) {
-                filterMenu
+                LogFilterMenu(model: model, density: $density)
             }
             ToolbarItem(placement: .topBarTrailing) {
-                spansMenu
+                SpanNavigationMenu(destination: $spanDestination)
             }
             ToolbarItem(placement: .topBarTrailing) {
-                exportButton
+                LogExportButton(export: exportNDJSON)
             }
         }
     }
 
-    /// The selected surface: the searchable logs list, or the scope hierarchy.
-    @ViewBuilder
-    private var content: some View {
-        @Bindable var model = model
+    private func exportNDJSON() async {
+        do {
+            export = try await NDJSONExport(text: model.exportNDJSON())
+        } catch {
+            PeriscopeToolsLog.failures.error(
+                "NDJSON export could not read the store: \(error, privacy: .public)",
+            )
+            exportFailed = true
+        }
+    }
+}
+
+private struct LogViewerContent: View {
+    @Bindable var model: PeriscopeViewerModel
+    let store: PeriscopeStore
+    let mode: PeriscopeViewer.Mode
+
+    var body: some View {
         switch mode {
             case .logs:
-                logsList
+                LogViewerList(model: model, store: store)
                     .searchable(text: $model.searchText)
             case .hierarchy:
                 LogHierarchyView(store: store)
         }
     }
+}
 
-    /// The flat, newest-first logs list — loading / failed / empty / loaded.
-    @ViewBuilder
-    private var logsList: some View {
-        switch model.state {
-            case .loading:
-                ProgressView()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            case let .failed(reason):
-                ContentUnavailableView(
-                    "Logs Unavailable",
-                    systemSymbol: .exclamationmarkTriangle,
-                    description: Text(reason),
-                )
-            case let .loaded(events) where events.isEmpty:
-                ContentUnavailableView(
-                    "No Logs",
-                    systemSymbol: .docTextMagnifyingglass,
-                    description: Text("No stored events match the current filters."),
-                )
-            case let .loaded(events):
-                List {
-                    ForEach(events) { event in
-                        NavigationLink {
-                            LogEventDetailView(
-                                event: event,
-                                scopePath: model.scopePath(for: event),
-                                store: store,
-                            )
-                        } label: {
-                            LogEventRow(event: event, scopePath: model.scopePath(for: event))
-                        }
-                    }
-                    if model.canLoadMore {
-                        Button("Load More") {
-                            Task { await model.loadMore() }
-                        }
-                        .frame(maxWidth: .infinity)
-                    }
-                }
-                .listStyle(.plain)
+private struct LogViewerModePicker: View {
+    @Binding var mode: PeriscopeViewer.Mode
+
+    var body: some View {
+        Picker("View", selection: $mode) {
+            ForEach(PeriscopeViewer.Mode.allCases, id: \.self) { mode in
+                Text(mode.label).tag(mode)
+            }
         }
+        .pickerStyle(.segmented)
+        .fixedSize()
     }
+}
 
-    private var filterMenu: some View {
-        @Bindable var model = model
-        return Menu {
-            Picker("Level", selection: $model.minimumLevel) {
-                Text("All Levels").tag(LogLevel?.none)
-                ForEach(model.availableLevels, id: \.self) { level in
-                    Text(level.displayName).tag(LogLevel?.some(level))
-                }
-            }
-            Picker("Event", selection: $model.selectedEventName) {
-                Text("All Events").tag(String?.none)
-                ForEach(model.eventNames, id: \.self) { name in
-                    Text(name).tag(String?.some(name))
-                }
-            }
-            Picker("Scope", selection: $model.selectedScope) {
-                Text("All Scopes").tag(ScopeID?.none)
-                ForEach(model.scopeChoices) { choice in
-                    Text(choice.path).tag(ScopeID?.some(choice.id))
-                }
-            }
-            Picker("Session", selection: $model.selectedSessionID) {
-                Text("All Sessions").tag(UUID?.none)
-                ForEach(model.sessions) { session in
-                    Text(session.displayLabel).tag(UUID?.some(session.id))
-                }
-            }
-            Picker("Span Exit", selection: $model.selectedSpanExitMode) {
-                Text("All Events").tag(SpanExit.Mode?.none)
-                ForEach(SpanExit.Mode.allCases, id: \.self) { mode in
-                    Text(mode.displayName).tag(SpanExit.Mode?.some(mode))
-                }
-            }
-            Divider()
-            Picker("Row Density", selection: $density) {
-                ForEach(PeriscopeStylesheet.Density.allCases, id: \.self) { density in
-                    Text(density.displayName).tag(density)
-                }
-            }
-        } label: {
-            Label("Filter", systemSymbol: .line3HorizontalDecreaseCircle)
-        }
-    }
+private struct SpanNavigationMenu: View {
+    @Binding var destination: PeriscopeViewer.SpanDestination?
 
-    /// The Spans menu: the store's span surfaces, grouped so the bar stays
-    /// uncrowded. Selecting one pushes it via `spanDestination`.
-    private var spansMenu: some View {
+    var body: some View {
         Menu {
-            Button {
-                spanDestination = .tree
-            } label: {
-                Label("Span Tree", systemSymbol: .stopwatch)
-            }
-            Button {
-                spanDestination = .history
-            } label: {
-                Label("Span History", systemSymbol: .chartBarXaxis)
-            }
+            SpanNavigationButton(destination: .tree) { destination = .tree }
+            SpanNavigationButton(destination: .history) { destination = .history }
         } label: {
             Label("Spans", systemSymbol: .stopwatch)
         }
     }
+}
 
-    private var exportButton: some View {
-        Button {
-            Task {
-                do {
-                    export = try await NDJSONExport(text: model.exportNDJSON())
-                } catch {
-                    PeriscopeToolsLog.failures.error(
-                        "NDJSON export could not read the store: \(error, privacy: .public)",
-                    )
-                    exportFailed = true
-                }
+private struct SpanNavigationButton: View {
+    let destination: PeriscopeViewer.SpanDestination
+    let navigate: () -> Void
+
+    var body: some View {
+        Button(action: navigate) {
+            switch destination {
+                case .tree: Label("Span Tree", systemSymbol: .stopwatch)
+                case .history: Label("Span History", systemSymbol: .chartBarXaxis)
             }
+        }
+    }
+}
+
+private struct LogExportButton: View {
+    let export: () async -> Void
+
+    var body: some View {
+        Button {
+            Task { await export() }
         } label: {
             Label("Export", systemSymbol: .squareAndArrowUp)
         }
@@ -300,3 +238,59 @@ private struct NDJSONExportSheet: View {
         }
     }
 }
+
+private struct LogViewerList: View {
+    let model: PeriscopeViewerModel
+    let store: PeriscopeStore
+
+    var body: some View {
+        switch model.state {
+            case .loading:
+                ProgressView()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            case let .failed(reason):
+                ContentUnavailableView(
+                    "Logs Unavailable",
+                    systemSymbol: .exclamationmarkTriangle,
+                    description: Text(reason),
+                )
+            case let .loaded(events) where events.isEmpty:
+                ContentUnavailableView(
+                    "No Logs",
+                    systemSymbol: .docTextMagnifyingglass,
+                    description: Text("No stored events match the current filters."),
+                )
+            case let .loaded(events):
+                LogViewerEvents(events: events, model: model, store: store)
+        }
+    }
+}
+
+private struct LogViewerEvents: View {
+    let events: [StoredLogEvent]
+    let model: PeriscopeViewerModel
+    let store: PeriscopeStore
+
+    var body: some View {
+        List {
+            ForEach(events) { event in
+                LogEventLink(event: event, scopePath: model.scopePath(for: event), store: store)
+            }
+            if model.canLoadMore {
+                Button("Load More") {
+                    Task { await model.loadMore() }
+                }
+                .frame(maxWidth: .infinity)
+            }
+        }
+        .listStyle(.plain)
+    }
+}
+
+#if DEBUG
+    #Preview {
+        PeriscopeToolsPreview { fixture in
+            PeriscopeViewer(store: fixture.store)
+        }
+    }
+#endif

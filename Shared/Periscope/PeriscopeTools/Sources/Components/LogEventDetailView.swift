@@ -19,39 +19,7 @@ struct LogEventDetailView: View {
 
     var body: some View {
         List {
-            Section("Event") {
-                LabeledContent("Level") {
-                    LogLevelBadge(level: event.level)
-                }
-                LabeledContent("Type", value: "\(event.eventName) v\(event.eventVersion)")
-                LabeledContent(
-                    "Date",
-                    value: event.date.formatted(date: .abbreviated, time: .standard),
-                )
-                if !scopePath.isEmpty {
-                    LabeledContent("Scope", value: scopePath)
-                }
-                if let span = event.spanID {
-                    LabeledContent("Span", value: span.description)
-                }
-                if let exitMode = event.spanExitMode {
-                    LabeledContent("Exit") {
-                        HStack(spacing: 6) {
-                            SpanExitBadge(mode: exitMode)
-                            if let reason = event.exitReason {
-                                Text(reason)
-                            }
-                        }
-                    }
-                }
-                if let callSite = event.callSite {
-                    LabeledContent("Emitted From", value: callSite.description)
-                }
-                if let externalID = event.externalID {
-                    LabeledContent("Object", value: externalID)
-                }
-                LabeledContent("Session", value: event.sessionID.uuidString)
-            }
+            LogEventMetadataSection(event: event, scopePath: scopePath)
 
             Section("Message") {
                 Text(event.message)
@@ -59,40 +27,21 @@ struct LogEventDetailView: View {
                     .textSelection(.enabled)
             }
 
-            if !event.tags.isEmpty {
-                Section("Tags") {
-                    ForEach(event.tags, id: \.key) { tag in
-                        LabeledContent(tag.key.rawValue, value: tag.value.stringValue)
-                    }
-                }
-            }
+            LogEventTagsSection(tags: event.tags)
 
             if event.ambientSnapshotID != nil {
                 Section("Ambient") {
-                    ambientContent
+                    LogEventAmbientRows(ambient: ambient)
                 }
             }
 
             if let payload = event.payloadPresentation {
-                Section("Payload") {
-                    switch payload {
-                        case let .json(pretty):
-                            Text(pretty)
-                                .font(stylesheet.typography.payload)
-                                .textSelection(.enabled)
-                        case let .unreadable(byteCount):
-                            Label(
-                                "Unreadable payload (\(byteCount) bytes)",
-                                systemSymbol: .exclamationmarkTriangle,
-                            )
-                            .foregroundStyle(.secondary)
-                    }
-                }
+                LogEventPayloadSection(payload: payload)
             }
 
             if !event.attachments.isEmpty {
                 Section("Attachments") {
-                    attachmentsContent
+                    LogEventAttachmentRows(attachments: attachments)
                 }
             }
         }
@@ -100,14 +49,7 @@ struct LogEventDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                NavigationLink {
-                    LogTraceView(store: store, origin: event)
-                } label: {
-                    Label(
-                        "Trace",
-                        systemSymbol: .pointBottomleftForwardToPointToprightScurvepath,
-                    )
-                }
+                LogTraceLink(event: event, store: store)
             }
         }
         .task(id: Inputs(store: ObjectIdentifier(store), event: event.id)) {
@@ -137,11 +79,48 @@ struct LogEventDetailView: View {
         let store: ObjectIdentifier
         let event: UUID
     }
+}
 
-    /// What the system was doing when the event was recorded — one row per
-    /// ambient kind, sorted so the section doesn't reshuffle between events.
-    @ViewBuilder
-    private var ambientContent: some View {
+private struct LogEventTagsSection: View {
+    let tags: [LogTag]
+
+    var body: some View {
+        if !tags.isEmpty {
+            Section("Tags") {
+                ForEach(tags, id: \.key) { tag in
+                    LabeledContent(tag.key.rawValue, value: tag.value.stringValue)
+                }
+            }
+        }
+    }
+}
+
+private struct LogEventPayloadSection: View {
+    let payload: StoredLogEvent.PayloadPresentation
+    @Environment(\.stylesheet) private var stylesheet
+
+    var body: some View {
+        Section("Payload") {
+            switch payload {
+                case let .json(pretty):
+                    Text(pretty)
+                        .font(stylesheet.typography.payload)
+                        .textSelection(.enabled)
+                case let .unreadable(byteCount):
+                    Label(
+                        "Unreadable payload (\(byteCount) bytes)",
+                        systemSymbol: .exclamationmarkTriangle,
+                    )
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+}
+
+private struct LogEventAmbientRows: View {
+    let ambient: Result<AmbientSnapshot?, Error>?
+
+    var body: some View {
         switch ambient {
             case nil:
                 ProgressView()
@@ -160,9 +139,12 @@ struct LogEventDetailView: View {
                 }
         }
     }
+}
 
-    @ViewBuilder
-    private var attachmentsContent: some View {
+private struct LogEventAttachmentRows: View {
+    let attachments: Result<[LogAttachment], Error>?
+
+    var body: some View {
         switch attachments {
             case nil:
                 ProgressView()
@@ -210,3 +192,31 @@ extension StoredLogEvent {
         return .json(String(decoding: data, as: UTF8.self))
     }
 }
+
+private struct LogTraceLink: View {
+    let event: StoredLogEvent
+    let store: PeriscopeStore
+
+    var body: some View {
+        NavigationLink {
+            LogTraceView(store: store, origin: event)
+        } label: {
+            Label(
+                "Trace",
+                systemSymbol: .pointBottomleftForwardToPointToprightScurvepath,
+            )
+        }
+    }
+}
+
+#if DEBUG
+    #Preview {
+        PeriscopeToolsPreview { fixture in
+            LogEventDetailView(
+                event: fixture.event,
+                scopePath: fixture.scope.name,
+                store: fixture.store,
+            )
+        }
+    }
+#endif

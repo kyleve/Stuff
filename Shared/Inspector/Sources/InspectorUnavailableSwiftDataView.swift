@@ -18,27 +18,19 @@ struct InspectorUnavailableSwiftDataView: View {
             if model.erasingSwiftDataSources.contains(source.id) {
                 ProgressView("Deleting Store…")
             } else if model.canEraseUnreadableStore(id: source.id) {
-                Button(
-                    "Delete Unreadable Store",
-                    systemSymbol: .trash,
-                    role: .destructive,
+                InspectorDeleteButton(
+                    title: "Delete Unreadable Store",
+                    symbol: .trash,
+                    question: "Delete the unreadable SwiftData store?",
+                    confirmation: "Delete Store",
+                    message: """
+                    The database, its recovery files, and external data will be permanently \
+                    deleted and this source will be removed from Inspector until the app is \
+                    relaunched. This cannot be undone.
+                    """,
+                    isConfirming: $isConfirmingErase,
                 ) {
-                    isConfirmingErase = true
-                }
-                .confirmationDialog(
-                    "Delete the unreadable SwiftData store?",
-                    isPresented: $isConfirmingErase,
-                    titleVisibility: .visible,
-                ) {
-                    Button("Delete Store", role: .destructive, action: eraseStore)
-                } message: {
-                    Text(
-                        """
-                        The database, its recovery files, and external data will be permanently \
-                        deleted and this source will be removed from Inspector until the app is \
-                        relaunched. This cannot be undone.
-                        """,
-                    )
+                    eraseStore()
                 }
             }
         }

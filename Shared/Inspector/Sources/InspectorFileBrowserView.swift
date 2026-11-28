@@ -3,7 +3,7 @@ import SFSafeSymbols
 import SwiftUI
 
 struct InspectorFileBrowserView: View {
-    private enum SortOrder: String, CaseIterable {
+    fileprivate enum SortOrder: String, CaseIterable {
         case name = "Name"
         case modificationDate = "Modified"
         case size = "Size"
@@ -35,7 +35,14 @@ struct InspectorFileBrowserView: View {
     var body: some View {
         Group {
             if hasLoaded {
-                content
+                InspectorFileBrowserContent(
+                    isEmpty: items.isEmpty,
+                    items: sortedItems,
+                    container: container,
+                    fileSystem: fileSystem,
+                    preview: preview,
+                    delete: delete,
+                )
             } else {
                 ProgressView()
             }
@@ -49,53 +56,11 @@ struct InspectorFileBrowserView: View {
         .quickLookPreview($previewURL)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Menu {
-                    Picker("Sort by", selection: $sortOrder) {
-                        ForEach(SortOrder.allCases, id: \.self) { order in
-                            Text(order.rawValue).tag(order)
-                        }
-                    }
-                    Toggle("Ascending", isOn: $isSortAscending)
-                } label: {
-                    Label("Sort", systemSymbol: .arrowUpArrowDown)
-                }
+                InspectorFileSortMenu(sortOrder: $sortOrder, isAscending: $isSortAscending)
             }
         }
         .alert("File Operation Failed", isPresented: $isPresentingError) {} message: {
             Text(errorMessage ?? "The operation failed.")
-        }
-    }
-
-    @ViewBuilder
-    private var content: some View {
-        if items.isEmpty {
-            ContentUnavailableView(
-                "Empty Folder",
-                systemSymbol: .folder,
-                description: Text("This folder contains no files."),
-            )
-        } else if filteredItems.isEmpty {
-            ContentUnavailableView.search
-        } else {
-            List(sortedItems) { item in
-                FileItemView(
-                    item: item,
-                    destination: {
-                        if item.isDirectory, !item.isSymbolicLink {
-                            AnyView(InspectorFileBrowserView(
-                                container: container,
-                                directory: item.url,
-                                fileSystem: fileSystem,
-                            ))
-                        } else {
-                            AnyView(InspectorFileDetailView(item: item) {
-                                await preview(item)
-                            })
-                        }
-                    },
-                    onDelete: { await delete(item) },
-                )
-            }
         }
     }
 
@@ -174,99 +139,20 @@ struct InspectorFileBrowserView: View {
     }
 }
 
-private struct FileItemView: View {
-    let item: InspectorFileItem
-    let destination: () -> AnyView
-    let onDelete: () async -> Void
-
-    @State private var isConfirmingDeletion = false
+private struct InspectorFileSortMenu: View {
+    @Binding var sortOrder: InspectorFileBrowserView.SortOrder
+    @Binding var isAscending: Bool
 
     var body: some View {
-        NavigationLink(destination: destination) {
-            Label {
-                VStack(alignment: .leading) {
-                    Text(item.name)
-                    if let detail {
-                        Text(detail)
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                    }
-                    if let deletionProhibition = item.deletionProhibition {
-                        Label(deletionProhibition, systemSymbol: .lock)
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(2)
-                    }
-                }
-            } icon: {
-                Image(systemSymbol: item.isSymbolicLink
-                    ? .link
-                    : item.isDirectory ? .folder : .doc)
-            }
-        }
-        .swipeActions {
-            if item.deletionProhibition == nil {
-                Button("Delete", systemSymbol: .trash, role: .destructive) {
-                    isConfirmingDeletion = true
+        Menu {
+            Picker("Sort by", selection: $sortOrder) {
+                ForEach(InspectorFileBrowserView.SortOrder.allCases, id: \.self) { order in
+                    Text(order.rawValue).tag(order)
                 }
             }
+            Toggle("Ascending", isOn: $isAscending)
+        } label: {
+            Label("Sort", systemSymbol: .arrowUpArrowDown)
         }
-        .confirmationDialog(
-            "Delete \(item.name)?",
-            isPresented: $isConfirmingDeletion,
-            titleVisibility: .visible,
-        ) {
-            Button("Delete", role: .destructive) {
-                Task { await onDelete() }
-            }
-        } message: {
-            Text(item.isDirectory
-                ? "The folder and everything inside it will be deleted."
-                : "The file will be deleted.")
-        }
-    }
-
-    private var detail: String? {
-        if item.isDirectory {
-            if item.isSymbolicLink {
-                return item.isHidden ? "Hidden symbolic link" : "Symbolic link"
-            }
-            return item.isHidden ? "Hidden folder" : nil
-        }
-        if let byteCount = item.byteCount {
-            return ByteCountFormatStyle(style: .file).format(Int64(byteCount))
-        }
-        return item.isHidden ? "Hidden file" : nil
-    }
-}
-
-private struct InspectorFileDetailView: View {
-    let item: InspectorFileItem
-    let preview: () async -> Void
-
-    var body: some View {
-        Form {
-            Section("File") {
-                LabeledContent("Name", value: item.name)
-                LabeledContent("Path", value: item.url.path(percentEncoded: false))
-                if let byteCount = item.byteCount {
-                    LabeledContent(
-                        "Size",
-                        value: ByteCountFormatStyle(style: .file).format(Int64(byteCount)),
-                    )
-                }
-                if let modificationDate = item.modificationDate {
-                    LabeledContent(
-                        "Modified",
-                        value: modificationDate.formatted(date: .abbreviated, time: .standard),
-                    )
-                }
-            }
-            Button("Preview File", systemSymbol: .eye) {
-                Task { await preview() }
-            }
-        }
-        .navigationTitle(item.name)
-        .navigationBarTitleDisplayMode(.inline)
     }
 }

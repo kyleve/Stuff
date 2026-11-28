@@ -18,15 +18,31 @@ public struct OpenSpansView: View {
 
     public var body: some View {
         TimelineView(.periodic(from: .now, by: 1)) { _ in
-            content(spans: system.openSpans(), now: ContinuousClock().now)
+            OpenSpansList(
+                spans: system.openSpans(),
+                now: ContinuousClock().now,
+                scopePath: scopePath(for:),
+            )
         }
         .navigationTitle("Open Spans")
         .navigationBarTitleDisplayMode(.inline)
         .periscopeBroadwayRoot()
     }
 
-    @ViewBuilder
-    private func content(spans: [OpenSpan], now: ContinuousClock.Instant) -> some View {
+    private func scopePath(for span: OpenSpan) -> String {
+        guard let primary = span.scopes.first else { return "" }
+        return LogScope.ancestry(of: primary) { system.scope(for: $0) }
+            .map(\.name)
+            .joined(separator: " / ")
+    }
+}
+
+private struct OpenSpansList: View {
+    let spans: [OpenSpan]
+    let now: ContinuousClock.Instant
+    let scopePath: (OpenSpan) -> String
+
+    var body: some View {
         if spans.isEmpty {
             ContentUnavailableView(
                 "No Open Spans",
@@ -35,17 +51,10 @@ public struct OpenSpansView: View {
             )
         } else {
             List(spans, id: \.id) { span in
-                OpenSpanRow(span: span, now: now, scopePath: scopePath(for: span))
+                OpenSpanRow(span: span, now: now, scopePath: scopePath(span))
             }
             .listStyle(.plain)
         }
-    }
-
-    private func scopePath(for span: OpenSpan) -> String {
-        guard let primary = span.scopes.first else { return "" }
-        return LogScope.ancestry(of: primary) { system.scope(for: $0) }
-            .map(\.name)
-            .joined(separator: " / ")
     }
 }
 
@@ -58,29 +67,48 @@ private struct OpenSpanRow: View {
 
     var body: some View {
         let row = stylesheet.row.comfortable
-        let type = stylesheet.typography
         VStack(alignment: .leading, spacing: row.lineSpacing) {
-            HStack(spacing: row.headerSpacing) {
-                Text(span.name)
-                    .font(type.spanName)
-                Spacer()
-                Text((now - span.start).formatted())
-                    .font(type.spanAge)
-                    .monospacedDigit()
-                    .foregroundStyle(.secondary)
-            }
-            HStack(spacing: row.headerSpacing) {
-                Text(lifetimeLabel)
-                    .font(type.spanDetail)
-                    .foregroundStyle(.secondary)
-                if !scopePath.isEmpty {
-                    Text(scopePath)
-                        .font(type.spanDetail)
-                        .foregroundStyle(.tertiary)
-                }
-            }
+            OpenSpanHeader(span: span, now: now)
+            OpenSpanLifetime(span: span, scopePath: scopePath)
         }
         .padding(.vertical, row.verticalPadding)
+    }
+}
+
+private struct OpenSpanHeader: View {
+    let span: OpenSpan
+    let now: ContinuousClock.Instant
+    @Environment(\.stylesheet) private var stylesheet
+
+    var body: some View {
+        HStack(spacing: stylesheet.row.comfortable.headerSpacing) {
+            Text(span.name)
+                .font(stylesheet.typography.spanName)
+            Spacer()
+            Text((now - span.start).formatted())
+                .font(stylesheet.typography.spanAge)
+                .monospacedDigit()
+                .foregroundStyle(.secondary)
+        }
+    }
+}
+
+private struct OpenSpanLifetime: View {
+    let span: OpenSpan
+    let scopePath: String
+    @Environment(\.stylesheet) private var stylesheet
+
+    var body: some View {
+        HStack(spacing: stylesheet.row.comfortable.headerSpacing) {
+            Text(lifetimeLabel)
+                .font(stylesheet.typography.spanDetail)
+                .foregroundStyle(.secondary)
+            if !scopePath.isEmpty {
+                Text(scopePath)
+                    .font(stylesheet.typography.spanDetail)
+                    .foregroundStyle(.tertiary)
+            }
+        }
     }
 
     private var lifetimeLabel: String {
@@ -91,3 +119,20 @@ private struct OpenSpanRow: View {
         }
     }
 }
+
+#if DEBUG
+    #Preview {
+        let now = ContinuousClock().now
+        let span = OpenSpan(
+            id: SpanID(),
+            name: "Refresh catalog",
+            start: now - .seconds(36),
+            lifetime: .bounded(budget: .seconds(120)),
+            beganRecorded: true,
+            scopes: [],
+            tags: [],
+        )
+        OpenSpansList(spans: [span], now: now, scopePath: { _ in "Preview" })
+            .periscopeBroadwayRoot()
+    }
+#endif

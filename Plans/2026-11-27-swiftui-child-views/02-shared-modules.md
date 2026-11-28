@@ -48,3 +48,7 @@ SnapshotCase keeps lazy preview construction, trait application and capture read
 ### Flyover, Broadway Catalog and lifecycle
 
 The complete Fit All, Reset All and Render Preview buttons live with their Flyover parents. The 39-line connector owns its file. FlyoverControlBar and FlyoverOverview remain visible to their snapshot harness. Broadway Catalog keeps its eight-line home view beside the app and the scroll fixture keeps its six-line target rows. LifecycleContainer keeps one mounted destination across readiness and gate transitions.
+
+### Inspector selection and log viewer
+
+Inspector’s 17-line table row owns selection, hit shape and plain style. RelatedRowButton measures 21 lines and owns its file. InspectorLaunchButton keeps its two mutually exclusive next-launch actions. The log viewer keeps its store, search, filters, routing and export presentation. Its complete span-navigation and export buttons remain with their parent. Both modules use the same test-only accessibility traversal to activate mounted SwiftUI controls. The mounted Inspector test selected a row, cancelled native deletion, returned to the list and paged from two to four rows. Native simulator taps opened Span Tree and Span History, returned to Logs and exercised the filter and search. The export test parsed the seeded record from the NDJSON sheet.
