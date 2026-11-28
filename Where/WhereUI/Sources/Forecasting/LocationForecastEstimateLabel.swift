@@ -50,7 +50,7 @@ struct LocationForecastEstimateLabel: View {
 #if DEBUG
     #Preview {
         let report = PreviewSupport.plannedStayYearReportModel()
-        if let forecast = report.forecasts.leadingForecasts(report: report.report).first {
+        if let forecast = report.primaryRegionForecasts.first {
             LocationForecastEstimateLabel(forecast: forecast, tint: .blue)
                 .padding()
                 .whereBroadwayRoot()

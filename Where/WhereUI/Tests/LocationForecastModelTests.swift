@@ -6,6 +6,14 @@ import Testing
 
 @MainActor
 struct LocationForecastModelTests {
+    private var emptyReportWithSavedRegions: YearReportDetails {
+        YearReportDetails(
+            primaryRegions: [.california, .newYork],
+            report: YearReport(year: 2026, days: [], totals: [:]),
+            primaryRegionLocations: [:],
+        )
+    }
+
     @Test func omitsHomeWhenExplicitStaysLeaveNoEstimatedHomeDays() async throws {
         let store = try TestStore()
         let model = PlanningModelTestSupport.model(store: store)
@@ -18,8 +26,8 @@ struct LocationForecastModelTests {
         try await model.create(stay: stay)
         try await model.setHomeRegion(.california)
         await model.refresh()
-        let report = YearReport(year: 2026, days: [], totals: [:])
-        #expect(model.leadingForecasts(report: report).map(\.region) == [.newYork])
+        let details = emptyReportWithSavedRegions
+        #expect(model.primaryRegionForecasts(in: details).map(\.region) == [.newYork])
     }
 
     @Test func loadsExplicitDestinationsAndHomeWithoutChangingRecordedRanking() async throws {
@@ -29,13 +37,13 @@ struct LocationForecastModelTests {
         try await model.create(stay: stay)
         try await model.setHomeRegion(.california)
         await model.refresh()
-        let report = YearReport(year: 2026, days: [], totals: [:])
+        let details = emptyReportWithSavedRegions
 
-        #expect(Set(model.leadingForecasts(report: report).map(\.region)) == [
+        #expect(Set(model.primaryRegionForecasts(in: details).map(\.region)) == [
             .newYork,
             .california,
         ])
-        #expect(RegionRanking(report: report).primary.isEmpty)
+        #expect(RegionRanking(report: details.report).primary.isEmpty)
         #expect(model.loadFailure == nil)
     }
 
@@ -93,10 +101,7 @@ struct LocationForecastModelTests {
 
         #expect(!model.hasLoaded)
         #expect(model.loadFailure is PlannedStaySaveFailure)
-        #expect(model.forecast(
-            for: .newYork,
-            report: YearReport(year: 2026, days: [], totals: [:]),
-        ) == nil)
+        #expect(model.primaryRegionForecast(for: .newYork, in: emptyReportWithSavedRegions) == nil)
     }
 
     @Test(.timeLimit(.minutes(1)))

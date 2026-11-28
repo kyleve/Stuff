@@ -90,7 +90,7 @@ struct LocationForecastSummary: View {
             ) {
                 let report = PreviewSupport.plannedStayYearReportModel()
                 var panel = LocationForecastSummary(
-                    forecasts: report.forecasts.leadingForecasts(report: report.report),
+                    forecasts: report.primaryRegionForecasts,
                     primaryRegions: regions,
                     homeRegion: report.forecasts.planning.homeRegion,
                     planningAction: {},

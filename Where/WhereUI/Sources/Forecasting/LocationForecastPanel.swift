@@ -94,7 +94,7 @@ struct LocationForecastPanel: View {
     #Preview {
         let report = PreviewSupport.plannedStayYearReportModel()
         LocationForecastPanel(
-            forecasts: report.forecasts.leadingForecasts(report: report.report),
+            forecasts: report.primaryRegionForecasts,
             microprintRegions: report.ranking.primary.map(\.region),
             homeRegion: report.forecasts.planning.homeRegion,
             planningAction: {},
@@ -129,7 +129,7 @@ struct LocationForecastPanel: View {
             ) {
                 let report = PreviewSupport.plannedStayYearReportModel()
                 var panel = LocationForecastPanel(
-                    forecasts: report.forecasts.leadingForecasts(report: report.report),
+                    forecasts: report.primaryRegionForecasts,
                     microprintRegions: regions,
                     homeRegion: report.forecasts.planning.homeRegion,
                     planningAction: {},

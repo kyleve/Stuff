@@ -32,7 +32,7 @@ struct LocationForecastContent: View {
     #Preview {
         let report = PreviewSupport.plannedStayYearReportModel()
         LocationForecastContent(
-            forecasts: report.forecasts.leadingForecasts(report: report.report),
+            forecasts: report.primaryRegionForecasts,
             homeRegion: report.forecasts.planning.homeRegion,
             planningAction: {},
         )

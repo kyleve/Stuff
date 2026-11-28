@@ -544,10 +544,9 @@ struct CalendarContentView: View {
 
     private var calendarForecasts: [LocationForecast] {
         if let focusedRegion {
-            return report.forecasts.forecast(for: focusedRegion, report: report.report).map { [$0] }
-                ?? []
+            return report.primaryRegionForecast(for: focusedRegion).map { [$0] } ?? []
         }
-        return report.forecasts.leadingForecasts(report: report.report)
+        return report.primaryRegionForecasts
     }
 }
 

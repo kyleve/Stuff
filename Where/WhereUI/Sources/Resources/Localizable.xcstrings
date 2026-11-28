@@ -8986,7 +8986,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Historical estimates begin April 1. Choose a Home region to estimate earlier. Annual estimates cover the current year; you can plan stays for any future date."
+            "value" : "Estimates show time in regions saved in Settings → Regions for the current year. Historical estimates begin April 1. With Home selected, estimates can start January 1. You can plan stays for any future date."
           }
         }
       }

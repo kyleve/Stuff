@@ -307,6 +307,14 @@ public final class YearReportModel {
             .filter { loadedYear.details.primaryRegions.contains($0.region) && $0.region != .other }
     }
 
+    var primaryRegionForecasts: [LocationForecast] {
+        forecasts.primaryRegionForecasts(in: loadedYear?.details)
+    }
+
+    func primaryRegionForecast(for region: Region) -> LocationForecast? {
+        forecasts.primaryRegionForecast(for: region, in: loadedYear?.details)
+    }
+
     var elsewhereInput: ElsewhereInput? {
         loadedYear?.details.elsewhereInput
     }

@@ -6,7 +6,7 @@ struct LocationsEstimatePanel: View {
     let planningAction: () -> Void
 
     var body: some View {
-        let forecasts = report.forecasts.leadingForecasts(report: report.report)
+        let forecasts = report.primaryRegionForecasts
         if report.showsEstimatedTimeAndPlanning, !forecasts.isEmpty {
             LocationForecastSummary(
                 forecasts: forecasts,

@@ -81,31 +81,26 @@ final class LocationForecastModel {
         }
     }
 
-    func forecast(for region: Region, report: YearReport?) -> LocationForecast? {
-        guard let report, hasLoaded else { return nil }
+    func primaryRegionForecast(
+        for region: Region,
+        in details: YearReportDetails?,
+    ) -> LocationForecast? {
+        guard hasLoaded, let details, region != .other, details.primaryRegions.contains(region)
+        else { return nil }
         return LocationForecast.estimate(
             region: region,
-            report: report,
+            report: details.report,
             asOf: now(),
             calendar: calendar,
             planning: planning,
         )
     }
 
-    /// Explicit destinations and Home remain visible even before a recorded
-    /// visit. Recorded card rankings remain independent of these estimates.
-    func leadingForecasts(report: YearReport?) -> [LocationForecast] {
-        guard let report else { return [] }
-        var regions = Set(report.days.flatMap(\.regions))
-        regions.formUnion(planning.stays.filter {
-            $0.departure.latest > today && $0.arrival.earliest.year <= report.year
-        }.map(\.region))
-        if let home = planning.homeRegion {
-            regions.insert(home)
-        }
-        regions.remove(.other)
-        return Region.inCanonicalOrder(regions).compactMap {
-            forecast(for: $0, report: report)
+    /// Each saved region's estimate accounts for stays at every destination.
+    func primaryRegionForecasts(in details: YearReportDetails?) -> [LocationForecast] {
+        guard let details else { return [] }
+        return details.primaryRegions.compactMap {
+            primaryRegionForecast(for: $0, in: details)
         }.filter { $0.estimatedTotalDays.upper > 0 }.sorted {
             if $0.estimatedTotalDays.upper != $1.estimatedTotalDays.upper {
                 return $0.estimatedTotalDays.upper > $1.estimatedTotalDays.upper

@@ -690,8 +690,11 @@ selector includes those years for Calendar and Timeline navigation.
 
 The estimate panel shows recorded, planned, and assumed or projected day counts.
 Flexible plans produce independent per-region ranges. A range describes possible
-date choices, not a statistical confidence interval. The panel includes destinations
-with no recorded visits. Recorded location-card rankings remain independent of plans.
+date choices, not a statistical confidence interval. Locations, Calendar, and Timeline
+show estimate rows for regions saved in Settings > Regions. A saved region can appear
+before its first recorded visit if a planned stay or the Home setting gives it
+estimated days. Stays in other regions still count as time away when calculating
+these estimates. Recorded location-card rankings remain independent of plans.
 
 Calendar and Timeline mark explicit plans, possible dates, and Home assumptions.
 Each timeline stay opens its own editor. Future intent never becomes recorded history
