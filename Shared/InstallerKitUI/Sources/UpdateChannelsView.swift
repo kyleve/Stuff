@@ -11,36 +11,32 @@ struct UpdateChannelsView: View {
                 .font(stylesheet.card.bodyFont)
                 .foregroundStyle(.secondary)
             if let browser = model.state.snapshot?.browser {
-                if browser.channels.isEmpty {
-                    UpdateCard(title: .installerNoPublishedBuild) {
-                        Text(.installerNoActiveBuilds)
-                            .font(stylesheet.card.bodyFont)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                ForEach(browser.channels) { channel in
-                    NavigationLink(value: UpdateBrowserView.Route.build(.init(
-                        channel: channel.id,
-                        build: channel.latest.id,
-                    ))) {
-                        UpdateCard(title: nil) {
-                            UpdateBuildRow(
-                                release: channel.latest,
-                                kind: .channel(
-                                    channel.id,
-                                    installed: channel.id == model.installed.publication?.channel,
-                                ),
-                            )
-                        }
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityElement(children: .combine)
-                    .accessibilityHint(String(localized: .installerViewBuild))
-                }
+                UpdateChannelRows(
+                    channels: browser.channels,
+                    installedChannel: model.installed.publication?.channel,
+                )
             }
             UpdateLocalBuildNotice(isInstalled: model.installed.publication == nil)
         }
         .navigationTitle(String(localized: .installerOtherBuilds))
+    }
+}
+
+private struct UpdateChannelRows: View {
+    let channels: [UpdateBuildBrowser.Channel]
+    let installedChannel: InstalledBuild.Channel?
+
+    var body: some View {
+        if channels.isEmpty {
+            UpdateNoticeCard(title: .installerNoPublishedBuild, message: .installerNoActiveBuilds)
+        }
+        ForEach(channels) { channel in
+            UpdateBuildRow(
+                selection: .init(channel: channel.id, build: channel.latest.id),
+                release: channel.latest,
+                kind: .channel(installed: channel.id == installedChannel),
+            )
+        }
     }
 }
 

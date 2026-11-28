@@ -1,5 +1,4 @@
 import InstallerKit
-import SFSafeSymbols
 import SwiftUI
 
 struct UpdateChanges: View {
@@ -22,46 +21,7 @@ struct UpdateChanges: View {
             }
             switch changes {
                 case let .commits(commits):
-                    if scope == .installedBuild {
-                        Text(.installerChangesSubtitle)
-                            .font(stylesheet.card.bodyFont)
-                            .foregroundStyle(.secondary)
-                    }
-                    if commits.isEmpty {
-                        Text(.installerNoCommits)
-                    } else {
-                        ForEach(commits) { commit in
-                            Divider()
-                            Link(destination: installed.commitURL(for: commit.sha)) {
-                                HStack(
-                                    alignment: .firstTextBaseline,
-                                    spacing: stylesheet.changes.spacing,
-                                ) {
-                                    VStack(
-                                        alignment: .leading,
-                                        spacing: stylesheet.changes.spacing,
-                                    ) {
-                                        Text(verbatim: commit.subject)
-                                            .font(stylesheet.changes.titleFont)
-                                            .foregroundStyle(.primary)
-                                        Text(verbatim: String(commit.sha.rawValue
-                                                .prefix(stylesheet.changes.revisionLength)))
-                                            .font(stylesheet.changes.revisionFont)
-                                            .foregroundStyle(.secondary)
-                                    }
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    Image(systemSymbol: .arrowUpRight)
-                                        .font(stylesheet.changes.arrowFont)
-                                        .accessibilityHidden(true)
-                                }
-                                .frame(minHeight: stylesheet.changes.minimumHeight)
-                                .contentShape(.rect)
-                            }
-                            .buttonStyle(.plain)
-                            .accessibilityElement(children: .combine)
-                            .accessibilityHint(String(localized: .installerOpenCommit))
-                        }
-                    }
+                    UpdateCommitList(commits: commits, installed: installed, scope: scope)
                 case .rewritten:
                     Text(scope == .installedBuild ? LocalizedStringResource
                         .installerRewrittenHistory : .installerBuildHistoryRewritten)
@@ -70,6 +30,29 @@ struct UpdateChanges: View {
                     Text(scope == .installedBuild ? LocalizedStringResource
                         .installerHistoryUnavailable : .installerBuildHistoryUnavailable)
                         .font(stylesheet.card.bodyFont)
+            }
+        }
+    }
+}
+
+private struct UpdateCommitList: View {
+    let commits: [UpdateCatalog.Commit]
+    let installed: InstalledBuild
+    let scope: UpdateChanges.Scope
+    @Environment(\.installerStylesheet) private var stylesheet
+
+    var body: some View {
+        if scope == .installedBuild {
+            Text(.installerChangesSubtitle)
+                .font(stylesheet.card.bodyFont)
+                .foregroundStyle(.secondary)
+        }
+        if commits.isEmpty {
+            Text(.installerNoCommits)
+        } else {
+            ForEach(commits) { commit in
+                Divider()
+                UpdateChangeLink(commit: commit, url: installed.commitURL(for: commit.sha))
             }
         }
     }

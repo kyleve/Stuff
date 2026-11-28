@@ -10,29 +10,32 @@ struct UpdateBuildInformation: View {
     var body: some View {
         UpdateCard(title: .installerBuildInformation) {
             UpdatePullRequestLink(channel: channel, installed: installed)
-            UpdateDetailRow(title: .installerWorkflowRun) {
-                Link(destination: installed.repositoryURL
-                    .appending(
-                        path: "actions/runs/\(release.id.run)/attempts/\(release.id.attempt)",
-                    )) {
-                        Text(verbatim: String(release.id.run))
-                    }
-                    .accessibilityHint(String(localized: .installerOpenBuild))
-            }
+            UpdateWorkflowRunRow(release: release, installed: installed)
             UpdateDetailRow(title: .installerAttempt) {
                 Text(verbatim: String(release.id.attempt))
             }
-            UpdateDetailRow(title: .installerCommit) {
-                Link(destination: installed.commitURL(for: release.sha)) {
-                    Text(verbatim: String(release.sha.rawValue
-                            .prefix(stylesheet.details.revisionLength)))
-                }
-                .accessibilityHint(String(localized: .installerOpenCommit))
-            }
+            UpdateCommitRow(revision: release.sha, installed: installed)
             Divider()
             Text(.installerInstallFooter)
                 .font(stylesheet.card.bodyFont)
                 .foregroundStyle(.secondary)
+        }
+    }
+}
+
+private struct UpdateWorkflowRunRow: View {
+    let release: UpdateCatalog.Release
+    let installed: InstalledBuild
+
+    var body: some View {
+        UpdateDetailRow(title: .installerWorkflowRun) {
+            Link(destination: installed.repositoryURL
+                .appending(
+                    path: "actions/runs/\(release.id.run)/attempts/\(release.id.attempt)",
+                )) {
+                    Text(verbatim: String(release.id.run))
+                }
+                .accessibilityHint(String(localized: .installerOpenBuild))
         }
     }
 }

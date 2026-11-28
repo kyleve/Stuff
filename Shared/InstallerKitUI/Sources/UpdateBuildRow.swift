@@ -5,62 +5,63 @@ import SwiftUI
 /// A single accessible navigation action for a channel's latest build or a history entry.
 struct UpdateBuildRow: View {
     enum Kind {
-        case channel(InstalledBuild.Channel, installed: Bool)
+        case channel(installed: Bool)
         case release(installed: Bool)
     }
 
+    let selection: UpdateBuildBrowser.Selection
     let release: UpdateCatalog.Release
     let kind: Kind
+
     @Environment(\.installerStylesheet) private var stylesheet
 
     var body: some View {
         let style = stylesheet.browser
-        HStack(alignment: .firstTextBaseline, spacing: style.spacing) {
-            VStack(alignment: .leading, spacing: style.spacing) {
-                switch kind {
-                    case let .channel(channel, installed):
-                        Text(verbatim: channel.rawValue.uppercased())
-                            .font(style.titleFont)
-                        if let title = release.pullRequestTitle {
-                            Text(verbatim: title)
-                                .font(style.titleFont)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                        if installed {
-                            badge(.installerInstalledChannel)
-                        }
-                        version.font(style.metadataFont)
-                    case let .release(installed):
-                        version.font(style.titleFont)
-                        if installed {
-                            badge(.installerInstalled)
-                        }
+        NavigationLink(value: UpdateBrowserView.Route.build(selection)) {
+            UpdateCard(title: nil) {
+                HStack(alignment: .firstTextBaseline, spacing: style.spacing) {
+                    VStack(alignment: .leading, spacing: style.spacing) {
+                        UpdateBuildHeading(channel: selection.channel, release: release, kind: kind)
+                        UpdateBuildMetadata(release: release)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    Image(systemSymbol: .chevronRight)
+                        .font(style.arrowFont)
+                        .foregroundStyle(.tertiary)
+                        .accessibilityHidden(true)
                 }
-                Text(.installerBuildNumber("\(release.id.run).\(release.id.attempt)"))
-                    .font(style.metadataFont)
-                Text(release.publishedAt, format: .dateTime.month(.abbreviated).day().year())
-                    .font(style.metadataFont)
-                    .foregroundStyle(.secondary)
-                Text(verbatim: String(release.sha.rawValue.prefix(style.revisionLength)))
-                    .font(style.revisionFont)
-                    .foregroundStyle(.secondary)
+                .foregroundStyle(.primary)
+                .frame(minHeight: style.minimumHeight)
+                .contentShape(.rect)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            Image(systemSymbol: .chevronRight)
-                .font(style.arrowFont)
-                .foregroundStyle(.tertiary)
-                .accessibilityHidden(true)
         }
-        .foregroundStyle(.primary)
-        .frame(minHeight: style.minimumHeight)
-        .contentShape(.rect)
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
+        .accessibilityHint(String(localized: .installerViewBuild))
     }
+}
 
-    @ViewBuilder private var version: some View {
-        if let version = release.buildDetails?.version {
-            Text(.installerVersionNumber(version))
-        } else {
-            Text(.installerVersionNotRecorded)
+private struct UpdateBuildHeading: View {
+    let channel: InstalledBuild.Channel
+    let release: UpdateCatalog.Release
+    let kind: UpdateBuildRow.Kind
+    @Environment(\.installerStylesheet) private var stylesheet
+
+    var body: some View {
+        switch kind {
+            case let .channel(installed):
+                UpdateChannelTitle(channel: channel, pullRequestTitle: release.pullRequestTitle)
+                if installed {
+                    badge(.installerInstalledChannel)
+                }
+                UpdateBuildVersion(version: release.buildDetails?.version)
+                    .font(stylesheet.browser.metadataFont)
+            case let .release(installed):
+                UpdateBuildVersion(version: release.buildDetails?.version)
+                    .font(stylesheet.browser.titleFont)
+                if installed {
+                    badge(.installerInstalled)
+                }
         }
     }
 
@@ -68,6 +69,50 @@ struct UpdateBuildRow: View {
         Label(String(localized: title), systemSymbol: .checkmarkCircleFill)
             .font(stylesheet.browser.badgeFont)
             .foregroundStyle(.tint)
+    }
+}
+
+private struct UpdateChannelTitle: View {
+    let channel: InstalledBuild.Channel
+    let pullRequestTitle: String?
+    @Environment(\.installerStylesheet) private var stylesheet
+
+    var body: some View {
+        Text(verbatim: channel.rawValue.uppercased())
+            .font(stylesheet.browser.titleFont)
+        if let title = pullRequestTitle {
+            Text(verbatim: title)
+                .font(stylesheet.browser.titleFont)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+}
+
+private struct UpdateBuildVersion: View {
+    let version: String?
+
+    var body: some View {
+        if let version {
+            Text(.installerVersionNumber(version))
+        } else {
+            Text(.installerVersionNotRecorded)
+        }
+    }
+}
+
+private struct UpdateBuildMetadata: View {
+    let release: UpdateCatalog.Release
+    @Environment(\.installerStylesheet) private var stylesheet
+
+    var body: some View {
+        Text(.installerBuildNumber("\(release.id.run).\(release.id.attempt)"))
+            .font(stylesheet.browser.metadataFont)
+        Text(release.publishedAt, format: .dateTime.month(.abbreviated).day().year())
+            .font(stylesheet.browser.metadataFont)
+            .foregroundStyle(.secondary)
+        Text(verbatim: String(release.sha.rawValue.prefix(stylesheet.browser.revisionLength)))
+            .font(stylesheet.browser.revisionFont)
+            .foregroundStyle(.secondary)
     }
 }
 

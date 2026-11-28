@@ -9,17 +9,7 @@ struct UpdateBrowserPage<Content: View>: View {
 
     var body: some View {
         UpdatePageLayout {
-            if case let .failed(error, previous) = model.state {
-                UpdateFailureCard(error: error, hasCachedBuilds: previous != nil)
-            }
-            if model.state.snapshot != nil {
-                content
-            } else if case .failed = model.state {
-                EmptyView()
-            } else {
-                ProgressView(String(localized: .installerChecking))
-                    .frame(maxWidth: .infinity)
-            }
+            UpdateBrowserContent(state: model.state, content: content)
             UpdateCheckButton(isChecking: model.isChecking) {
                 refresh.start(model: model)
             }
@@ -28,6 +18,25 @@ struct UpdateBrowserPage<Content: View>: View {
         .task { await model.refresh(force: false) }
         .refreshable { await refresh.start(model: model).value }
         .onDisappear { refresh.cancel() }
+    }
+}
+
+private struct UpdateBrowserContent<Content: View>: View {
+    let state: UpdateModel.State
+    let content: Content
+
+    var body: some View {
+        if case let .failed(error, previous) = state {
+            UpdateFailureCard(error: error, hasCachedBuilds: previous != nil)
+        }
+        if state.snapshot != nil {
+            content
+        } else if case .failed = state {
+            EmptyView()
+        } else {
+            ProgressView(String(localized: .installerChecking))
+                .frame(maxWidth: .infinity)
+        }
     }
 }
 
