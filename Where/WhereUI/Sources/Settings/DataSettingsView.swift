@@ -1,4 +1,5 @@
 import LifecycleKitUI
+import PeriscopeCore
 import SFSafeSymbols
 import SnapshotKit
 import SwiftUI
@@ -40,15 +41,16 @@ struct DataSettingsView: View {
         @Bindable var backup = backup
         SettingsFocusScope(focus: focus) {
             Form {
-                PrivacyPassportCard(presentation: PrivacyPassportPresentation(
+                DataPrivacyPassport(presentation: PrivacyPassportPresentation(
                     configuration: model.diagnosticReporting.effectiveConfiguration,
-                ), disclosureInteraction: .linkToSettings)
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
-                    .listRowInsets(EdgeInsets())
+                ))
                 BackupSettingsSection(backup: backup, onExport: requestExport)
-                dataSection
-                resetSection
+                EraseYearSection(
+                    year: report.selectedYear,
+                    showsConfirmation: $showClearConfirmation,
+                    erase: { Task { await report.clearSelectedYear() } },
+                )
+                ResetAppSection(showsConfirmation: $showResetConfirmation, reset: requestReset)
             }
             .whereFormRoot()
         }
@@ -83,65 +85,10 @@ struct DataSettingsView: View {
         exportRequest = UUID()
     }
 
-    private var eraseTitle: String {
-        WhereFormat.settingsDataErase(year: report.selectedYear)
-    }
-
-    private var dataSection: some View {
-        Section {
-            Button(role: .destructive) {
-                showClearConfirmation = true
-            } label: {
-                Label(eraseTitle, systemSymbol: .trash)
-            }
-            .settingsRow(Item.eraseYear)
-            .confirmationDialog(
-                eraseTitle,
-                isPresented: $showClearConfirmation,
-                titleVisibility: .visible,
-            ) {
-                Button(eraseTitle, role: .destructive) {
-                    Task { await report.clearSelectedYear() }
-                }
-                Button(String(localized: .settingsDataCancel), role: .cancel) {}
-            } message: {
-                Text(WhereFormat.settingsDataConfirmMessage(year: report.selectedYear))
-            }
-        } header: {
-            Text(String(localized: .settingsDataHeader))
-        } footer: {
-            Text(WhereFormat.settingsDataFooter(year: report.selectedYear))
-        }
-    }
-
-    /// Whole-app teardown: wipes every year's data and returns to first-run
-    /// onboarding, run through the `LifecycleProxy` that `LifecycleContainer`
-    /// publishes under `\.lifecycle`. The proxy asserts in debug / no-ops in
-    /// release when no container is above (e.g. previews).
-    private var resetSection: some View {
-        Section {
-            Button(role: .destructive) {
-                showResetConfirmation = true
-            } label: {
-                Label(String(localized: .settingsResetErase), systemSymbol: .arrowCounterclockwise)
-            }
-            .settingsRow(Item.resetApp)
-            .confirmationDialog(
-                String(localized: .settingsResetErase),
-                isPresented: $showResetConfirmation,
-                titleVisibility: .visible,
-            ) {
-                Button(String(localized: .settingsResetConfirm), role: .destructive) {
-                    requestReset()
-                }
-                Button(String(localized: .settingsDataCancel), role: .cancel) {}
-            } message: {
-                Text(String(localized: .settingsResetMessage))
-            }
-        } footer: {
-            Text(String(localized: .settingsResetFooter))
-        }
-    }
+    // Whole-app teardown: wipes every year's data and returns to first-run
+    // onboarding, run through the `LifecycleProxy` that `LifecycleContainer`
+    // publishes under `\.lifecycle`. The proxy asserts in debug / no-ops in
+    // release when no container is above (e.g. previews).
 
     private func requestReset() {
         Task { await lifecycle.teardown(WhereLaunch.resetPlan(for: model), input: session) }
@@ -176,6 +123,100 @@ extension DataSettingsView: SettingsSection {
     }
 }
 
+private struct EraseYearSection: View {
+    let year: Int
+    @Binding var showsConfirmation: Bool
+    let erase: () -> Void
+
+    var body: some View {
+        Section {
+            EraseYearButton(year: year, showsConfirmation: $showsConfirmation, erase: erase)
+        } header: {
+            Text(String(localized: .settingsDataHeader))
+        } footer: {
+            Text(WhereFormat.settingsDataFooter(year: year))
+        }
+    }
+}
+
+private struct EraseYearButton: View {
+    let year: Int
+    @Binding var showsConfirmation: Bool
+    let erase: () -> Void
+
+    var body: some View {
+        let eraseTitle = WhereFormat.settingsDataErase(year: year)
+        Button(role: .destructive) {
+            showsConfirmation = true
+        } label: {
+            Label(eraseTitle, systemSymbol: .trash)
+        }
+        .settingsRow(DataSettingsView.Item.eraseYear)
+        .confirmationDialog(
+            eraseTitle,
+            isPresented: $showsConfirmation,
+            titleVisibility: .visible,
+        ) {
+            Button(eraseTitle, role: .destructive) {
+                erase()
+            }
+            Button(String(localized: .settingsDataCancel), role: .cancel) {}
+        } message: {
+            Text(WhereFormat.settingsDataConfirmMessage(year: year))
+        }
+    }
+}
+
+private struct ResetAppSection: View {
+    @Binding var showsConfirmation: Bool
+    let reset: () -> Void
+
+    var body: some View {
+        Section {
+            ResetAppButton(showsConfirmation: $showsConfirmation, reset: reset)
+        } footer: {
+            Text(String(localized: .settingsResetFooter))
+        }
+    }
+}
+
+private struct ResetAppButton: View {
+    @Binding var showsConfirmation: Bool
+    let reset: () -> Void
+
+    var body: some View {
+        Button(role: .destructive) {
+            showsConfirmation = true
+        } label: {
+            Label(String(localized: .settingsResetErase), systemSymbol: .arrowCounterclockwise)
+        }
+        .settingsRow(DataSettingsView.Item.resetApp)
+        .confirmationDialog(
+            String(localized: .settingsResetErase),
+            isPresented: $showsConfirmation,
+            titleVisibility: .visible,
+        ) {
+            Button(String(localized: .settingsResetConfirm), role: .destructive) {
+                reset()
+            }
+            Button(String(localized: .settingsDataCancel), role: .cancel) {}
+        } message: {
+            Text(String(localized: .settingsResetMessage))
+        }
+    }
+}
+
+private struct DataPrivacyPassport: View {
+    let presentation: PrivacyPassportPresentation
+
+    var body: some View {
+        PrivacyPassportCard(presentation: presentation, disclosureInteraction: .linkToSettings)
+            .listRowBackground(Color.clear)
+            .listRowSeparator(.hidden)
+            .listRowInsets(EdgeInsets())
+    }
+}
+
 #if DEBUG
     extension DataSettingsView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
@@ -186,14 +227,20 @@ extension DataSettingsView: SettingsSection {
                     SnapshotConfiguration(device: .iPadFullContent),
                 ],
             ) {
-                NavigationStack {
-                    DataSettingsView(
-                        report: PreviewSupport.loadedYearReportModel(),
-                        backup: PreviewSupport.backupModel(),
-                    )
-                    .environment(PreviewSupport.loadedModel())
-                    .environment(PreviewSupport.loadedSession())
-                }
+                DataSettingsSnapshot()
+            }
+        }
+    }
+
+    private struct DataSettingsSnapshot: View {
+        var body: some View {
+            NavigationStack {
+                DataSettingsView(
+                    report: PreviewSupport.loadedYearReportModel(),
+                    backup: PreviewSupport.backupModel(),
+                )
+                .environment(PreviewSupport.loadedModel())
+                .environment(PreviewSupport.loadedSession())
             }
         }
     }
@@ -211,5 +258,70 @@ extension DataSettingsView: SettingsSection {
         ) { world in
             DataSettingsDestination(report: world.report)
         }
+    }
+#endif
+
+/// The whole-database backup section embedded in ``DataSettingsView``.
+/// Imports deliberately live only in onboarding, where the app can recover a
+/// committed archive before exposing a running session.
+private struct BackupSettingsSection: View {
+    let backup: BackupModel
+    let onExport: () -> Void
+
+    var body: some View {
+        Section {
+            // The archive is built up-front on a background task (with an
+            // in-app "Exporting…" bar), then handed to the system activity sheet
+            // as a ready file — so it opens instantly instead of sitting in the
+            // system's blocking "Preparing…" state.
+            BackupExportButton(backup: backup, onExport: onExport)
+        } header: {
+            Text(String(localized: .settingsBackupHeader))
+        } footer: {
+            Text(String(localized: .settingsBackupFooter))
+        }
+        // Log View Mode: reveal an inspect badge for backup export
+        // events on this section. A no-op in release.
+        .debugLogInspectable(WhereLog.session(BackupModelLog.self))
+    }
+}
+
+private struct BackupExportButton: View {
+    let backup: BackupModel
+    let onExport: () -> Void
+
+    var body: some View {
+        Button(action: onExport) {
+            if backup.backupState == .exporting {
+                backupProgressLabel(
+                    String(localized: .settingsBackupExporting),
+                    systemSymbol: .squareAndArrowUp,
+                )
+            } else {
+                Label(
+                    String(localized: .settingsBackupExport),
+                    systemSymbol: .squareAndArrowUp,
+                )
+            }
+        }
+        .disabled(backup.backupState != .idle)
+        .settingsRow(DataSettingsView.Item.exportBackup)
+    }
+
+    /// The backup coordinator reports completion as the archive is generated.
+    private func backupProgressLabel(_ title: String, systemSymbol: SFSymbol) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Label(title, systemSymbol: systemSymbol)
+            ProgressView(value: backup.backupProgress)
+        }
+    }
+}
+
+#if DEBUG
+    #Preview("Backup section") {
+        Form {
+            BackupSettingsSection(backup: PreviewSupport.backupModel(), onExport: {})
+        }
+        .whereBroadwayRoot()
     }
 #endif

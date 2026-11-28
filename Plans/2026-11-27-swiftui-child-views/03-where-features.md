@@ -48,3 +48,7 @@ Apply each slice against its recorded parent. Format and remeasure its complete 
 ### Primary region picker
 
 The picker retains its typed rows, native list and per-visit model. The complete region-selection row has a 39-line body, including its 34-line button, in `RegionPickerRegionRow.swift`. The 35-line list lives in `RegionPickerContent.swift` beside its country disclosure (17), message row (19) and selection message (11). Search and empty previews stay with the public screen. At the pilot revision `d1f20b068`, the source review compared the selection control and row IDs with the originals. The focused run passed all 19 primary-region behavior tests, including select, commit, reopen, search and country expansion. The region picker snapshot suite passed with recording disabled.
+
+### About, licenses, App Icon and Data Settings
+
+About’s 20-line version section has its own file. The footer and stamp now live with their sole caller. The app icon selection and appearance buttons measure 25 and 24 lines and have separate files. The nine-line Set button stays with its screen. Data Settings owns backup export, confirmation and teardown. Its complete export, erase-year and reset controls measure 15, 19 and 18 lines beside the screen. The About and footer, app icon model and layout, and backup model suites passed. About, licenses, App Icon and Data Settings each passed their reference-image suite with recording disabled.
