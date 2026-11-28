@@ -230,7 +230,7 @@ public struct OnboardingView: View {
 
     private var pickRegions: some View {
         NavigationStack {
-            RegionPickerView(model: flow.selection)
+            RegionPickerView(draft: flow.selection)
                 .navigationTitle(String(localized: .onboardingRegionsTitle))
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) {
@@ -246,7 +246,7 @@ public struct OnboardingView: View {
     private var customize: some View {
         NavigationStack {
             RegionCustomizeView(
-                model: flow.selection,
+                draft: flow.selection,
                 onBack: { flow.phase = .pickRegions },
                 onFinish: { flow.phase = .location },
             )
@@ -397,17 +397,23 @@ final class OnboardingIntroState {
     var activity: Activity = .browsing
 
     var isRestoringBackup: Bool {
-        if case .restoringBackup = activity { return true }
+        if case .restoringBackup = activity {
+            return true
+        }
         return false
     }
 
     var isBuildingDemo: Bool {
-        if case .buildingDemo = activity { return true }
+        if case .buildingDemo = activity {
+            return true
+        }
         return false
     }
 
     var failure: Failure? {
-        if case let .failed(failure) = activity { return failure }
+        if case let .failed(failure) = activity {
+            return failure
+        }
         return nil
     }
 
@@ -415,7 +421,11 @@ final class OnboardingIntroState {
     /// which is the only way `activity` leaves `.failed`.
     var isShowingFailure: Bool {
         get { failure != nil }
-        set { if !newValue { activity = .browsing } }
+        set {
+            if !newValue {
+                activity = .browsing
+            }
+        }
     }
 }
 

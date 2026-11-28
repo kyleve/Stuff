@@ -6,8 +6,12 @@
     /// Fixed place labels keep the production naming seam deterministic in captures.
     struct PreviewPlaceNamer: PlaceNaming {
         func name(for coordinate: Coordinate) async -> String? {
-            if coordinate == ElsewherePreview.vegas { return "Las Vegas, United States" }
-            if coordinate == ElsewherePreview.portland { return "Portland, United States" }
+            if coordinate == ElsewherePreview.vegas {
+                return "Las Vegas, United States"
+            }
+            if coordinate == ElsewherePreview.portland {
+                return "Portland, United States"
+            }
             return nil
         }
     }
@@ -23,8 +27,8 @@
         }
     }
 
+    @MainActor
     extension PreviewSupport {
-        @MainActor
         static func multiplePrimaryYearReportModel() -> YearReportModel {
             YearReportModel(
                 services: previewServices(),
@@ -39,7 +43,6 @@
             )
         }
 
-        @MainActor
         static func elsewhereCatalogYearReportModel() -> YearReportModel {
             var calendar = Calendar(identifier: .gregorian)
             calendar.timeZone = TimeZone(identifier: "America/Los_Angeles")!

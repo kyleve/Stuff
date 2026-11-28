@@ -69,8 +69,12 @@ enum PlanningTimelineItem: Hashable, Identifiable {
         let stays = planning.stayIntervals(intersecting: year, asOf: today).map(Self.stay)
         let homes = planning.homeIntervals(intersecting: year, asOf: today).map(Self.home)
         return (stays + homes).sorted {
-            if $0.start != $1.start { return $0.start < $1.start }
-            if $0.region != $1.region { return $0.region.rawValue < $1.region.rawValue }
+            if $0.start != $1.start {
+                return $0.start < $1.start
+            }
+            if $0.region != $1.region {
+                return $0.region.rawValue < $1.region.rawValue
+            }
             switch ($0, $1) {
                 case let (.stay(first), .stay(second)):
                     return first.stayID.rawValue.uuidString < second.stayID.rawValue.uuidString

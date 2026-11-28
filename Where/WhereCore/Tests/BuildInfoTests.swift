@@ -39,13 +39,27 @@ struct BuildInfoTests {
         compilationMode: String? = "singlefile",
     ) -> [String: String] {
         var info: [String: String] = [:]
-        if let version { info["CFBundleShortVersionString"] = version }
-        if let build { info["CFBundleVersion"] = build }
-        if let sha { info["WhereGitSHA"] = sha }
-        if let status { info["WhereGitStatus"] = status }
-        if let configuration { info["WhereConfiguration"] = configuration }
-        if let optimizationLevel { info["WhereSwiftOptimizationLevel"] = optimizationLevel }
-        if let compilationMode { info["WhereSwiftCompilationMode"] = compilationMode }
+        if let version {
+            info["CFBundleShortVersionString"] = version
+        }
+        if let build {
+            info["CFBundleVersion"] = build
+        }
+        if let sha {
+            info["WhereGitSHA"] = sha
+        }
+        if let status {
+            info["WhereGitStatus"] = status
+        }
+        if let configuration {
+            info["WhereConfiguration"] = configuration
+        }
+        if let optimizationLevel {
+            info["WhereSwiftOptimizationLevel"] = optimizationLevel
+        }
+        if let compilationMode {
+            info["WhereSwiftCompilationMode"] = compilationMode
+        }
         return info
     }
 

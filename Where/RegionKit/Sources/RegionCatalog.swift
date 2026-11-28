@@ -4,7 +4,12 @@ import PeriscopeCore
 /// Region metadata in canonical manifest order. Reading the hierarchy loads no polygons.
 public struct RegionCatalog: Sendable {
     public enum Kind: String, Decodable, Hashable, Sendable {
-        case state, federalDistrict, territory, province, country, bloc
+        case state
+        case federalDistrict
+        case territory
+        case province
+        case country
+        case bloc
     }
 
     struct Boundary: Decodable, Hashable {
@@ -28,6 +33,9 @@ public struct RegionCatalog: Sendable {
     /// A geographic unit, including countries used to group subdivisions.
     public struct Node: Identifiable, Decodable, Hashable, Sendable {
         public struct ID: RawRepresentable, Codable, Hashable, Sendable {
+            public static let unitedStates = Self(rawValue: "united-states")
+            public static let canada = Self(rawValue: "canada")
+
             public let rawValue: String
             public init(rawValue: String) {
                 self.rawValue = rawValue
@@ -184,7 +192,9 @@ public struct RegionCatalog: Sendable {
     }
 
     public func localizedName(for region: Region) -> String {
-        if region == .other { return String(localized: "region.other", bundle: .module) }
+        if region == .other {
+            return String(localized: "region.other", bundle: .module)
+        }
         return node(for: region)?.localizedName ?? region.rawValue
     }
 

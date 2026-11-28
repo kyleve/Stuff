@@ -16,8 +16,12 @@ enum ResolutionSourceState {
 
 extension YearReportModel: ResolutionSource {
     var resolutionState: ResolutionSourceState {
-        if let dataIssueScanError { return .failed(dataIssueScanError, previous: dataIssueScan) }
-        if let dataIssueScan { return .loaded(dataIssueScan) }
+        if let dataIssueScanError {
+            return .failed(dataIssueScanError, previous: dataIssueScan)
+        }
+        if let dataIssueScan {
+            return .loaded(dataIssueScan)
+        }
         return .idle
     }
 

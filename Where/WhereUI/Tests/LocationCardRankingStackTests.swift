@@ -19,19 +19,19 @@ struct LocationCardRankingStackTests {
             EmptyView()
         }
         let pending = LocationCardsPresentationModel.OvertakeMovement(
-            sequence: 1,
+            id: .init(),
             fromOrder: [.california, .newYork],
             toOrder: [.newYork, .california],
             phase: .pending,
         )
         let released = LocationCardsPresentationModel.OvertakeMovement(
-            sequence: 1,
+            id: pending.id,
             fromOrder: [.california, .newYork],
             toOrder: [.newYork, .california],
             phase: .released(.standard),
         )
         let reduced = LocationCardsPresentationModel.OvertakeMovement(
-            sequence: 1,
+            id: pending.id,
             fromOrder: [.california, .newYork],
             toOrder: [.newYork, .california],
             phase: .released(.reducedMotion),

@@ -4,7 +4,7 @@
 # every `mise exec --`) succeed on a Linux cloud agent instead of dying on
 # `unsupported env: linux/amd64`.
 tuist = { version = "4.200.5", os = ["macos"] }
-swiftformat = "0.60.1"
+swiftformat = "0.64.7"
 ruby = "3.4.10"
 shellcheck = "0.11.0"
 node = "24.22.0"

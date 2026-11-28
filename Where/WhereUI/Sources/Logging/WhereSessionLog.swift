@@ -3,7 +3,9 @@ import PeriscopeCore
 /// Structured events and spans for `WhereSession`.
 @LogScope("WhereSession")
 enum WhereSessionLog {
-    enum SpanName: Hashable { case foregroundRefresh }
+    enum SpanName: Hashable {
+        case foregroundRefresh
+    }
 
     @LogEvent(
         "when-in-use-only",

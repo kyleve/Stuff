@@ -29,7 +29,7 @@ struct RelationshipView: View {
         }
         .navigationTitle(relationshipName)
         .navigationBarTitleDisplayMode(.inline)
-        .task(id: model.mutationGeneration) { await load() }
+        .task(id: model.mutationTrigger) { await load() }
     }
 
     private func load() async {

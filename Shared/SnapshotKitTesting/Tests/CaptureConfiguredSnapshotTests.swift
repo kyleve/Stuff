@@ -33,7 +33,9 @@ struct CaptureConfiguredSnapshotTests {
             measurementReadiness: .immediate,
             onReadyToMeasure: {
                 attempts += 1
-                if attempts < 3 { throw snapshotRetryTimeout(attempt: attempts) }
+                if attempts < 3 {
+                    throw snapshotRetryTimeout(attempt: attempts)
+                }
             },
             measurementHookTimeout: nil,
             settle: .immediate,

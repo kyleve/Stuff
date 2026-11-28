@@ -202,10 +202,10 @@ extension BAccessibility {
     }
 }
 
+@MainActor
 extension BAccessibility {
     /// Returns a snapshot of the current device accessibility settings
     /// by reading each `UIAccessibility` class property.
-    @MainActor
     public static func current(
         with provider: any SettingsProvider = BAccessibility.systemSettings,
     ) -> BAccessibility {
@@ -213,10 +213,10 @@ extension BAccessibility {
     }
 
     /// The provider which returns the current accessibility values from`UIAccessibility.{...}`.
-    @MainActor
     public static let systemSettings: any SettingsProvider = SystemSettingsProvider()
 }
 
+@MainActor
 extension BAccessibility {
     /// A view-controller-free stream of accessibility snapshots: it yields a
     /// fresh ``BAccessibility`` whenever any observed system setting changes.
@@ -227,7 +227,6 @@ extension BAccessibility {
     /// stream from a `.task` and lets task cancellation tear the observer down.
     /// The underlying ``Observer`` starts when the stream is created and stops
     /// when it terminates.
-    @MainActor
     public static func changes(
         notificationCenter: NotificationCenter = .default,
         with provider: any SettingsProvider = BAccessibility.systemSettings,

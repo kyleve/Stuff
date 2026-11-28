@@ -18,9 +18,10 @@ struct InspectorSwiftDataMutationTests {
         let entity = try #require(model.entities.first { $0.name == "MutationRecord" })
         let row = try #require(try await model.rows(for: entity).rows.first)
 
+        let initialTrigger = model.mutationTrigger
         #expect(await model.delete(rowID: row.persistentID, from: entity))
         #expect(model.entities.first { $0.name == entity.name }?.count == 1)
-        #expect(model.mutationGeneration == 1)
+        #expect(model.mutationTrigger != initialTrigger)
     }
 
     @Test func deletesEveryRowOfOneEntityOnly() async throws {
@@ -71,9 +72,10 @@ struct InspectorSwiftDataMutationTests {
         await model.loadEntities()
         let countBeforeErase = try context.fetchCount(FetchDescriptor<MutationRecord>())
 
+        let initialTrigger = model.mutationTrigger
         #expect(model.canEraseStore == false)
         #expect(await model.eraseStore() == false)
-        #expect(model.mutationGeneration == 0)
+        #expect(model.mutationTrigger == initialTrigger)
         #expect(model.operationError != nil)
         #expect(try context.fetchCount(FetchDescriptor<MutationRecord>()) == countBeforeErase)
     }
@@ -122,6 +124,7 @@ struct InspectorSwiftDataMutationTests {
         let entity = try #require(model.entities.first { $0.name == "MutationRecord" })
         let row = try #require(try await model.rows(for: entity).rows.first)
 
+        let initialTrigger = model.mutationTrigger
         let deleted = await Task {
             withUnsafeCurrentTask { $0?.cancel() }
             return await model.delete(rowID: row.persistentID, from: entity)
@@ -129,7 +132,7 @@ struct InspectorSwiftDataMutationTests {
 
         #expect(!deleted)
         #expect(model.entities.first { $0.name == entity.name }?.count == 1)
-        #expect(model.mutationGeneration == 0)
+        #expect(model.mutationTrigger == initialTrigger)
     }
 
     @Test func cancellationAfterEraseStillDiscardsAndReopens() async throws {

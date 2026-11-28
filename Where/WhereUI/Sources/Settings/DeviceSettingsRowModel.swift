@@ -75,7 +75,11 @@ final class DeviceSettingsRowModel: Identifiable {
     }
 
     var isSaving: Bool {
-        if case .saving = operationState { true } else { false }
+        if case .saving = operationState {
+            true
+        } else {
+            false
+        }
     }
 
     var displayName: String {
@@ -134,10 +138,14 @@ final class DeviceSettingsRowModel: Identifiable {
 
     func update(from configuration: RecordingDeviceConfiguration) {
         let newNickname = configuration.device.nickname ?? ""
-        if !hasUnsavedNickname { nickname = newNickname }
+        if !hasUnsavedNickname {
+            nickname = newNickname
+        }
         confirmedNickname = newNickname
         if let enabled = configuration.localAutomaticRecordingEnabled {
-            if !pendingRecordingIntent { recordingEnabled = enabled }
+            if !pendingRecordingIntent {
+                recordingEnabled = enabled
+            }
             confirmedRecordingEnabled = enabled
         }
         status = configuration.device.status

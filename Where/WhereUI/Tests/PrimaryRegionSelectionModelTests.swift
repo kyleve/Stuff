@@ -15,12 +15,12 @@ struct PrimaryRegionSelectionModelTests {
     }
 
     @Test func offersNorthAmericanLoggingChoicesInCatalogOrder() throws {
-        let model = PrimaryRegionSelectionModel()
+        let model = PrimaryRegionDraft()
         let available = model.available
         #expect(available == RegionCatalog.shared.all.filter { $0 != .europeanUnion })
         #expect(available.count == 65)
-        #expect(PrimaryRegionSelectionModel.usRegions.count == 52)
-        #expect(PrimaryRegionSelectionModel.usRegions == available
+        #expect(PrimaryRegionDraft.usRegions.count == 52)
+        #expect(PrimaryRegionDraft.usRegions == available
             .filter { $0.rawValue.hasPrefix("us-") })
         #expect(try available.contains(region("ca-ON")))
         #expect(try available.contains(region("ca-NU")))
@@ -34,58 +34,257 @@ struct PrimaryRegionSelectionModelTests {
         #expect(model.selectedRegions.isEmpty)
     }
 
-    @Test func mapTapUsesTheDisplayedCoastlineAndPreservesSelectionOnWater() async throws {
-        let map = try await RegionPickerView.MapData(regions: [.newYork, .ontario])
-        let model = PrimaryRegionSelectionModel()
-        let land = Coordinate(latitude: 40.946, longitude: -73.067)
-        let water = Coordinate(latitude: 40.998, longitude: -73.066)
-        let picker = RegionPickerView(model: model)
-        picker.handleMapTap(at: land.clLocationCoordinate, in: map)
-        #expect(model.selectedRegions == [.newYork])
-        picker.handleMapTap(at: water.clLocationCoordinate, in: map)
-        #expect(model.selectedRegions == [.newYork])
-        picker.handleMapTap(at: .init(latitude: 43.6532, longitude: -79.3832), in: map)
-        #expect(model.selectedRegions == [.newYork, .ontario])
-        let visible = Set(map.geometry.visible(in: .world, width: 400).compactMap(\.region))
-        #expect(visible == [.ontario, .newYork])
+    @Test func browseGroupsKeepOfferedRegionsTogetherInOrder() {
+        let draft = PrimaryRegionDraft(
+            available: [.newYork, .ontario, .other, .california, .europeanUnion],
+        )
+        let model = RegionPickerModel(draft: draft)
+        let groups = model.browse.countryGroups
+        #expect(groups.map(\.id) == [.unitedStates, .canada, nil])
+        #expect(groups.map(\.regions) == [
+            [.newYork, .california],
+            [.ontario],
+            [.other, .europeanUnion],
+        ])
+    }
+
+    @Test func countriesWithOnlyYearShortcutsStayBrowsable() throws {
+        let quebec = try region("ca-QC")
+        let draft = PrimaryRegionDraft(available: [.ontario, .newYork, quebec, .other])
+        let model = RegionPickerModel(draft: draft, usedThisYear: Set(draft.available))
+        let collapsed = model.browse
+        #expect(collapsed.usedThisYear == [.ontario, .newYork, quebec])
+        #expect(collapsed.countryGroups.map(\.regions) == [
+            [.ontario, quebec],
+            [.newYork],
+            [.other],
+        ])
+
+        let canada: RegionCatalog.Node.ID = .canada
+        model.expandedCountries = [canada]
+        let expanded = model.browse
+        #expect(expanded.usedThisYear == [.newYork])
+        #expect(expanded.countryGroups.map(\.regions) == collapsed.countryGroups.map(\.regions))
+    }
+
+    @Test func postalCodePrecedesOtherNameMatchesAcrossCountries() throws {
+        let washington = try region("us-WA")
+        let draft = PrimaryRegionDraft(available: [washington, .ontario, .newYork])
+        let model = RegionPickerModel(draft: draft)
+        draft.toggle(.newYork)
+        model.searchText = "  oN\n"
+        #expect(model.searchResults == .available([.ontario, washington]))
+        draft.toggle(.ontario)
+        #expect(model.searchResults == .available([washington]))
+        model.searchText = "ny"
+        #expect(model.searchResults == .allSelected)
+        draft.toggle(.newYork)
+        #expect(model.searchResults == .available([.newYork]))
+        model.searchText = "alaska"
+        #expect(model.searchResults == .noMatches)
+        model.searchText = "  \n"
+        #expect(model.isSearching == false)
+    }
+
+    @Test func searchMatchesAccentsInLocalizedNames() throws {
+        let quebec = try region("ca-QC")
+        let draft = PrimaryRegionDraft()
+        let model = RegionPickerModel(draft: draft)
+        model.searchText = "québ"
+        #expect(model.searchResults == .available([quebec]))
     }
 
     @Test func hostedPickerSelectsAndReopensTwoProvinces() async throws {
         let quebec = try region("ca-QC")
         let session = PreviewSupport.loadedSession()
-        let model = PrimaryRegionSelectionModel()
-        model.applyGrouping(usedThisYear: [.ontario, quebec])
+        let model = PrimaryRegionDraft()
         let host = UIHostingController(rootView: NavigationStack {
-            RegionPickerView(model: model)
+            RegionPickerView(draft: model, usedThisYear: [.ontario, quebec])
         }.whereBroadwayRoot())
         try await show(host) { controller in
             for region in [Region.ontario, quebec] {
-                @MainActor func row() -> NSObject? {
-                    HostedAccessibility.objects(in: controller.view).first {
-                        $0.accessibilityLabel == region.localizedName && $0.accessibilityTraits
-                            .contains(.button)
-                    }
-                }
-                try await waitForAsync { row() != nil }
-                let button = try #require(row())
-                if let control = button as? UIControl {
-                    control.sendActions(for: .touchUpInside)
-                } else {
-                    try #require(button.accessibilityActivate())
-                }
+                try await tap(region.localizedName, in: controller.view)
                 try await waitForAsync { model.isSelected(region) }
             }
         }
         try await model.commit(using: session)
         let reopened = try await session.services.primaryRegions()
-        #expect(PrimaryRegionSelectionModel(existing: reopened).selectedRegions == [
+        #expect(PrimaryRegionDraft(existing: reopened).selectedRegions == [
             .ontario,
             quebec,
         ])
     }
 
+    @Test func hostedPickerKeepsSelectionsAndCountryExpansionThroughSearch() async throws {
+        let model = PrimaryRegionDraft(available: [.newYork, .ontario])
+        let canada = try #require(RegionCatalog.shared.node(id: .canada))
+        let picker = NavigationStack {
+            RegionPickerView(draft: model)
+                .navigationTitle(String(localized: .onboardingRegionsTitle))
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button(String(localized: .onboardingNext)) {}
+                            .disabled(!model.hasSelection)
+                    }
+                }
+        }.whereBroadwayRoot()
+        let host = UIHostingController(rootView: Optional(picker))
+        try await show(host) { controller in
+            let view = try #require(controller.view)
+            view.window?.layer.speed = 1
+            defer { endSearch(in: view) }
+            try await tap(canada.localizedName, in: view)
+            try await tap(Region.ontario.localizedName, in: view)
+            try await waitForAsync { model.selectedRegions == [.ontario] }
+
+            let field = try await focusBottomSearch(in: controller)
+            field.insertText("NY")
+            try await waitForAsync {
+                button(Region.newYork.localizedName, in: view)?.accessibilityValue == "US · NY"
+            }
+            try await tap(Region.newYork.localizedName, in: view)
+            try await waitForAsync {
+                guard let newest = button(Region.newYork.localizedName, in: view),
+                      let first = button(Region.ontario.localizedName, in: view),
+                      newest.accessibilityTraits.contains(.selected),
+                      first.accessibilityTraits.contains(.selected)
+                else { return false }
+                return newest.accessibilityFrame.midY < first.accessibilityFrame.midY
+            }
+            #expect(model.selectedRegions == [.ontario, .newYork])
+            try await tap(Region.ontario.localizedName, in: view)
+            try await waitForAsync { model.selectedRegions == [.newYork] }
+
+            field.selectAll(nil)
+            field.deleteBackward()
+            try await waitForAsync {
+                button(Region.ontario.localizedName, in: view)?.accessibilityValue == "ON"
+            }
+            #expect(field.isFirstResponder)
+            field.insertText("NY")
+            try await waitForAsync { field.text == "NY" }
+            // Onboarding replaces the picker when advancing and reuses the draft when returning.
+            host.rootView = nil
+            try await waitForAsync { !field.isFirstResponder }
+            host.rootView = picker
+            try await waitForAsync {
+                button(Region.newYork.localizedName, in: view)?.accessibilityTraits
+                    .contains(.selected) == true
+            }
+            try await waitForAsync {
+                button(canada.localizedName, in: view) != nil
+                    && button(Region.ontario.localizedName, in: view) == nil
+            }
+            #expect(model.selectedRegions == [.newYork])
+        }
+    }
+
+    @Test func settingsManageShowsNativeBottomSearchInItsPresentedNavigationStack() async throws {
+        let session = PreviewSupport.loadedSession()
+        let sheet = UIHostingController(rootView: RegionsSettingsView()
+            .environment(session)
+            .whereBroadwayRoot())
+        sheet.modalPresentationStyle = .pageSheet
+        try await show(UIViewController()) { presenter in
+            presenter.view.window?.layer.speed = 1
+            presenter.present(sheet, animated: false)
+            defer {
+                endSearch(in: sheet.view)
+                sheet.presentingViewController?.dismiss(animated: false)
+            }
+            try await tap(String(localized: .settingsRegionsManage), in: sheet.view)
+            let field = try await focusBottomSearch(in: sheet)
+            field.insertText("ON")
+            try await waitForAsync {
+                button(Region.ontario.localizedName, in: sheet.view)?.accessibilityValue == "CA · ON"
+            }
+        }
+    }
+
+    private func button(_ label: String, in view: UIView) -> NSObject? {
+        HostedAccessibility.objects(in: view).first {
+            $0.accessibilityTraits.contains(.button)
+                && $0.accessibilityLabel?.hasPrefix(label) == true
+        }
+    }
+
+    private func tap(_ label: String, in view: UIView) async throws {
+        do { try await waitForAsync { button(label, in: view) != nil } }
+        catch { throw TestHostError("Missing button \(label): \(error)") }
+        let element = try #require(button(label, in: view))
+        if let control = element as? UIControl {
+            control.sendActions(for: .touchUpInside)
+        } else {
+            try #require(element.accessibilityActivate(), "Activate \(label)")
+        }
+    }
+
+    private func endSearch(in view: UIView) {
+        view.window?.endEditing(true)
+        for bar in AdaptivePaneTestSupport.descendants(of: view, matching: UINavigationBar.self) {
+            bar.topItem?.searchController?.isActive = false
+        }
+    }
+
+    private func focusBottomSearch(in controller: UIViewController) async throws
+        -> UISearchTextField
+    {
+        let view = try #require(controller.view)
+        let window = try #require(view.window)
+        @MainActor func isSettled(_ controller: UIViewController) -> Bool {
+            !controller.isBeingPresented && controller.transitionCoordinator == nil
+                && controller.children.allSatisfy(isSettled)
+        }
+        @MainActor func visibleField() -> UISearchTextField? {
+            AdaptivePaneTestSupport.descendants(of: view, matching: UISearchTextField.self)
+                .first { field in
+                    var ancestor: UIView? = field
+                    while let current = ancestor {
+                        if current.isHidden || current.alpha == 0 {
+                            return false
+                        }
+                        ancestor = current.superview
+                    }
+                    let frame = field.convert(field.bounds, to: view)
+                    return field.window != nil && frame.width > 2 * frame.height &&
+                        frame.height > 0 && view.bounds.contains(frame)
+                }
+        }
+        try await waitForAsync { isSettled(controller) && visibleField() != nil }
+        let field = try #require(visibleField())
+        #expect(field.convert(field.bounds, to: view).midY > view.bounds.midY)
+        let navigationBars = AdaptivePaneTestSupport.descendants(
+            of: view,
+            matching: UINavigationBar.self,
+        )
+        let searchControllers = navigationBars.compactMap { $0.topItem?.searchController }
+        let search = try #require(searchControllers.first)
+        search.isActive = true
+        @MainActor func focusedField() -> UISearchTextField? {
+            AdaptivePaneTestSupport.descendants(of: window, matching: UISearchTextField.self)
+                .first(where: \.isFirstResponder)
+        }
+        // A toolbar can host a presentation copy. UIKit's search bar forwards focus to the editor.
+        try await waitForAsync {
+            if focusedField() != nil {
+                return true
+            }
+            _ = search.searchBar.becomeFirstResponder()
+            return focusedField() != nil
+        }
+        // Focus can transfer before the system field has finished moving above the keyboard.
+        try await waitForAsync {
+            guard let editor = focusedField(), !search.isBeingPresented,
+                  search.transitionCoordinator == nil else { return false }
+            let keyboardTop = view.keyboardLayoutGuide.layoutFrame.minY
+            let frame = editor.convert(editor.bounds, to: view)
+            return frame.maxY <= keyboardTop && keyboardTop - frame.maxY < frame.height * 2
+        }
+        return try #require(focusedField())
+    }
+
     @Test func toggleAddsAndRemovesPreservingOrder() throws {
-        let model = PrimaryRegionSelectionModel()
+        let model = PrimaryRegionDraft()
         let tx = try region("us-TX")
         model.toggle(.california)
         model.toggle(.newYork)
@@ -97,34 +296,81 @@ struct PrimaryRegionSelectionModelTests {
     }
 
     @Test func cannotSelectMoreThanTheCap() {
-        let model = PrimaryRegionSelectionModel()
+        let model = PrimaryRegionDraft()
         // Pick the first maxSelection available regions, then attempt one more.
-        let picks = Array(model.available.prefix(PrimaryRegionSelectionModel.maxSelection))
+        let picks = Array(model.available.prefix(PrimaryRegionDraft.maxSelection))
         for region in picks {
             model.toggle(region)
         }
         #expect(model.isAtCapacity)
 
-        let extra = model.available[PrimaryRegionSelectionModel.maxSelection]
+        let extra = model.available[PrimaryRegionDraft.maxSelection]
         #expect(!model.canToggle(extra))
         model.toggle(extra)
         // The add past the cap is a no-op.
-        #expect(model.selectionCount == PrimaryRegionSelectionModel.maxSelection)
+        #expect(model.selectedRegions.count == PrimaryRegionDraft.maxSelection)
         #expect(!model.isSelected(extra))
 
         // An already-selected region can still be toggled off at capacity.
         #expect(model.canToggle(picks[0]))
+        model.toggle(picks[0])
+        model.toggle(extra)
+        #expect(model.selectedRegions.last == extra)
+        #expect(model.desiredPrimaryRegions.map(\.region) == Array(picks.dropFirst()) + [extra])
+    }
+
+    @Test func mergedPicksBeyondTheCapStayFindableAndSurviveSaving() async throws {
+        let cap = PrimaryRegionDraft.maxSelection
+        let available = Array(PrimaryRegionDraft.supportedRegions.prefix(cap + 3))
+        let merged = Array(available.prefix(cap + 2))
+        let extra = available[cap + 2]
+        let draft = PrimaryRegionDraft(
+            existing: merged.enumerated()
+                .map { PrimaryRegion(region: $1, appearance: nil, order: $0) },
+            available: available,
+        )
+        let first = merged[0], second = merged[1]
+        let model = RegionPickerModel(draft: draft, usedThisYear: [first])
+        let session = PreviewSupport.loadedSession()
+        try await draft.commit(using: session)
+        #expect(try await session.services.primaryRegions().map(\.region) == merged)
+        #expect(model.selectedNewestFirst == Array(merged.suffix(cap).reversed()))
+        #expect(draft.selectedRegions.count == merged.count)
+
+        let collapsed = model.browse
+        #expect(collapsed.usedThisYear == [first])
+        #expect(collapsed.countryGroups.flatMap(\.regions) == [first, second, extra])
+        model.expandedCountries = [.unitedStates]
+        let expanded = model.browse
+        #expect(expanded.usedThisYear.isEmpty)
+        #expect(expanded.countryGroups.flatMap(\.regions) == [first, second, extra])
+        model.searchText = first.localizedName
+        #expect(model.searchResults == .available([first]))
+        #expect(draft.isSelected(first))
+        draft.toggle(first)
+        #expect(draft.selectedRegions.count == cap + 1)
+        #expect(draft.isSelected(first) == false)
+        #expect(draft.canToggle(extra) == false)
+
+        draft.toggle(merged[cap + 1])
+        #expect(draft.selectedRegions.count == cap)
+        #expect(model.selectedNewestFirst.last == second)
+        model.searchText = second.localizedName
+        #expect(model.searchResults == .allSelected)
+        #expect(draft.canToggle(extra) == false)
+        draft.toggle(second)
+        #expect(draft.canToggle(extra))
     }
 
     @Test func appearanceDraftsDefaultThenUpdate() {
-        let model = PrimaryRegionSelectionModel()
-        let start = model.appearance(for: .california)
+        let model = PrimaryRegionDraft()
+        let start = model[appearanceFor: .california]
         #expect(start == RegionAppearanceCatalog.defaultAppearance(for: .california))
 
-        model.setColor(.mint, for: .california)
-        model.setEmoji("🌊", for: .california)
-        model.setSymbol(.waterWaves, for: .california)
-        let edited = model.appearance(for: .california)
+        model[appearanceFor: .california].color = .mint
+        model[appearanceFor: .california].emoji = "🌊"
+        model[appearanceFor: .california].symbolName = .waterWaves
+        let edited = model[appearanceFor: .california]
         #expect(edited.color == .mint)
         #expect(edited.emoji == "🌊")
         #expect(edited.symbolName == .waterWaves)
@@ -133,59 +379,50 @@ struct PrimaryRegionSelectionModelTests {
     @Test func seedsFromExistingPrimaryRegions() throws {
         let tx = try region("us-TX")
         let look = RegionAppearance(color: .orange, emoji: "🤠", symbolName: .starFill)
-        let model = PrimaryRegionSelectionModel(existing: [
+        let model = PrimaryRegionDraft(existing: [
             PrimaryRegion(region: .california, appearance: nil, order: 0),
             PrimaryRegion(region: tx, appearance: look, order: 1),
         ])
         #expect(model.selectedRegions == [.california, tx])
-        #expect(model.appearance(for: tx) == look)
+        #expect(model[appearanceFor: tx] == look)
     }
 
-    @Test func ungroupedByDefault() {
-        let model = PrimaryRegionSelectionModel()
-        #expect(!model.isGrouped)
-    }
-
-    @Test func groupsIntoYourRegionsUsedThisYearAndMore() throws {
+    @Test func selectedRegionsMoveBetweenTheTopYearShortcutsAndCountries() throws {
         let texas = try region("us-TX")
         let florida = try region("us-FL")
-        let model = PrimaryRegionSelectionModel(
+        let draft = PrimaryRegionDraft(
             existing: [PrimaryRegion(region: .california, appearance: nil, order: 0)],
             available: [.california, .newYork, texas, florida],
         )
-        model.applyGrouping(usedThisYear: [.newYork])
+        let model = RegionPickerModel(draft: draft, usedThisYear: [.newYork, .california])
 
-        #expect(model.isGrouped)
-        #expect(model.grouping.primary == [.california])
-        #expect(model.grouping.usedThisYear == [.newYork])
-        #expect(model.grouping.other == [texas, florida])
-    }
+        #expect(model.selectedNewestFirst == [.california])
+        let initial = model.browse
+        #expect(initial.usedThisYear == [.newYork])
+        #expect(initial.countryGroups.flatMap(\.regions) == [.newYork, texas, florida])
 
-    @Test func groupingIsStableWhileToggling() throws {
-        let texas = try region("us-TX")
-        let model = PrimaryRegionSelectionModel(
-            existing: [PrimaryRegion(region: .california, appearance: nil, order: 0)],
-            available: [.california, .newYork, texas],
-        )
-        model.applyGrouping(usedThisYear: [.newYork])
+        draft.toggle(.newYork)
+        draft.toggle(texas)
+        #expect(model.selectedNewestFirst == [texas, .newYork, .california])
+        let afterAdditions = model.browse
+        #expect(afterAdditions.usedThisYear.isEmpty)
+        #expect(afterAdditions.countryGroups.flatMap(\.regions) == [florida])
+        #expect(draft.desiredPrimaryRegions.map(\.region) == [.california, .newYork, texas])
 
-        // Add NY (from "used this year") and remove CA (from "your regions").
-        model.toggle(.newYork)
-        model.toggle(.california)
-        // Section membership is keyed on the picks at open, so rows don't jump.
-        #expect(model.grouping.primary == [.california])
-        #expect(model.grouping.usedThisYear == [.newYork])
-        #expect(model.grouping.other == [texas])
-        // ...but the live selection reflects the toggles.
-        #expect(model.selectedRegions == [.newYork])
+        draft.toggle(.california)
+        draft.toggle(texas)
+        #expect(model.selectedNewestFirst == [.newYork])
+        let afterRemovals = model.browse
+        #expect(afterRemovals.usedThisYear == [.california])
+        #expect(afterRemovals.countryGroups.flatMap(\.regions) == [.california, texas, florida])
     }
 
     @Test func commitPersistsPicksAsTrackedRegionsWithAppearance() async throws {
         let session = PreviewSupport.loadedSession()
-        let model = PrimaryRegionSelectionModel()
+        let model = PrimaryRegionDraft()
         model.toggle(.california)
-        model.setColor(.orange, for: .california)
-        model.setEmoji("🌴", for: .california)
+        model[appearanceFor: .california].color = .orange
+        model[appearanceFor: .california].emoji = "🌴"
 
         try await model.commit(using: session)
 
@@ -205,8 +442,8 @@ struct PrimaryRegionSelectionModelTests {
         ])
 
         let existing = try await session.services.primaryRegions()
-        let model = PrimaryRegionSelectionModel(existing: existing)
-        model.setEmoji("🌉", for: .california)
+        let model = PrimaryRegionDraft(existing: existing)
+        model[appearanceFor: .california].emoji = "🌉"
         try await model.commit(using: session)
 
         let saved = try await session.services.primaryRegions()
@@ -222,13 +459,13 @@ struct PrimaryRegionSelectionModelTests {
         #expect(Set(existing.map(\.region)) == SwiftDataStore.defaultTrackedRegions)
 
         let ontario = try region("ca-ON")
-        let model = PrimaryRegionSelectionModel(existing: existing)
+        let model = PrimaryRegionDraft(existing: existing)
         #expect(Set(model.selectedRegions) == [.california, .newYork])
         model.toggle(ontario)
         try await model.commit(using: session)
 
         let restored = try await session.services.primaryRegions()
-        #expect(PrimaryRegionSelectionModel(existing: restored).selectedRegions == model
+        #expect(PrimaryRegionDraft(existing: restored).selectedRegions == model
             .selectedRegions)
         #expect(try await session.services.trackedRegions() == [
             .california,
@@ -254,7 +491,7 @@ struct PrimaryRegionSelectionModelTests {
         ])
         #expect(try await session.services.trackedRegions() == [.california])
 
-        let model = PrimaryRegionSelectionModel()
+        let model = PrimaryRegionDraft()
         #expect(!model.hasSelection)
         try await model.commit(using: session)
 
@@ -280,7 +517,7 @@ struct PrimaryRegionSelectionModelTests {
         ])
 
         let existing = try await session.services.primaryRegions()
-        let model = PrimaryRegionSelectionModel(existing: existing)
+        let model = PrimaryRegionDraft(existing: existing)
         model.toggle(.newYork) // remove NY
         try await model.commit(using: session)
 

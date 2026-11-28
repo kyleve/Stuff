@@ -8,6 +8,7 @@ Keep history in the audit PR.
 
 | Pattern | Probe |
 | --- | --- |
+| Copies of a data struct share mutable state | [Copy isolation](#domain-types-and-state) |
 | Old/cancelled work publishes after a newer request | [Completion ordering](#domain-types-and-state) |
 | A consumer creates another resource or retains an old session | [Launch and reset](#composition-and-transactions) |
 | A write leaves sibling readers stale | [Transaction and reconciliation](#composition-and-transactions) |
@@ -18,7 +19,10 @@ Keep history in the audit PR.
 
 ## Domain types and state
 
-[Swift conventions](../../../../.agents/references/swift-conventions.md) own domain identities, coupled state, parameter defaults, and error propagation.
+[Swift conventions](../../../../.agents/references/swift-conventions.md) own value semantics, domain identities, coupled state, parameter defaults, and error propagation.
+When a data struct gains reference-backed state, trace a write through one copy and verify the original still reads its previous value. See `copyIndependence` in [BTraitsTests](../../../../Shared/Broadway/BroadwayCore/Tests/BTraitsTests.swift).
+When two presentations or requests for the same entity can overlap, finish the older one and verify the newer one still has its state.
+
 For completion ordering, release superseded work after the newer request finishes.
 For failure state, fail a refresh after a successful result.
 [UpdateModelTests](../../../../Shared/InstallerKit/Tests/UpdateModelTests.swift) guards both through `foregroundReentrySupersedesCancelledCheck` and `failedManualCheckKeepsLastResultAndOriginalError`.

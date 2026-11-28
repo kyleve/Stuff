@@ -20,7 +20,9 @@ import SnapshotKit
         .deletingLastPathComponent()
         .appendingPathComponent("__Snapshots__")
         .appendingPathComponent(testFile.deletingPathExtension().lastPathComponent)
-    if let referenceGroup { directory.appendPathComponent(referenceGroup.rawValue) }
+    if let referenceGroup {
+        directory.appendPathComponent(referenceGroup.rawValue)
+    }
     if configuration.snapshotType == .standard,
        configuration.dynamicType != .large
        || configuration.contrast == .increased

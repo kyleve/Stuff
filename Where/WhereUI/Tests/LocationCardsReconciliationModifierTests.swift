@@ -130,9 +130,9 @@ struct LocationCardsReconciliationModifierTests {
             try await cancellingWaiter.value
         }
         #expect(cancellingProbe.didFinish == false)
-        #expect(presentation.overtakeMovement?.sequence == event.sequence)
+        #expect(presentation.overtakeMovement?.id == event.id)
 
-        presentation.finishOvertakeMovement(sequence: event.sequence)
+        presentation.finishOvertakeMovement(id: event.id)
         try await completingWaiter.value
         #expect(completingProbe.didFinish)
     }

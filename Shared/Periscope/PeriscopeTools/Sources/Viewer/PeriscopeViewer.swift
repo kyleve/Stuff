@@ -1,3 +1,4 @@
+import BroadwayCore
 import PeriscopeCore
 import SFSafeSymbols
 import SwiftUI
@@ -271,7 +272,7 @@ public struct PeriscopeViewer: View {
 
 /// A generated NDJSON export, presented in a share sheet.
 struct NDJSONExport: Identifiable {
-    let id = UUID()
+    let id = PresentationID<NDJSONExport>()
     let text: String
 }
 

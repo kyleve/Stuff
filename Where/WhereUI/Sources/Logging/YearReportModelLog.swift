@@ -4,7 +4,9 @@ import WhereCore
 /// Structured events and spans for `YearReportModel`.
 @LogScope("YearReport")
 enum YearReportModelLog {
-    enum SpanName: Hashable { case sceneRefresh }
+    enum SpanName: Hashable {
+        case sceneRefresh
+    }
 
     @LogEvent("selected-year")
     struct SelectedYear {

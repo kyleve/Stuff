@@ -202,7 +202,9 @@ struct SampleCorrectionAssessment {
         // Present edits chronologically. UUID breaks simultaneous-observation ties
         // so CloudKit row delivery order cannot change a reviewed proposal.
         let edits = candidates.sorted {
-            if $0.timestamp != $1.timestamp { return $0.timestamp < $1.timestamp }
+            if $0.timestamp != $1.timestamp {
+                return $0.timestamp < $1.timestamp
+            }
             return $0.edit.sampleID.uuidString < $1.edit.sampleID.uuidString
         }.map(\.edit)
         let replacement = Dictionary(uniqueKeysWithValues: edits.map { (

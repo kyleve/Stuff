@@ -59,7 +59,11 @@ final class FlightReviewModel {
 
     var isConfirmingPointCorrection: Bool {
         get { pointConfirmation != nil }
-        set { if !newValue { pointConfirmation = nil } }
+        set {
+            if !newValue {
+                pointConfirmation = nil
+            }
+        }
     }
 
     func selectPointCorrection(_ correction: FlightPointCorrection) {
@@ -77,7 +81,9 @@ final class FlightReviewModel {
         guard let regions = presentation?.replacements[sampleID] else {
             return String(localized: .flightReviewUnchanged)
         }
-        if regions.isEmpty { return String(localized: .flightReviewExcluded) }
+        if regions.isEmpty {
+            return String(localized: .flightReviewExcluded)
+        }
         return regions.map(\.localizedName).sorted().joined(separator: ", ")
     }
 

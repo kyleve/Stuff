@@ -63,8 +63,8 @@ struct CalendarModel {
     ) -> [CalendarMonth] {
         guard
             let currentMonthStart = report.calendar
-            .dateInterval(of: .month, for: report.referenceDate)?
-            .start
+                .dateInterval(of: .month, for: report.referenceDate)?
+                .start
         else {
             return months
         }

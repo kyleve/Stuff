@@ -4,10 +4,7 @@ import PeriscopeCore
 import WhereCore
 
 /// View-scoped model for the Settings backup section: export progress and the
-/// error alert. Backup import is an onboarding-only recovery path. Owned as `@State` by
-/// `SettingsView`, so it's created when the
-/// Settings tab is first shown and torn down with it — nothing here needs to
-/// outlive the screen that drives it.
+/// error alert. Data Settings owns the model while it can present an export.
 @MainActor
 @Observable
 public final class BackupModel {
@@ -57,6 +54,7 @@ public final class BackupModel {
     /// Progress is streamed to `backupProgress` so the caller can show a
     /// determinate "Exporting…" bar.
     public func exportBackup() async -> URL? {
+        guard backupState == .idle, !Task.isCancelled else { return nil }
         backupState = .exporting
         backupProgress = 0
         presentedError = nil
@@ -68,25 +66,32 @@ public final class BackupModel {
         let (progress, continuation) = AsyncStream<Double>.makeStream()
         let observer = Task { @MainActor [weak self] in
             for await fraction in progress {
+                guard !Task.isCancelled else { return }
                 self?.backupProgress = fraction
             }
         }
-        defer { observer.cancel() }
+        defer {
+            continuation.finish()
+            observer.cancel()
+        }
 
         do {
             let url = try await services.backup.exportBackup { continuation.yield($0) }
             continuation.finish()
             await observer.value
+            try Task.checkCancellation()
             Self.logger.exported()
             return url
+        } catch is CancellationError {
+            return nil
         } catch {
-            continuation.finish()
+            guard !Task.isCancelled else { return nil }
             presentBackupError(error)
             Self.logger.exportFailed(
                 error: .restricted(.errorDetails, error),
             )
-            return nil
         }
+        return nil
     }
 
     /// Delete the most recent export's temp file now — for a caller that's done

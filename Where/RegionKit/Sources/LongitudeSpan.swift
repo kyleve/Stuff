@@ -103,8 +103,12 @@ extension LongitudeSpan {
     /// Wraps an arbitrary longitude into the [−180°, 180°] range.
     private static func normalized(_ longitude: Double) -> Double {
         let wrapped = longitude.truncatingRemainder(dividingBy: 360)
-        if wrapped > 180 { return wrapped - 360 }
-        if wrapped < -180 { return wrapped + 360 }
+        if wrapped > 180 {
+            return wrapped - 360
+        }
+        if wrapped < -180 {
+            return wrapped + 360
+        }
         return wrapped
     }
 }

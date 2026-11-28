@@ -8,7 +8,9 @@ import WhereCore
 /// A floating Liquid Glass pill at the bottom (Photos-style) zooms between the
 /// calendar (month detail) and the timeline (year overview).
 struct YearView: View {
-    enum ScrollRole: Hashable { case calendar }
+    enum ScrollRole: Hashable {
+        case calendar
+    }
 
     let report: YearReportModel
 
@@ -49,6 +51,7 @@ struct YearView: View {
                         )
                 }
             }
+            .containerBackground(.clear, for: .navigation)
             // Crossfade between the two views rather than hard-cutting.
             .animation(.default, value: mode)
             .navigationTitle(mode.title)
@@ -63,6 +66,7 @@ struct YearView: View {
                     .padding(.bottom, stylesheet.spacing.xLarge)
             }
         }
+        .visitedRegionsBackground(report)
         .modifier(PlanningPresentation(report: report, destination: $planningDestination))
     }
 }

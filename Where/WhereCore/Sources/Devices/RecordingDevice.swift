@@ -96,7 +96,11 @@ public struct RecordingDevice: Identifiable, Codable, Sendable, Hashable {
 
     public var displayName: String {
         let trimmed = nickname?.trimmingCharacters(in: .whitespacesAndNewlines)
-        return if let trimmed, !trimmed.isEmpty { trimmed } else { systemName }
+        return if let trimmed, !trimmed.isEmpty {
+            trimmed
+        } else {
+            systemName
+        }
     }
 
     init(

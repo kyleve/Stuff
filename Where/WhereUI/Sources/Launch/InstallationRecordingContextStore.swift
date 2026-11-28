@@ -345,7 +345,9 @@ public final class FileInstallationRecordingContextStore:
         isEnabled: Bool,
     ) throws -> InstallationRecordingContext {
         let context = try resolution.get()
-        if context.automaticRecordingEnabled != nil { return context }
+        if context.automaticRecordingEnabled != nil {
+            return context
+        }
 
         let confirmed = context.confirmingInitialRecording(isEnabled: isEnabled)
         try persist(

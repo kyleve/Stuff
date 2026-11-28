@@ -175,7 +175,9 @@ struct WhereModelTests {
 
         bootstrap.releaseLogStore()
         try await waitForWhereModel {
-            if case .ready = model.logStoreState { return true }
+            if case .ready = model.logStoreState {
+                return true
+            }
             return false
         }
 
@@ -195,7 +197,9 @@ struct WhereModelTests {
 
         _ = try await model.resolveScope()
         try await waitForWhereModel {
-            if case .failed = model.logStoreState { return true }
+            if case .failed = model.logStoreState {
+                return true
+            }
             return false
         }
 
@@ -220,7 +224,9 @@ struct WhereModelTests {
 
         _ = try await model.resolveScope()
         try await waitForWhereModel {
-            if case .unavailable = model.logStoreState { return true }
+            if case .unavailable = model.logStoreState {
+                return true
+            }
             return false
         }
 

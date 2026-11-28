@@ -80,7 +80,9 @@ public struct FlightTrajectoryAnalyzer: Sendable {
         return tracks.flatMap { deviceID, samples in
             analyzeTrack(samples, deviceID: deviceID, now: now)
         }.sorted {
-            if $0.startedAt != $1.startedAt { return $0.startedAt < $1.startedAt }
+            if $0.startedAt != $1.startedAt {
+                return $0.startedAt < $1.startedAt
+            }
             return $0.id.departureSampleID.uuidString < $1.id.departureSampleID.uuidString
         }
     }
@@ -91,7 +93,9 @@ public struct FlightTrajectoryAnalyzer: Sendable {
         now: Date,
     ) -> [FlightAssessment] {
         let usable = samples.filter { Self.isUsable($0) && $0.timestamp <= now }.sorted {
-            if $0.timestamp != $1.timestamp { return $0.timestamp < $1.timestamp }
+            if $0.timestamp != $1.timestamp {
+                return $0.timestamp < $1.timestamp
+            }
             if $0.horizontalAccuracy != $1.horizontalAccuracy {
                 return $0.horizontalAccuracy < $1.horizontalAccuracy
             }
@@ -104,7 +108,9 @@ public struct FlightTrajectoryAnalyzer: Sendable {
             if let last = anchors.last,
                sample.timestamp.timeIntervalSince(last.timestamp)
                < Trajectory.minimumAnchorInterval
-            { continue }
+            {
+                continue
+            }
             anchors.append(sample)
         }
         guard anchors.count >= 3 else { return [] }
@@ -122,7 +128,9 @@ public struct FlightTrajectoryAnalyzer: Sendable {
             cruise: cruise.map { $0.start ..< $0.end },
         ).map(Segment.displacement)
         let segments = (cruise + displacement).sorted {
-            if $0.start != $1.start { return $0.start < $1.start }
+            if $0.start != $1.start {
+                return $0.start < $1.start
+            }
             return $0.end > $1.end
         }
         guard !segments.isEmpty else { return [] }
@@ -276,8 +284,8 @@ public struct FlightTrajectoryAnalyzer: Sendable {
                     && !Self.isSameObservation(sample, as: before)),
                     !endsRun || (sample.timestamp < after.timestamp
                         && !Self.isSameObservation(sample, as: after)),
-                    !groundIDs.contains(sample.id),
-                    Self.fitsMotion(sample, from: before, to: after)
+                   !groundIDs.contains(sample.id),
+                   Self.fitsMotion(sample, from: before, to: after)
                 {
                     airborneIDs.insert(sample.id)
                 }
@@ -346,7 +354,7 @@ public struct FlightTrajectoryAnalyzer: Sendable {
                 ))
         } else if observationStillCruising,
                   now.timeIntervalSince(lastFlightAt) < GPSCorrectionPolicy.Presentation
-                  .liveFlightFreshnessInterval
+                      .liveFlightFreshnessInterval
         {
             .flightLikely
         } else {

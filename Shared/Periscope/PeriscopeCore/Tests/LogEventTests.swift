@@ -17,7 +17,9 @@ private enum PhotoLog {
         }
     }
 
-    enum UploadKind: String, CaseIterable, Codable { case thumbnail }
+    enum UploadKind: String, CaseIterable, Codable {
+        case thumbnail
+    }
 
     @LogEvent("approved-upload", message: "Uploaded")
     struct ApprovedUpload {

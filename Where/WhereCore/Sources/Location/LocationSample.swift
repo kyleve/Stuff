@@ -44,12 +44,20 @@ public enum SampleSource: Sendable, Hashable, Codable {
     /// `.evidenceImplied` only — the originating evidence's UUID. Returns
     /// `nil` for the other cases, so SwiftData can skip writing the column.
     public var evidenceId: UUID? {
-        if case let .evidenceImplied(id, _) = self { id } else { nil }
+        if case let .evidenceImplied(id, _) = self {
+            id
+        } else {
+            nil
+        }
     }
 
     /// `.evidenceImplied` only — the originating evidence's kind.
     public var evidenceKind: EvidenceKind? {
-        if case let .evidenceImplied(_, kind) = self { kind } else { nil }
+        if case let .evidenceImplied(_, kind) = self {
+            kind
+        } else {
+            nil
+        }
     }
 
     /// Reconstruct from a discriminator plus optional evidence fields.

@@ -15,7 +15,9 @@ private func waitUntil(
 ) async throws {
     let deadline = ContinuousClock.now.advanced(by: timeout)
     while !predicate() {
-        if ContinuousClock.now >= deadline { throw WaitTimeout() }
+        if ContinuousClock.now >= deadline {
+            throw WaitTimeout()
+        }
         try await Task.sleep(for: .milliseconds(1))
     }
 }

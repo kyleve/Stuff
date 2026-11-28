@@ -224,7 +224,7 @@ extension LogEventMacro {
             }
             if let function = member.decl.as(FunctionDeclSyntax.self),
                ["exportedValue", "exportDescription"]
-               .contains(function.name.text.filter { $0 != "`" })
+                   .contains(function.name.text.filter { $0 != "`" })
             {
                 context.diagnose(
                     function,
@@ -308,10 +308,10 @@ extension LogEventMacro {
             guard let fieldAttribute = attribute(named: "LogField", in: variable.attributes),
                   let arguments = argumentList(of: fieldAttribute),
                   let exposureExpression = arguments.first(where: { $0.label?.text == "exposure" })?
-                  .expression,
+                      .expression,
                   let exposure = literalMemberName(from: exposureExpression),
                   let kindExpression = arguments.first(where: { $0.label?.text == "kind" })?
-                  .expression,
+                      .expression,
                   let kindName = literalMemberName(from: kindExpression),
                   let kind = EventFieldKind(rawValue: kindName)
             else {

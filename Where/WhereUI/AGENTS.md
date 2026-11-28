@@ -19,6 +19,15 @@ Read the matching instructions before changing or reviewing that behavior, inclu
 | Locations, Elsewhere, adaptive panes, card ranking, or estimates | [Locations and adaptive-pane contracts](Sources/Primary/AGENTS.md) |
 | Planned stays, forecasts, estimated-time controls, or Home presentation | [Planning presentation contracts](Sources/Forecasting/AGENTS.md) |
 
+## Observable ownership
+
+- Own presentation observables at the smallest stable screen, sheet, or flow that serves their consumers.
+  Keep shared projections and drafts in the scene or flow that must preserve them across navigation or layout changes.
+- Use [`ObservableHostingView`](Sources/Shared/ObservableHostingView.swift) when a view-owned model should be created only after its destination mounts.
+  Give the host a new identity when a different input needs a fresh model. Use `@State` directly for simple view-local state.
+- Drive visibility-sensitive work separately from model lifetime. Cancel obsolete reads and suppress late presentation.
+  Keep accepted work that must finish after dismissal with the owning service or coordinator.
+
 ## Scope & dependencies
 
 - WhereUI maps Core's persisted `RegionSymbol` values to SFSafeSymbols'

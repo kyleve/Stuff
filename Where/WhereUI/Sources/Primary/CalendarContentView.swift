@@ -14,7 +14,12 @@ import SwiftUI
 struct CalendarContentView: View {
     private let showsEstimateCard: Bool
     private let showsPlanningAction: Bool
-    enum ScrollRole: Hashable { case detail }
+    private let showsZoomAction: Bool
+    private let onPresentationReady: (() -> Void)?
+    enum ScrollRole: Hashable {
+        case detail
+    }
+
     struct ScrollContext: Hashable { let region: Region?; let year: Int }
     private let model: CalendarModel
     private let suppliedPlanningDestination: Binding<PlannedStaysDestination?>?
@@ -66,16 +71,20 @@ struct CalendarContentView: View {
         report: YearReportModel,
         showsEstimateCard: Bool = true,
         showsPlanningAction: Bool = true,
+        showsZoomAction: Bool = true,
         presentationState: CalendarPresentationState? = nil,
         initialMode: CalendarPresentationState.Mode = .detail,
         persistenceKey: CalendarZoomKey? = nil,
         scrollRole: some Hashable = ScrollRole.detail,
         planningDestination: Binding<PlannedStaysDestination?>? = nil,
+        onPresentationReady: (() -> Void)? = nil,
     ) {
         self.focusedRegion = focusedRegion
         self.report = report
         self.showsEstimateCard = showsEstimateCard
         self.showsPlanningAction = showsPlanningAction
+        self.showsZoomAction = showsZoomAction
+        self.onPresentationReady = onPresentationReady
         suppliedPresentation = presentationState
         suppliedPlanningDestination = planningDestination
         let model = CalendarModel(report: report, persistenceKey: persistenceKey)
@@ -102,6 +111,7 @@ struct CalendarContentView: View {
                             calendarContent(months: months)
                         case let .failure(error):
                             calendarLayoutError(error)
+                                .onAppear { onPresentationReady?() }
                         case nil:
                             AppIconLoadingView(caption: String(localized: .primaryLoading))
                     }
@@ -151,7 +161,7 @@ struct CalendarContentView: View {
             isEnabled: suppliedPlanningDestination == nil,
         ))
         .toolbar {
-            Group {
+            if showsZoomAction {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         changeZoom { toggleZoom() }
@@ -300,8 +310,8 @@ struct CalendarContentView: View {
                 )
             }
         })
-        .sensoryFeedback(.impact(weight: .light), trigger: presentation.rejectionCount)
-        .onChange(of: presentation.rejectionCount) {
+        .sensoryFeedback(.impact(weight: .light), trigger: presentation.rejectionTrigger)
+        .onChange(of: presentation.rejectionTrigger) {
             AccessibilityNotification.Announcement(String(localized: .calendarMonthUnavailable))
                 .post()
         }
@@ -332,7 +342,10 @@ struct CalendarContentView: View {
                 _detailPosition.scrollTo(id: target, anchor: _detailPosition.anchor ?? .top)
             }
         }
+        // Hide the live tiles while their copies move, leaving the page background visible.
+        .opacity(zoom.phase == nil ? 1 : 0)
         .overlayPreferenceValue(CalendarZoomFrames.self) { anchors in
+            let canReveal = onPresentationReady != nil && presentation.year == report.selectedYear
             Color.clear
                 .onGeometryChange(for: CalendarZoomTransitionState.Measurement?.self) { proxy in
                     CalendarZoomFrames.measure(
@@ -344,6 +357,13 @@ struct CalendarContentView: View {
                 } action: { value in
                     zoom.updateMeasurement(value)
                 }
+                .onGeometryChange(for: Bool.self) { proxy in
+                    canReveal && proxy.size.width > 0 && proxy.size.height > 0
+                } action: { isReady in
+                    if isReady {
+                        onPresentationReady?()
+                    }
+                }
                 .allowsHitTesting(false)
         }
         .allowsHitTesting(zoom.phase == nil)
@@ -354,9 +374,10 @@ struct CalendarContentView: View {
                     zoomTile(target, mode: mode, months: months)
                 }, completion: { id in
                     guard zoom.finish(id) else { return }
-                    if presentation.mode == .detail { focusedTarget = detailTarget }
+                    if presentation.mode == .detail {
+                        focusedTarget = detailTarget
+                    }
                 })
-                .background(stylesheet.calendar.overview.zoomBackground)
             }
         }
     }
@@ -382,10 +403,16 @@ struct CalendarContentView: View {
         switch presentation.mode {
             case .detail:
                 if magnification <= CalendarPresentationState
-                    .overviewThreshold { presentation.mode = .overview }
+                    .overviewThreshold
+                {
+                    presentation.mode = .overview
+                }
             case .overview:
                 if magnification >= CalendarPresentationState.detailThreshold,
-                   let destination { expand(destination) }
+                   let destination
+                {
+                    expand(destination)
+                }
         }
     }
 
@@ -489,7 +516,7 @@ struct CalendarContentView: View {
             String(localized: .calendarMonthUnavailable))
         .modifier(CalendarOverviewFeedback(
             rejected: presentation.rejectedTarget == destination,
-            trigger: presentation.rejectionCount,
+            trigger: presentation.rejectionTrigger,
         ))
     }
 

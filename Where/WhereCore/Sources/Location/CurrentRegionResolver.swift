@@ -104,8 +104,12 @@ public struct CurrentRegionResolver: Sendable {
     ) -> CurrentRegionResolverLog.AgeBucket {
         guard let sample else { return .unavailable }
         let age = abs(now.timeIntervalSince(sample.timestamp))
-        if age <= 10 { return .fresh }
-        if age <= 60 { return .recent }
+        if age <= 10 {
+            return .fresh
+        }
+        if age <= 60 {
+            return .recent
+        }
         return .stale
     }
 
@@ -113,9 +117,15 @@ public struct CurrentRegionResolver: Sendable {
         for sample: LocationSample?,
     ) -> CurrentRegionResolverLog.AccuracyBucket {
         guard let sample else { return .unavailable }
-        if sample.horizontalAccuracy < 0 { return .invalid }
-        if sample.horizontalAccuracy <= 100 { return .precise }
-        if sample.horizontalAccuracy <= 1000 { return .kilometer }
+        if sample.horizontalAccuracy < 0 {
+            return .invalid
+        }
+        if sample.horizontalAccuracy <= 100 {
+            return .precise
+        }
+        if sample.horizontalAccuracy <= 1000 {
+            return .kilometer
+        }
         return .excessive
     }
 }

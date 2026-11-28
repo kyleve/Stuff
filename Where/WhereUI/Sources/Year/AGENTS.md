@@ -14,5 +14,6 @@ Read the [module contract](../../AGENTS.md) and the [repository contract](../../
   Split timeline stays only for presentation; preserve every region-day exactly once.
   Keep a stay intact when departure falls on its final day. Guard: `PresenceJourneyItemTests`.
   Split longer displayed stays at another visit's interior start day. Keep shared days in each region exactly once.
+- In the full timeline, anchor the initial viewport to the estimate when available. Place it below the current recorded row and its joined planned segment, before later rows.
 - Measure calendar month sections, day rows, and Timeline rows eagerly so full-content measurement and scroll restoration use their actual heights. Guards: `CalendarContentViewSnapshotTests`, `PresenceTimelineListSnapshotTests`.
 - Keep Your Year in one navigation stack with its bottom calendar/timeline selector at every size. Guard: `YearViewTests`.

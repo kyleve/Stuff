@@ -14,7 +14,9 @@ enum RegionLocationConstellationLayout {
         let column: Int
 
         static func < (lhs: Cell, rhs: Cell) -> Bool {
-            if lhs.row != rhs.row { return lhs.row < rhs.row }
+            if lhs.row != rhs.row {
+                return lhs.row < rhs.row
+            }
             return lhs.column < rhs.column
         }
     }

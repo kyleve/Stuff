@@ -1,3 +1,4 @@
+import BroadwayCore
 import Observation
 import SwiftUI
 
@@ -12,7 +13,7 @@ final class CalendarZoomTransitionState {
     /// Points: ignore subpixel rounding in viewport sizes and scroll-edge alignment.
     private nonisolated static let geometryTolerance: CGFloat = 1
 
-    struct ID: Hashable { let rawValue: Int }
+    typealias ID = PresentationID<CalendarZoomTransitionState>
 
     struct Measurement: Equatable {
         let mode: Mode
@@ -67,14 +68,15 @@ final class CalendarZoomTransitionState {
     }
 
     private(set) var phase: Phase?
-    // Geometry changes on every scroll frame. Cache it without invalidating the
-    // calendar body; only starting or finishing a transition changes presentation.
+    /// Geometry changes on every scroll frame. Cache it without invalidating the
+    /// calendar body; only starting or finishing a transition changes presentation.
     @ObservationIgnored private(set) var measurement: Measurement?
-    private var sequence = 0
 
     func updateMeasurement(_ measurement: Measurement?) {
         self.measurement = measurement
-        if let measurement { resolve(destination: measurement) }
+        if let measurement {
+            resolve(destination: measurement)
+        }
     }
 
     func begin(
@@ -86,9 +88,8 @@ final class CalendarZoomTransitionState {
         guard phase == nil, measurement.mode != destination,
               measurement.frames.values.contains(where: { $0.intersects(measurement.viewport) })
         else { return }
-        sequence += 1
         phase = .preparing(Source(
-            id: ID(rawValue: sequence),
+            id: PresentationID(),
             measurement: measurement,
             destination: destination,
             focus: focus,
@@ -103,7 +104,7 @@ final class CalendarZoomTransitionState {
         guard abs(destination.viewport.width - source.measurement.viewport.width) < Self
             .geometryTolerance,
             abs(destination.viewport.height - source.measurement.viewport.height) < Self
-            .geometryTolerance
+                .geometryTolerance
         else {
             cancel()
             return
@@ -228,7 +229,9 @@ final class CalendarZoomTransitionState {
     }
 
     static func ordered(_ lhs: Target, _ rhs: Target) -> Bool {
-        if lhs.month != rhs.month { return lhs.month < rhs.month }
+        if lhs.month != rhs.month {
+            return lhs.month < rhs.month
+        }
         switch (lhs, rhs) {
             case (.month, .estimate): return true
             case (.month, .month), (.estimate, .month), (.estimate, .estimate): return false

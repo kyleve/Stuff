@@ -2,7 +2,9 @@ import PeriscopeCore
 
 enum ProjectionTestValues {
     static let error = LogLevel(name: "Custom failure", severity: 99)
-    enum Category: String, Codable, CaseIterable { case ready }
+    enum Category: String, Codable, CaseIterable {
+        case ready
+    }
 
     struct OpenCategory: Codable, RawRepresentable, CaseIterable {
         var rawValue: String

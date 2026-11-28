@@ -57,15 +57,33 @@ public struct SnapshotConfiguration: Hashable, Sendable {
     /// default value. Joined into ``identifier``.
     public var identifierParts: [String] {
         var parts: [String] = []
-        if let name, !name.isEmpty { parts.append(name) }
-        if !device.name.isEmpty { parts.append(device.name) }
-        if let layoutTraits { parts.append(layoutTraits.snapshotToken) }
-        if colorScheme == .dark { parts.append("dark") }
-        if dynamicType != .large { parts.append(dynamicType.snapshotToken) }
-        if contrast == .increased { parts.append("contrast") }
-        if layoutDirection == .rightToLeft { parts.append("rtl") }
-        if legibilityWeight == .bold { parts.append("bold") }
-        if snapshotType == .accessibility { parts.append("accessibility") }
+        if let name, !name.isEmpty {
+            parts.append(name)
+        }
+        if !device.name.isEmpty {
+            parts.append(device.name)
+        }
+        if let layoutTraits {
+            parts.append(layoutTraits.snapshotToken)
+        }
+        if colorScheme == .dark {
+            parts.append("dark")
+        }
+        if dynamicType != .large {
+            parts.append(dynamicType.snapshotToken)
+        }
+        if contrast == .increased {
+            parts.append("contrast")
+        }
+        if layoutDirection == .rightToLeft {
+            parts.append("rtl")
+        }
+        if legibilityWeight == .bold {
+            parts.append("bold")
+        }
+        if snapshotType == .accessibility {
+            parts.append("accessibility")
+        }
         return parts
     }
 

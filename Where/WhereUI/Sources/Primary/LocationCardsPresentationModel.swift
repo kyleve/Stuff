@@ -1,3 +1,4 @@
+import BroadwayCore
 import Observation
 import RegionKit
 import WhereCore
@@ -7,9 +8,11 @@ import WhereCore
 @MainActor
 @Observable
 final class LocationCardsPresentationModel {
+    typealias OvertakeID = PresentationID<OvertakeMovement>
+
     /// A live reversal between the same two headline regions.
     struct OvertakeEvent: Equatable {
-        let sequence: Int
+        let id: OvertakeID
         let winner: Region
         let motion: WhereStylesheet.LocationCardStackStyle.OvertakeMotion
     }
@@ -21,7 +24,7 @@ final class LocationCardsPresentationModel {
             case released(WhereStylesheet.LocationCardStackStyle.OvertakeMotion)
         }
 
-        let sequence: Int
+        let id: OvertakeID
         let fromOrder: [Region]
         let toOrder: [Region]
         let phase: Phase
@@ -51,10 +54,10 @@ final class LocationCardsPresentationModel {
     private var reconciliationTarget: ReconciliationID?
 
     private(set) var year: Int
-    private(set) var feedbackTrigger = 0
+    private(set) var feedbackTrigger = EventTrigger()
     private(set) var latestOvertake: OvertakeEvent?
     private(set) var overtakeMovement: OvertakeMovement?
-    private(set) var overtakeTrigger = 0
+    private(set) var lastReleasedOvertakeID: OvertakeID?
 
     /// Whether the ranked-card host needs to reveal drawing outside its normal
     /// scroll bounds for the released passing arc, scale, and rotation.
@@ -177,15 +180,15 @@ final class LocationCardsPresentationModel {
            let winner = current.first?.region
         {
             let overtake = OvertakeEvent(
-                sequence: movement.sequence,
+                id: movement.id,
                 winner: winner,
                 motion: overtakeMotion,
             )
             event = overtake
             latestOvertake = overtake
-            overtakeTrigger = overtake.sequence
+            lastReleasedOvertakeID = overtake.id
             overtakeMovement = OvertakeMovement(
-                sequence: overtake.sequence,
+                id: overtake.id,
                 fromOrder: movement.fromOrder,
                 toOrder: movement.toOrder,
                 phase: .released(overtakeMotion),
@@ -204,16 +207,16 @@ final class LocationCardsPresentationModel {
             lastSeenCounts = currentCounts
         }
         if shouldProvideCountFeedback || event != nil {
-            feedbackTrigger += 1
+            feedbackTrigger.fire()
         }
         return event
     }
 
     /// Commits the real semantic rank after the authored layout reaches the
     /// same visual endpoint. A stale completion cannot finish a newer overtake.
-    func finishOvertakeMovement(sequence: Int) {
+    func finishOvertakeMovement(id: OvertakeID) {
         guard let movement = overtakeMovement,
-              movement.sequence == sequence,
+              movement.id == id,
               movement.releasedMotion != nil
         else { return }
         displayedOrder = movement.toOrder
@@ -229,7 +232,7 @@ final class LocationCardsPresentationModel {
         let currentOrder = target.counts.map(\.region)
         overtakeMovement = isReversal(from: displayedOrder, to: currentOrder)
             ? OvertakeMovement(
-                sequence: overtakeTrigger + 1,
+                id: overtakeMovement?.id ?? PresentationID(),
                 fromOrder: displayedOrder,
                 toOrder: currentOrder,
                 phase: .pending,

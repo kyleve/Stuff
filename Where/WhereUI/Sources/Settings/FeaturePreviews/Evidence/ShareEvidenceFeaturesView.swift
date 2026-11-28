@@ -62,8 +62,11 @@ struct ShareEvidenceFeaturesView: View {
         switch evidence.loadState {
             case .idle, .loading: .loading
             case let .loaded(items):
-                if let latest = items.last { .actual(latest) }
-                else { .example(presentation.lockScreenDate) }
+                if let latest = items.last {
+                    .actual(latest)
+                } else {
+                    .example(presentation.lockScreenDate)
+                }
             case .empty: .example(presentation.lockScreenDate)
             case .failed: .failed(presentation.lockScreenDate)
         }

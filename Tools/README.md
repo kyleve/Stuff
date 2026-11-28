@@ -1,5 +1,16 @@
 # Stuff Tools
 
+## Swift layout
+
+`./swiftformat` expands comma-separated enum cases and closure bodies passed to
+`ObservableHostingView`. Put a single enum case on its own line as well. When
+the model factory is a closure literal, write it as the first trailing closure
+and label the view closure `content:`. A named factory stays inside parentheses.
+
+The macOS Tool Tests job checks those additional conventions with Xcode's SwiftSyntax. Run
+`python3 -m Tools.swift_layout_lint` to check tracked Swift files or pass paths
+to check individual files.
+
 ## Python and web lint
 
 Run `mise install` and `mise exec -- npm ci` after a tool-pin change.
@@ -145,6 +156,14 @@ Run their commands from the repository root with `python3 -m Tools.InstallerKit.
 Tests use the same module imports without changing Python's search path.
 The [Astro project](InstallerKit/Site/README.md) owns routes, components, and styles.
 [Where's distribution guide](../Where/DISTRIBUTION.md) owns its signing setup and device validation.
+
+## PR change counts
+
+Run `./pr-change-counts` for a Markdown table of changed files, added and deleted lines, and binary files. It compares the merge base of `origin/main` and `HEAD` with `HEAD` using committed trees. Use `./pr-change-counts --base <ref> --head <ref>` for a different base or head.
+
+Rows sort by the sum of added and deleted lines, largest first. File count breaks ties. The total stays at the bottom.
+
+Each file appears in one category. Snapshot references under `__Snapshots__/` have separate added, removed, and changed rows. Renames within snapshot directories count as changed. Moves into or out of those directories count as additions or removals. Other renames use the destination category. Binary files, including Git LFS snapshot references, contribute file counts only.
 
 ## Documentation-only CI
 

@@ -28,7 +28,7 @@ struct LocationCardRankingStack<Content: View>: View {
 
         KeyframeAnimator(
             initialValue: CGFloat.zero,
-            trigger: presentation.overtakeTrigger,
+            trigger: presentation.lastReleasedOvertakeID,
         ) { progress in
             LocationCardRankingLayout(
                 spacing: spacing,

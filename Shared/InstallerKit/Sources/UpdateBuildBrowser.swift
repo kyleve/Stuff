@@ -47,8 +47,12 @@ public struct UpdateBuildBrowser: Sendable, Equatable {
                 previousReleases: Array(channel.releases.dropFirst()),
             )
         }.sorted { lhs, rhs in
-            if (lhs.id == .main) != (rhs.id == .main) { return lhs.id == .main }
-            if lhs.latest.id != rhs.latest.id { return lhs.latest.id > rhs.latest.id }
+            if (lhs.id == .main) != (rhs.id == .main) {
+                return lhs.id == .main
+            }
+            if lhs.latest.id != rhs.latest.id {
+                return lhs.latest.id > rhs.latest.id
+            }
             return lhs.id.rawValue < rhs.id.rawValue
         }
     }

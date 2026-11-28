@@ -113,7 +113,9 @@ public enum NDJSONExporter {
         }
         if policy.allows(LogContextExportRequirements.scopes) {
             let path = scopePath(for: event, scopes: scopes)
-            if !path.isEmpty { object["scopePath"] = .string(path) }
+            if !path.isEmpty {
+                object["scopePath"] = .string(path)
+            }
         }
         if policy.allows(LogContextExportRequirements.tags), !event.tags.isEmpty {
             let data = try JSONSerialization

@@ -18,7 +18,9 @@ struct LocationsCardsView: View {
     let showsSelection: Bool
 
     @BScrollPosition<Region, Int> private var position: ScrollPosition
-    enum ScrollRole: Hashable { case browse }
+    enum ScrollRole: Hashable {
+        case browse
+    }
 
     init(
         report: YearReportModel,
@@ -68,8 +70,14 @@ struct LocationsCardsView: View {
                     motion: stylesheet.locationCardStack.overtake,
                 ) {
                     ForEach(presentedCards) { item in
+                        let isSelected = showsSelection && navigation.selectedRegion == item.region
+                        let tint = regionStyles.style(for: item.region).tint
                         Button {
-                            navigation.select(region: item.region)
+                            if showsSelection {
+                                navigation.toggleSelection(of: item.region)
+                            } else {
+                                navigation.select(region: item.region)
+                            }
                         } label: {
                             RegionSummaryCard(
                                 regionDays: item,
@@ -85,9 +93,7 @@ struct LocationsCardsView: View {
                                 recordedPointsID: report.primaryRegionLocations?.id,
                             )
                         }
-                        .buttonStyle(stylesheet.card[cardVariant].buttonStyle(
-                            tint: regionStyles.style(for: item.region).tint,
-                        ))
+                        .buttonStyle(stylesheet.card[cardVariant].buttonStyle(tint: tint))
                         // The card is the zoom source: tapping it expands the
                         // card into the pushed calendar (matched geometry). The
                         // configuration re-states the card's rounded shape and
@@ -99,7 +105,6 @@ struct LocationsCardsView: View {
                             in: calendarTransition,
                         ) { source in
                             let card = stylesheet.card[cardVariant]
-                            let tint = regionStyles.style(for: item.region).tint
                             let elevation = card.transitionElevation(tint: tint)
                             return source
                                 .clipShape(
@@ -118,7 +123,8 @@ struct LocationsCardsView: View {
                                     y: elevation.lift.offsetY,
                                 )
                         }
-                        .accessibilityHint(String(localized: .primaryCardCalendarHint))
+                        .accessibilityHint(String(localized: isSelected
+                                ? .primaryCardClearSelectionHint : .primaryCardCalendarHint))
                         .locationCardOvertakeEffect(
                             region: item.region,
                             presentation: cardPresentation,
@@ -127,7 +133,8 @@ struct LocationsCardsView: View {
                         .locationCardRankingRegion(item.region)
                         .id(item.region)
                         .presenceSelection(
-                            showsSelection && navigation.selectedRegion == item.region,
+                            isSelected,
+                            tint: tint,
                             cornerRadius: stylesheet.card[cardVariant].cornerRadius,
                         )
                     }
@@ -147,9 +154,9 @@ struct LocationsCardsView: View {
             _position.initialize(edge: .top)
         }
         .scrollBounceBehavior(.basedOnSize)
-        // The card normally stays clipped to the scrolling viewport. Reveal
-        // overflow only while the authored arc, scale, and rotation need it.
-        .scrollClipDisabled(cardPresentation.isSpatialOvertakeActive)
+        // Let card shadows extend past the browse column. Compact cards only
+        // need overflow during an overtake.
+        .scrollClipDisabled(cardVariant == .column || cardPresentation.isSpatialOvertakeActive)
         .accessibilityIdentifier("where_root_title")
         .onAppear { isCardSurfaceVisible = true }
         .onDisappear { isCardSurfaceVisible = false }

@@ -1,3 +1,4 @@
+import BroadwayCore
 import PeriscopeCore
 import RegionKit
 import SFSafeSymbols
@@ -11,7 +12,7 @@ struct ElsewhereView: View {
     let model: ElsewhereModel
     var isSelected: Bool
 
-    @State private var retrySequence = 0
+    @State private var retryTrigger = EventTrigger()
     @Environment(\.stylesheet) private var stylesheet
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.regionStyles) private var regionStyles
@@ -19,7 +20,7 @@ struct ElsewhereView: View {
     private struct Request: Hashable {
         let input: ElsewhereInput?
         let isVisible: Bool
-        let retrySequence: Int
+        let retryTrigger: EventTrigger
     }
 
     init(report: YearReportModel, model: ElsewhereModel? = nil, isSelected: Bool = true) {
@@ -32,12 +33,14 @@ struct ElsewhereView: View {
         Request(
             input: report.elsewhereInput,
             isVisible: isSelected && scenePhase != .background,
-            retrySequence: retrySequence,
+            retryTrigger: retryTrigger,
         )
     }
 
     private var failureMessage: String? {
-        if case let .failed(error) = report.loadState { return error.message }
+        if case let .failed(error) = report.loadState {
+            return error.message
+        }
         return model.failure(for: report.selectedYear)?.localizedDescription
     }
 
@@ -59,7 +62,9 @@ struct ElsewhereView: View {
         }
         .task(id: request) {
             guard request.isVisible else { return }
-            if case .failed = report.loadState { await report.refresh() }
+            if case .failed = report.loadState {
+                await report.refresh()
+            }
             guard let input = report.elsewhereInput, !Task.isCancelled else { return }
             await model.refresh(input)
         }
@@ -136,7 +141,7 @@ struct ElsewhereView: View {
     }
 
     private var retryButton: some View {
-        Button(String(localized: .commonRetry)) { retrySequence += 1 }
+        Button(String(localized: .commonRetry)) { retryTrigger.fire() }
             .buttonStyle(.bordered)
     }
 
@@ -203,7 +208,9 @@ struct ElsewhereView: View {
                 configurations: configurations,
                 theme: theme,
                 onReadyToMeasure: {
-                    if let input = report.elsewhereInput { await model.refresh(input) }
+                    if let input = report.elsewhereInput {
+                        await model.refresh(input)
+                    }
                 },
                 prepareForCapture: {
                     await PreviewSupport.loadCardArtwork(

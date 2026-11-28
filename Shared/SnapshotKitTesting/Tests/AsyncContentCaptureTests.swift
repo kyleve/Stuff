@@ -29,11 +29,16 @@ struct AsyncContentCaptureTests {
     }
 
     enum MeasuredCapture: CaseIterable {
-        case standard, afterMeasurement, afterSettledMeasurement, nativeInsetChange,
-             syntheticInsetChange,
-             prepareForCapture,
-             onReadyToSnapshot, raisedFloor,
-             accessibility, fixed
+        case standard
+        case afterMeasurement
+        case afterSettledMeasurement
+        case nativeInsetChange
+        case syntheticInsetChange
+        case prepareForCapture
+        case onReadyToSnapshot
+        case raisedFloor
+        case accessibility
+        case fixed
     }
 
     @Test(arguments: MeasuredCapture.allCases)
@@ -62,8 +67,12 @@ struct AsyncContentCaptureTests {
             .settled
         var prepare: (@MainActor @Sendable () async throws -> Void)?
         var ready: (@MainActor @Sendable () async -> Void)?
-        if scenario == .prepareForCapture { prepare = { #expect(host.view.window != nil) } }
-        if scenario == .onReadyToSnapshot { ready = { #expect(host.view.window != nil) } }
+        if scenario == .prepareForCapture {
+            prepare = { #expect(host.view.window != nil) }
+        }
+        if scenario == .onReadyToSnapshot {
+            ready = { #expect(host.view.window != nil) }
+        }
         let timeoutPolicy = try SnapshotSettleTimeoutPolicy.parse(nil)
         let capture = try await renderSnapshotCapture(
             of: host,
@@ -144,7 +153,9 @@ private final class MountCountingHost<Content: View>: UIHostingController<Conten
 
     override func didMove(toParent parent: UIViewController?) {
         super.didMove(toParent: parent)
-        if parent != nil { mountCount += 1 }
+        if parent != nil {
+            mountCount += 1
+        }
     }
 }
 

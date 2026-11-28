@@ -17,14 +17,24 @@ extension EvidenceContentType {
         typeIdentifier: String?,
     ) -> EvidenceContentType {
         if let identifier = typeIdentifier, let type = UTType(identifier) {
-            if type.conforms(to: .pdf) { return .pdf }
-            if type.conforms(to: .image) { return .image }
-            if type.conforms(to: .plainText) { return .plainText }
+            if type.conforms(to: .pdf) {
+                return .pdf
+            }
+            if type.conforms(to: .image) {
+                return .image
+            }
+            if type.conforms(to: .plainText) {
+                return .plainText
+            }
         }
-        if let sniffed = sniff(data) { return sniffed }
+        if let sniffed = sniff(data) {
+            return sniffed
+        }
         // Fall back to the declared type as a label so a still-unknown blob is
         // at least attributable, else raw bytes with no hint at all.
-        if let identifier = typeIdentifier { return .other(identifier) }
+        if let identifier = typeIdentifier {
+            return .other(identifier)
+        }
         return .rawData
     }
 
@@ -38,10 +48,18 @@ extension EvidenceContentType {
             guard bytes.count >= offset + signature.count else { return false }
             return Array(bytes[offset ..< offset + signature.count]) == signature
         }
-        if matches([0x25, 0x50, 0x44, 0x46]) { return .pdf } // "%PDF"
-        if matches([0xFF, 0xD8, 0xFF]) { return .image } // JPEG
-        if matches([0x89, 0x50, 0x4E, 0x47]) { return .image } // PNG
-        if matches([0x47, 0x49, 0x46, 0x38]) { return .image } // "GIF8"
+        if matches([0x25, 0x50, 0x44, 0x46]) {
+            return .pdf
+        } // "%PDF"
+        if matches([0xFF, 0xD8, 0xFF]) {
+            return .image
+        } // JPEG
+        if matches([0x89, 0x50, 0x4E, 0x47]) {
+            return .image
+        } // PNG
+        if matches([0x47, 0x49, 0x46, 0x38]) {
+            return .image
+        } // "GIF8"
         // ISO base-media files carry an "ftyp" box at offset 4 followed by a
         // 4-byte major brand at offset 8. Match only *image* brands (HEIC/HEIF
         // family, AVIF) so an MP4/MOV video — also ISO-BMFF — isn't misread as

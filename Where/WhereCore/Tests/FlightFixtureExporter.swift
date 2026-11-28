@@ -9,7 +9,8 @@ import WhereCore
 struct FlightFixtureExporter {
     struct Configuration: Decodable {
         enum CoordinateMode: String, Decodable {
-            case rotate, preserve
+            case rotate
+            case preserve
         }
 
         let backupPath: String
@@ -42,8 +43,11 @@ struct FlightFixtureExporter {
     }
 
     enum ExportError: Error, Equatable {
-        case invalidWindow, invalidCoordinate, noSamples
-        case missingReplacementOrigin, unexpectedReplacementOrigin
+        case invalidWindow
+        case invalidCoordinate
+        case noSamples
+        case missingReplacementOrigin
+        case unexpectedReplacementOrigin
     }
 
     let originalSamples: [LocationSample]
@@ -67,7 +71,9 @@ struct FlightFixtureExporter {
         let selected = input
             .filter { $0.source.isGPS && $0.timestamp >= from && $0.timestamp < until }
         guard let anchor = selected.min(by: {
-            if $0.timestamp != $1.timestamp { return $0.timestamp < $1.timestamp }
+            if $0.timestamp != $1.timestamp {
+                return $0.timestamp < $1.timestamp
+            }
             return $0.id.uuidString < $1.id.uuidString
         }) else { throw ExportError.noSamples }
         guard selected.allSatisfy({ Self.isValid($0.coordinate) })

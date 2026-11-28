@@ -85,7 +85,9 @@ struct LocationForecastRow: View {
                 .append(String(localized: .forecastPlannedContribution(WhereFormat
                         .dayCount(forecast.plannedDays))))
         }
-        if forecast.projectedRemainingDays.upper > 0 { parts.append(gapDescription) }
+        if forecast.projectedRemainingDays.upper > 0 {
+            parts.append(gapDescription)
+        }
         return parts.joined(separator: " ")
     }
 }

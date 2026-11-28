@@ -1,3 +1,4 @@
+import BroadwayCore
 import SnapshotKit
 import SwiftUI
 
@@ -17,7 +18,7 @@ struct FlyoverScreenContent<ScreenID: Hashable>: View {
         let scale = overviewScale(for: size)
         let contentID = ContentID(
             variantID: variant.id,
-            generation: state.generation,
+            resetTrigger: state.resetTrigger,
             isOverview: isOverview,
         )
         let previewLoadKey = model.previewLoadKey(for: screen)
@@ -111,7 +112,7 @@ struct FlyoverScreenContent<ScreenID: Hashable>: View {
 
     private struct ContentID: Hashable {
         let variantID: FlyoverVariantID
-        let generation: Int
+        let resetTrigger: EventTrigger
         let isOverview: Bool
     }
 

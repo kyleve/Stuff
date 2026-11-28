@@ -174,7 +174,11 @@ struct DeviceSettingsSection: View {
 
     private var statusStyle: HierarchicalShapeStyle {
         let runtimeIsAvailable = if row.isCurrent {
-            if case .applied = session.recordingRuntimeState { true } else { false }
+            if case .applied = session.recordingRuntimeState {
+                true
+            } else {
+                false
+            }
         } else {
             true
         }

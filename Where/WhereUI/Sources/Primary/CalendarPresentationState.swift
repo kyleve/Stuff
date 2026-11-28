@@ -1,3 +1,4 @@
+import BroadwayCore
 import Foundation
 import Observation
 import WhereCore
@@ -5,7 +6,11 @@ import WhereCore
 /// View-owned zoom and rejection feedback. The native detail position owns restoration.
 @MainActor @Observable
 final class CalendarPresentationState {
-    enum Mode: Hashable { case detail, overview }
+    enum Mode: Hashable {
+        case detail
+        case overview
+    }
+
     enum Target: Hashable {
         case month(CalendarDay)
         case estimate(CalendarDay)
@@ -24,14 +29,16 @@ final class CalendarPresentationState {
     private(set) var availableMonths: Set<CalendarDay> = []
     private(set) var estimateMonth: CalendarDay?
     private(set) var rejectedTarget: Target?
-    private(set) var rejectionCount = 0
+    private(set) var rejectionTrigger = EventTrigger()
 
     init(mode: Mode) {
         self.mode = mode
     }
 
     func reconcile(year: Int, availableMonths: [CalendarDay], estimateMonth: CalendarDay?) {
-        if self.year != year { rejectedTarget = nil }
+        if self.year != year {
+            rejectedTarget = nil
+        }
         self.year = year
         self.availableMonths = Set(availableMonths)
         self.estimateMonth = estimateMonth
@@ -48,7 +55,7 @@ final class CalendarPresentationState {
         guard let destination else { return false }
         guard isAvailable(destination) else {
             rejectedTarget = destination
-            rejectionCount += 1
+            rejectionTrigger.fire()
             return false
         }
         mode = .detail

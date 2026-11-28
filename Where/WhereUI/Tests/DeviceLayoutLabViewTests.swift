@@ -153,7 +153,9 @@
                 .first { field in
                     var ancestor: UIView? = field
                     while let current = ancestor {
-                        if current.isHidden || current.alpha == 0 { return false }
+                        if current.isHidden || current.alpha == 0 {
+                            return false
+                        }
                         ancestor = current.superview
                     }
                     return field.window != nil && field.bounds.width > 0

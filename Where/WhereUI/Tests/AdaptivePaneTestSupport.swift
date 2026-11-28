@@ -79,8 +79,9 @@ private struct AdaptivePanePolicyProbe: View {
     }
 }
 
+@MainActor
 extension AdaptivePaneTestSupport {
-    @MainActor static func resize(
+    static func resize(
         _ controller: UIViewController,
         state: AdaptivePaneHostState,
         to pose: SnapshotConfiguration.DuoPose,
@@ -97,12 +98,14 @@ extension AdaptivePaneTestSupport {
         }
     }
 
-    @MainActor static func presentedController(from root: UIViewController) -> UIViewController? {
-        if let presented = root.presentedViewController { return presented }
+    static func presentedController(from root: UIViewController) -> UIViewController? {
+        if let presented = root.presentedViewController {
+            return presented
+        }
         return root.children.lazy.compactMap { presentedController(from: $0) }.first
     }
 
-    @MainActor static func descendants<T: UIView>(of view: UIView, matching _: T.Type) -> [T] {
+    static func descendants<T: UIView>(of view: UIView, matching _: T.Type) -> [T] {
         let matches = (view as? T).map { [$0] } ?? []
         return matches + view.subviews.flatMap { descendants(of: $0, matching: T.self) }
     }

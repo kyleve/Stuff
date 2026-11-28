@@ -106,7 +106,9 @@ public enum StoreURL {
         guard !type.isEmpty else { return nil }
         var items: [String: String] = [:]
         for item in components.queryItems ?? [] {
-            if let value = item.value { items[item.name] = value }
+            if let value = item.value {
+                items[item.name] = value
+            }
         }
         return Parts(collection: collection, type: type, items: items)
     }

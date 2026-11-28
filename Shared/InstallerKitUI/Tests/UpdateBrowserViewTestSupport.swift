@@ -37,6 +37,8 @@ struct UpdateBrowserTestHost: View {
 
 @MainActor
 func installerNavigationController(in controller: UIViewController) -> UINavigationController? {
-    if let navigation = controller as? UINavigationController { return navigation }
+    if let navigation = controller as? UINavigationController {
+        return navigation
+    }
     return controller.children.lazy.compactMap { installerNavigationController(in: $0) }.first
 }

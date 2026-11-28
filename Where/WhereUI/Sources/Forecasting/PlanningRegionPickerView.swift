@@ -47,14 +47,18 @@ struct PlanningRegionPickerView: View {
             }
         }
         .task {
-            if case .idle = model.loadState { await model.load() }
+            if case .idle = model.loadState {
+                await model.load()
+            }
         }
     }
 
     private func regionRow(_ region: Region) -> some View {
         Button {
             Task {
-                if await model.select(region, commit: onSelect) { dismiss() }
+                if await model.select(region, commit: onSelect) {
+                    dismiss()
+                }
             }
         } label: {
             HStack(spacing: stylesheet.spacing.medium) {

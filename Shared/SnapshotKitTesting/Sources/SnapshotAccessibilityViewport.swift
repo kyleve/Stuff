@@ -48,7 +48,9 @@ enum SnapshotAccessibilityViewport {
             let getter = unsafeBitCast(original, to: Getter.self)
             let capturedElements = elements
             let block: @convention(block) (AnyObject) -> NSArray? = { object in
-                if let captured = capturedElements[ObjectIdentifier(object)] { return captured }
+                if let captured = capturedElements[ObjectIdentifier(object)] {
+                    return captured
+                }
                 return getter(object, selector)
             }
             let replacement = imp_implementationWithBlock(block)

@@ -1,3 +1,6 @@
+import AccessibilitySnapshotParser
+import SwiftUI
+import TestHostSupport
 import Testing
 @_spi(Testing) import WhereCore
 @testable import WhereUI
@@ -25,8 +28,21 @@ struct PlannedStaysModelTests {
         #expect(model.past == [completed])
         #expect(!model.showsPast)
         model.edit(completed)
-        #expect(model.editor?.stayID == completed.id)
-        #expect(model.editor?.canSave == true)
+        guard case let .edit(stay)? = model.editorRoute?.mode else {
+            Issue.record("The planner must route to the selected completed stay")
+            return
+        }
+        #expect(stay == completed)
+        let firstID = try #require(model.editorRoute?.id)
+        model.editorRoute = nil
+        model.edit(completed)
+        let reopened = try #require(model.editorRoute)
+        #expect(reopened.id != firstID)
+        guard case let .edit(reopenedStay) = reopened.mode else {
+            Issue.record("Reopening must edit the same stay")
+            return
+        }
+        #expect(reopenedStay.id == completed.id)
     }
 
     @Test func historicalGapChoiceClearsHomeWithoutDeletingPlans() async throws {
@@ -47,16 +63,20 @@ struct PlannedStaysModelTests {
         #expect(snapshot.stays == [stay])
     }
 
-    @Test func addUsesTheShortcutRegionAndEachDraftHasItsOwnIdentity() throws {
+    @Test func addUsesTheShortcutRegionAndEachPresentationHasItsOwnIdentity() throws {
         let report = try PlanningTestSupport.report(store: SwiftDataStore.inMemory())
         let model = PlannedStaysModel(report: report, initialRegion: .newYork)
         model.add()
-        let first = try #require(model.editor)
-        #expect(first.region == .newYork)
-        model.editor = nil
+        let first = try #require(model.editorRoute)
+        guard case let .new(initialRegion) = first.mode else {
+            Issue.record("Add must route to a new stay")
+            return
+        }
+        #expect(initialRegion == .newYork)
+        model.editorRoute = nil
         model.add()
-        let second = try #require(model.editor)
-        #expect(second.stayID != first.stayID)
+        let second = try #require(model.editorRoute)
+        #expect(second.id != first.id)
     }
 
     @Test func failedGapChoiceRetainsTheOriginalErrorAndLoadedHome() async throws {
@@ -77,5 +97,67 @@ struct PlannedStaysModelTests {
         #expect(!model.isSaving)
         #expect(report.forecasts.planning.homeRegion == .california)
         #expect(try await report.services.plannedStays.snapshot().homeRegion == .california)
+    }
+
+    @Test func returningToHomePickerStartsWithAFreshSearch() async throws {
+        let report = try PlanningTestSupport.report(store: SwiftDataStore.inMemory())
+        await report.forecasts.refresh()
+        let root = PlannedStaysView(report: report).whereBroadwayRoot()
+        let host: UIViewController = UIHostingController(rootView: root)
+
+        try await show(host) { _ in
+            try await openHomePicker(in: host.view)
+            let field = try await searchField(in: host.view)
+            field.text = "Nunavut"
+            field.sendActions(for: .editingChanged)
+            try await waitForAsync {
+                HostedAccessibility.objects(in: host.view)
+                    .contains { $0.accessibilityLabel == "Nunavut" }
+            }
+
+            let navigation = try #require(pushedNavigation(in: host))
+            navigation.popViewController(animated: false)
+            try await waitForAsync { navigation.viewControllers.count == 1 }
+            try await openHomePicker(in: host.view)
+            _ = try await searchField(in: host.view) { ($0.text ?? "").isEmpty }
+        }
+    }
+
+    private func openHomePicker(in view: UIView) async throws {
+        let home = String(localized: .plannedStaysHomeRegion)
+        func link() -> NSObject? {
+            HostedAccessibility.objects(in: view).first {
+                $0.accessibilityLabel?.hasPrefix(home) == true
+                    && $0.accessibilityTraits.contains(.button)
+            }
+        }
+        try await waitForAsync { link() != nil }
+        let row = try #require(link())
+        if let control = row as? UIControl {
+            control.sendActions(for: .touchUpInside)
+        } else {
+            try #require(row.accessibilityActivate())
+        }
+    }
+
+    private func searchField(
+        in view: UIView,
+        matching predicate: (UISearchTextField) -> Bool = { _ in true },
+    ) async throws -> UISearchTextField {
+        func field() -> UISearchTextField? {
+            AdaptivePaneTestSupport.descendants(of: view, matching: UISearchTextField.self)
+                .first { !$0.isHidden && $0.window != nil && predicate($0) }
+        }
+        try await waitForAsync { field() != nil }
+        return try #require(field())
+    }
+
+    private func pushedNavigation(in controller: UIViewController) -> UINavigationController? {
+        if let navigation = controller as? UINavigationController,
+           navigation.viewControllers.count > 1
+        {
+            return navigation
+        }
+        return controller.children.lazy.compactMap { pushedNavigation(in: $0) }.first
     }
 }

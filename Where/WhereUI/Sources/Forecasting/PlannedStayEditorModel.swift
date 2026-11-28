@@ -7,7 +7,7 @@ import WhereCore
 /// changes; only the date-picker projections use the report's calendar.
 @MainActor
 @Observable
-final class PlannedStayEditorModel: Identifiable {
+final class PlannedStayEditorModel {
     enum Mode {
         case new(initialRegion: Region?)
         case edit(PlannedStay)
@@ -134,12 +134,10 @@ final class PlannedStayEditorModel: Identifiable {
     }
 
     var isSaving: Bool {
-        if case .saving = saveState { return true }
+        if case .saving = saveState {
+            return true
+        }
         return false
-    }
-
-    nonisolated var id: PlannedStay.ID {
-        stayID
     }
 
     var isEditing: Bool {
@@ -197,7 +195,9 @@ final class PlannedStayEditorModel: Identifiable {
     }
 
     func load() async {
-        if !report.forecasts.hasLoaded { await report.forecasts.refresh() }
+        if !report.forecasts.hasLoaded {
+            await report.forecasts.refresh()
+        }
         await regionSelection.load()
     }
 

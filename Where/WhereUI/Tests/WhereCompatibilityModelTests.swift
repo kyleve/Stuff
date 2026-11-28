@@ -103,13 +103,19 @@ struct WhereCompatibilityModelTests {
         try await waitForAsync { harness.isOpening }
         let retirement = Task { await model.shutdownForCompatibility() }
         try await waitForAsync {
-            if case .retiring = model.startupState { true } else { false }
+            if case .retiring = model.startupState {
+                true
+            } else {
+                false
+            }
         }
         #expect(harness.opens == 1)
         harness.releaseOpen()
         await #expect(throws: CancellationError.self) { try await first.value }
         await retirement.value
-        if model.activeScope == nil { _ = try await model.resolveScope() }
+        if model.activeScope == nil {
+            _ = try await model.resolveScope()
+        }
         #expect(harness.opens == 2)
         #expect(harness.stores.first?.store == nil)
         await model.shutdownForCompatibility()
@@ -214,7 +220,11 @@ struct WhereCompatibilityModelTests {
             retirementFinished = true
         }
         try await waitForAsync {
-            if case .retiring = model.startupState { true } else { false }
+            if case .retiring = model.startupState {
+                true
+            } else {
+                false
+            }
         }
         #expect(!retirementFinished)
         #expect(model.isCompletingOnboarding)

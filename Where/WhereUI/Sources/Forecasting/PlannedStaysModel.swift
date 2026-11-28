@@ -1,3 +1,4 @@
+import BroadwayCore
 import Foundation
 import Observation
 import RegionKit
@@ -13,17 +14,20 @@ final class PlannedStaysModel {
         case failed(Error)
     }
 
+    struct EditorRoute: Identifiable {
+        let id: PresentationID<EditorRoute>
+        let mode: PlannedStayEditorModel.Mode
+    }
+
     let report: YearReportModel
-    let regionSelection: PlanningRegionSelectionModel
     private let initialRegion: Region?
-    var editor: PlannedStayEditorModel?
+    var editorRoute: EditorRoute?
     var showsPast = false
     private(set) var saveState: SaveState = .idle
 
     init(report: YearReportModel, initialRegion: Region?) {
         self.report = report
         self.initialRegion = initialRegion
-        regionSelection = PlanningRegionSelectionModel(report: report)
     }
 
     var upcoming: [PlannedStay] {
@@ -39,7 +43,9 @@ final class PlannedStaysModel {
     }
 
     var isSaving: Bool {
-        if case .saving = saveState { return true }
+        if case .saving = saveState {
+            return true
+        }
         return false
     }
 
@@ -53,11 +59,11 @@ final class PlannedStaysModel {
     }
 
     func add() {
-        editor = PlannedStayEditorModel(report: report, mode: .new(initialRegion: initialRegion))
+        editorRoute = EditorRoute(id: PresentationID(), mode: .new(initialRegion: initialRegion))
     }
 
     func edit(_ stay: PlannedStay) {
-        editor = PlannedStayEditorModel(report: report, mode: .edit(stay))
+        editorRoute = EditorRoute(id: PresentationID(), mode: .edit(stay))
     }
 
     func usesDefiniteOverlap(_ stay: PlannedStay) -> Bool {
@@ -84,7 +90,8 @@ final class PlannedStaysModel {
     }
 
     func load() async {
-        if !report.forecasts.hasLoaded { await report.forecasts.refresh() }
-        await regionSelection.load()
+        if !report.forecasts.hasLoaded {
+            await report.forecasts.refresh()
+        }
     }
 }
