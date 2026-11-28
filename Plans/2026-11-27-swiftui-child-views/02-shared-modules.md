@@ -1,6 +1,6 @@
 # 02 — Shared modules
 
-Status: outline
+**Status** · executing
 
 Depends on [01 — Installer pilot](01-installer-pilot.md). See the [overview](README.md) for requirements and the [audit](audit.md) for file and symbol locations.
 
@@ -25,4 +25,14 @@ After the pilot, use its measurements and verification results to choose indepen
 
 Accept a batch when every confirmed issue has been fixed and its rendering and interaction checks pass. Record the final control type and file for each qualifying button. A label-only extraction leaves the control finding open. For overlapping inventory entries, reference the completed control. Record the ownership reason for any already-compliant site, and the observed host behavior for paths outside automated coverage.
 
-**Resume point.** Reconcile the pilot’s two files against the shared inventory and select the first remaining module batch.
+## Execution and verification
+
+| Slice and source | Ownership and verification |
+| --- | --- |
+| Installer browser and build detail, `Shared/InstallerKitUI` | Reconcile the pilot files first. Five remaining baseline helper bodies belong to `InstallerBrowserPreview.navigation` (5), `UpdateBrowserView.Route.destination` (6), `UpdateBuildRow.version` (5), `UpdateHero.artwork` (14) and `UpdateInstalledBuild.commit` (6). Inspect complete expressions in Changes, History, BuildView and Channels. Preserve typed navigation and DEBUG preview mounts. The existing two-consumer `UpdateCheckButton` stays shared. Use `UpdateBrowserViewTests` and browser, build, history and AppUpdates snapshot suites. Add `UpdateFailureCardSnapshotTests` when touching that card. |
+| Tables and inspector browser, `Shared/Inspector` | Give the whole 17-line `EntityTableView.cellRow` button its row data and selection callback. Table owns paging and selected row. Preserve pinned headers and native deletion confirmation. `InspectorSwiftDataPaginationTests` covers page results and `InspectorSnapshotTests` covers the sidebar/entity list. Exercise row → detail → return, a next-page load and any changed cancel/confirm controls in the mounted table. |
+| Log viewer, `Shared/Periscope/PeriscopeTools` | Partition tree/hierarchy navigation from trace, detail, search, filters and export. Keep expanded nodes, selection and destinations on their mounted owners. Use the affected `LogHierarchyViewHostingTests`, `SpanTreeViewHostingTests`, `LogTraceViewHostingTests`, `ScopeEventsViewHostingTests` or `SpanHistoryViewHostingTests`, together with `PeriscopeViewerSnapshotTests`. |
+| Flyover and lifecycle, `Shared/Flyover`, `Shared/LifecycleKitUI` | Inspect `FlyoverConnectorCanvas.connector` (39), drawing geometry and the surrounding rendered component. Canvas drawing callbacks take a graphics context. Preserve the warmed lifecycle destination's identity through reveal and gate failure. Select `FlyoverConnectorGeometryTests`, `FlyoverCanvasViewTests`, `FlyoverSnapshotTests`, `LifecycleContainerTests` or `LifecycleReadyRevealStateTests` for the touched owner. |
+| Shared harnesses and Broadway, remaining `Shared/` | Reconcile roots, fixtures and small single-parent views by module. Keep `SnapshotCase.framed` configuration and capture hooks on their APIs. Use `SnapshotCaseTests`, `SnapshotImageRenderingTests` and `BRootViewTests` for their corresponding components. Exercise a changed BroadwayCatalog screen in its app. The empty catalog suite establishes no rendered result. |
+
+Apply each slice against its recorded parent. Format and remeasure its complete children, then exercise the named behavior and image suites through `./test --record never --only <bundle>/<suite>`. Compare any failure against the parent before publication. Resume with the first unverified slice and reconcile its paths against the original inventories.

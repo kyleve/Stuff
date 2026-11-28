@@ -4,7 +4,7 @@ The audit found **194 child-helper candidates in 88 files**. Their current bodie
 
 ## Planning checkpoint
 
-On November 27, 2026 the maintainer requested an audit and an implementation plan for the rule merged in [PR #576](https://github.com/kyleve/Stuff/pull/576). The November 27 revision covers every confirmed finding and measures buttons as complete controls. The maintainer reviewed the plan and authorized execution of the full series on November 27. Source evidence uses `5b1747d01`. The [InstallerKitUI pilot](01-installer-pilot.md) is executing. The other three deliverables are outlines with refinement triggers. [STU-352](https://linear.app/kve/issue/STU-352) tracks the migration. Execution starts on `codex/swiftui-child-installer-pilot` above [PR #593](https://github.com/kyleve/Stuff/pull/593). On this worktree, `pilot_source` owns the pilot’s source and `pilot_interaction` owns the hosted interaction check. The coordinating agent owns validation, plan records and stack publication. Next, verify the update page and build detail.
+On November 27, 2026 the maintainer requested an audit and an implementation plan for the rule merged in [PR #576](https://github.com/kyleve/Stuff/pull/576). The November 27 revision covers every confirmed finding and measures buttons as complete controls. The maintainer reviewed the plan and authorized execution of the full series on November 27. Source evidence uses `5b1747d01`. The pilot passed four behavior tests and both snapshot suites. [PR #594](https://github.com/kyleve/Stuff/pull/594) publishes it above the [plan PR](https://github.com/kyleve/Stuff/pull/593). [STU-352](https://linear.app/kve/issue/STU-352) tracks the migration. On November 27, the review of plans 02–04 checked the pilot measurements, each succeeding slice’s source boundaries, suite names and overlapping open PRs. The first three batches are the region picker, the Year mode picker and the Installer browser. The coordinator integrates their isolated source changes into the stack, runs tests and publishes each verified slice. `next_horizon` owns the region picker, Settings, Developer and widget surfaces, `pilot_review` owns Where composition and system hosts, and `pilot_source` owns shared packages. The coordinator owns the remaining feature slices and the final inventory reconciliation.
 
 ## What the audit measured
 
@@ -46,10 +46,10 @@ The [recount recipe](recount.md) reproduces the declaration tallies. The [inline
 
 | Plan | Status | Deliverable |
 | --- | --- | --- |
-| [01 · InstallerKitUI pilot](01-installer-pilot.md) | Executing | Cover two source files with examples on both sides of the threshold. Verify the public update screen and build-detail rendering. |
-| [02 · Shared modules](02-shared-modules.md) | Outline | Finish the shared packages by owning module, including view tools, catalogs and test or preview fixtures. |
-| [03 · WhereUI features](03-where-features.md) | Outline | Work through feature-owned leaves, galleries, editors, Settings, Developer and shared presentation, with their tests and fixtures. |
-| [04 · Where composition and hosts](04-where-composition.md) | Outline | Cover stateful screens, calendar and tab composition, launch, onboarding and app or extension hosts. |
+| [01 · InstallerKitUI pilot](01-installer-pilot.md) | Complete | Cover two source files with examples on both sides of the threshold. Verify the public update screen and build-detail rendering. |
+| [02 · Shared modules](02-shared-modules.md) | Executing | Finish the shared packages by owning module, including view tools, catalogs and test or preview fixtures. |
+| [03 · WhereUI features](03-where-features.md) | Executing | Work through feature-owned leaves, galleries, editors, Settings, Developer and shared presentation, with their tests and fixtures. |
+| [04 · Where composition and hosts](04-where-composition.md) | Executing | Cover stateful screens, calendar and tab composition, launch, onboarding and app or extension hosts. |
 
 The pilot supplies measured placement examples and a checked way to preserve state. Plans 02–04 can then proceed in independent, reviewable module or screen batches. Assign a test helper used by several features to the batch that owns its rendered subject and record the reference from any other consumer. For each batch, compare with the implementation base, record concrete child sizes and dispositions, and preserve existing tests and snapshot references.
 

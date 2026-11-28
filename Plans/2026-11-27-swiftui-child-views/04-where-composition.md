@@ -1,6 +1,6 @@
 # 04 — Where screen composition and extension hosts
 
-Status: outline
+**Status** · executing
 
 Depends on [01 — Installer pilot](01-installer-pilot.md). See the [overview](README.md) for requirements and the [audit](audit.md) for source locations.
 
@@ -27,4 +27,13 @@ Use `./test` to select the relevant hosted and image suites. `YearViewTests.bott
 
 For host changes, exercise the widget family in its host, the snippet via Siri or Shortcuts on device, and share save/cancel from the system share sheet. WhereUI widget snapshots cover shared rendering. The share extension and RegionViewer have no hosted test bundle. Validate a changed RegionViewer shell with its documented Catalyst build. Record which host paths were actually exercised and any remaining limits alongside the final placements.
 
-**Resume point.** When the pilot’s measured placements and verification are available, use the audit to select and detail the first Where composition batch.
+## Execution and verification
+
+| Slice | Source and acceptance |
+| --- | --- |
+| Year mode | `Where/WhereUI/Sources/Year/YearView.swift` has a 17-line `YearModePicker.segment` helper. Extract the complete button into a private named segment next to the picker with the current binding, namespace, animation, hit shape and selected trait. Verify `YearViewTests.bottomSelectorAndSelectedModeSurviveEveryFoldLayout` and `YearViewSnapshotTests`. See [Year source contract](../../Where/WhereUI/Sources/Year/AGENTS.md). |
+| Calendar, Locations and timeline | Take MonthGrid/DayCell before the 166-line calendar content helper. Preserve typed scroll targets, focus and geometry namespace. Then take the Locations browse/detail panes and timeline rows. Reuse the types already constructed by `browsePane`, `expandedBrowseContent` and `detailContent`. Preserve pane identity and sheet mounting across folds. Select `CalendarContentViewTests`, `CalendarMonthAccessibilityTests`, `CalendarZoomTransitionStateTests`, `LocationsViewTests`, `PresenceTimelineListTests` and their affected owning snapshots. See [Primary source contract](../../Where/WhereUI/Sources/Primary/AGENTS.md). |
+| Tabs, launch and onboarding | Reconcile `RootView.swift`, `MainTabs.swift`, `Launch/`, `Compatibility/` and `Onboarding/` under WhereUI. Root owns compatibility gating and launch identity; MainTabs owns selection, destination and scene reporting. Review each branch of the 82-line `rootContent` and each Onboarding page with its mounted model. Use `MainTabsTests`, `WhereCompatibilityModelTests`, `RootViewSnapshotTests`, `DataCompatibilityViewSnapshotTests` and `OnboardingViewSnapshotTests` as applicable. |
+| System hosts and remaining Where files | Assign source and fixtures outside WhereUI by app/extension. Keep the snippet's 10-line `Button(intent:)` whole and the availability decision in the snippet. Validate a changed snippet via Siri/Shortcuts under [WhereIntents guidance](../../Where/WhereIntents/AGENTS.md). Widget entry/family ownership remains at the host; pair shared image coverage with the [widget host](../../Where/WhereWidgets/AGENTS.md). Confirm share save and cancel via the system sheet under [share extension guidance](../../Where/WhereShareExtension/AGENTS.md). Check the RegionViewer window in its [documented Catalyst build](../../Where/RegionViewer/README.md#running-it). Record actual host evidence and any unavailable hardware. |
+
+Apply each slice against its recorded parent. Format and remeasure its complete children, then exercise the named behavior and image suites through `./test --record never --only <bundle>/<suite>`. Compare any failure against the parent before publication. Resume with the first unverified slice and reconcile its paths against the original inventories.

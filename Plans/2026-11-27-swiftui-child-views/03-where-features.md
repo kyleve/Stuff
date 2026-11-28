@@ -1,6 +1,6 @@
 # 03 — Extract WhereUI feature views
 
-Status: `outline`
+**Status** · executing
 
 Depends on [01 — InstallerKitUI pilot](01-installer-pilot.md). The [shared modules](02-shared-modules.md) can proceed independently.
 
@@ -32,6 +32,19 @@ Resolve every indexed site and every additional qualifying child found in the ba
 
 Run the owning `WhereUITests` and `WhereUISnapshotTests` suites through `./test`. For the picker, use `PrimaryRegionSelectionModelTests` for tapping, search and selection persistence, and `RegionPickerViewSnapshotTests` for rendering. Check gallery body-size guards, Settings search and the hosted device-layout reset case where affected. Exercise the touched presentation or editing path and its return. Investigate changed reference images against the existing design.
 
-## Resume point
+## Execution and verification
 
-On November 27, 2026, source review identified the examples above and their guards. Implementation awaits authorization. At refinement, use the pilot’s verification record to select the first feature batch and expand this file into executable steps.
+Start under `Where/WhereUI/Sources`. Pair the listed behavior suites in `WhereUITests` with rendering suites in `WhereUISnapshotTests`.
+
+| Slice | Source and acceptance |
+| --- | --- |
+| Primary region picker | In `Regions/RegionPickerView.swift`, existing `RegionPickerContent` (35), `RegionPickerMessageRow` (26) and `RegionPickerRegionRow` (39) start above the own-file threshold. Move qualifying types after measuring complete children, preserving the entire region selection button, disabled state and accessibility. The picker root mounts `RegionPickerModel`; content keeps row identities, the binding and native disclosure behavior. Inspect the country row's current 5-line body together with its 13-line label. Measure its assembled disclosure in context. Preserve the typed message model and root preview mounts. Exercise `PrimaryRegionSelectionModelTests.hostedPickerSelectsAndReopensTwoProvinces`, `hostedPickerKeepsSelectionsAndCountryExpansionThroughSearch` and `RegionPickerViewSnapshotTests`. Follow with the rest of `Regions/` including customization. |
+| Editing, browsing and resolving | Give `Evidence/` and `Manual/` separate editor/detail/list slices. Preserve draft, save/cancel, presentation and deletion ownership. Check `AddEvidenceModelTests`, affected evidence list/detail suites, `ManualDayViewSnapshotTests` and `LoggedDaysViewSnapshotTests`. Split `Forecasting/`, `Elsewhere/` and `Resolution/` by native navigation flow. Use `PlannedStaysModelTests`, `PlanningRegionPickerViewSnapshotTests`, `LocationForecastPanelSnapshotTests`, `ElsewhereViewSnapshotTests` and `RegionDaysViewSnapshotTests` as applicable. Exercise return and editing in the mounted screen when model suites cover data alone. |
+| Settings and developer UI | Split `Settings/FeaturePreviews/` galleries from navigation, About/Privacy, data/export, appearance and devices. Preserve gallery reveal/focus; Settings owns search, export task and presenters. Select `ShareEvidenceFeaturesViewTests`, `FeatureGuidePageTests` and the named snapshot suites for the affected gallery or Settings destination. In `Developer/`, separate CardDesigner from device/fold layout and tooling. Retain model identity across layout changes and explicit resets. Use `DeviceLayoutLabViewTests` and the affected developer fixtures. |
+| Reusable components and fixtures | Assign `Shared/`, `Devices/`, `Widgets/`, `Intents/`, `Model/`, `Logging/` and `Preview/` by component or host. Preserve `WhereScreen.content`, style/modifier witnesses, Canvas and typed map builders. Use `WhereFormRootTests`, `WhereScreenRootTests` or the matching Today/YearTotals widget snapshot suite. Track test-only hosts with their rendered subject, including cross-feature fixtures. |
+
+Apply each slice against its recorded parent. Format and remeasure its complete children, then exercise the named behavior and image suites through `./test --record never --only <bundle>/<suite>`. Compare any failure against the parent before publication. Resume with the first unverified slice and reconcile its paths against the original inventories.
+
+### Primary region picker
+
+The picker retains its typed rows, native list and per-visit model. The complete region-selection row has a 39-line body, including its 34-line button, in `RegionPickerRegionRow.swift`. The 35-line list lives in `RegionPickerContent.swift` beside its country disclosure (17), message row (19) and selection message (11). Search and empty previews stay with the public screen. At the pilot revision `d1f20b068`, the source review compared the selection control and row IDs with the originals. The focused run passed all 19 primary-region behavior tests, including select, commit, reopen, search and country expansion. The region picker snapshot suite passed with recording disabled.
