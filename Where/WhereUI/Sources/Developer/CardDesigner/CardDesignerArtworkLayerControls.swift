@@ -45,18 +45,7 @@
                 )
                 Toggle(String(localized: .cardDesignerShowStroke), isOn: $artwork.showsStroke)
                 if artwork.showsStroke {
-                    CardDesignerDoubleControl(
-                        title: .cardDesignerStrokeOpacity,
-                        value: $artwork.stroke.opacity,
-                        range: 0 ... 1,
-                        step: 0.01,
-                    )
-                    CardDesignerCGFloatControl(
-                        title: .cardDesignerStrokeWidth,
-                        value: $artwork.stroke.width,
-                        range: 0 ... 6,
-                        step: 0.1,
-                    )
+                    CardDesignerStrokeControls(stroke: $artwork.stroke)
                 }
             } label: {
                 Text(title)
@@ -74,5 +63,29 @@
                 )
             }
         }
+    }
+
+    private struct CardDesignerStrokeControls: View {
+        @Binding var stroke: CardDesignerConfiguration.Stroke
+
+        var body: some View {
+            CardDesignerDoubleControl(
+                title: .cardDesignerStrokeOpacity,
+                value: $stroke.opacity,
+                range: 0 ... 1,
+                step: 0.01,
+            )
+            CardDesignerCGFloatControl(
+                title: .cardDesignerStrokeWidth,
+                value: $stroke.width,
+                range: 0 ... 6,
+                step: 0.1,
+            )
+        }
+    }
+
+    #Preview("StrokeControls") {
+        @Previewable @State var card = CardDesignerConfiguration.standard.regular
+        Form { CardDesignerStrokeControls(stroke: $card.regionShape.watermark.stroke) }
     }
 #endif

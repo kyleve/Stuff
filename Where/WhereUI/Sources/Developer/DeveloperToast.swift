@@ -92,6 +92,21 @@
         }
     }
 
+    #Preview {
+        let center = DeveloperToastCenter(lifetime: .seconds(3600))
+        center.show(DeveloperToastCenter.Toast(
+            level: .warning,
+            title: "Location sample delayed",
+            message: "The background location stream has not produced a sample recently.",
+        ))
+        center.show(DeveloperToastCenter.Toast(
+            level: .error,
+            title: "Store write failed",
+            message: "The latest presence sample could not be persisted.",
+        ))
+        return DeveloperToastOverlay(center: center)
+    }
+
     private struct DeveloperToastBanner: View {
         let toast: DeveloperToastCenter.Toast
         let onDismiss: () -> Void
@@ -100,14 +115,7 @@
             HStack(alignment: .top, spacing: 10) {
                 Image(systemSymbol: symbol)
                     .foregroundStyle(tint)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(toast.title)
-                        .font(.caption.weight(.semibold))
-                    Text(toast.message)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(3)
-                }
+                DeveloperToastMessage(toast: toast)
                 Spacer(minLength: 0)
             }
             .padding(12)
@@ -136,18 +144,27 @@
         }
     }
 
-    #Preview {
-        let center = DeveloperToastCenter(lifetime: .seconds(3600))
-        center.show(DeveloperToastCenter.Toast(
+    #Preview { DeveloperToastBanner(
+        toast: .init(
             level: .warning,
             title: "Location sample delayed",
             message: "The background location stream has not produced a sample recently.",
-        ))
-        center.show(DeveloperToastCenter.Toast(
-            level: .error,
-            title: "Store write failed",
-            message: "The latest presence sample could not be persisted.",
-        ))
-        return DeveloperToastOverlay(center: center)
+        ),
+        onDismiss: {},
+    ) }
+
+    private struct DeveloperToastMessage: View {
+        let toast: DeveloperToastCenter.Toast
+
+        var body: some View {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(toast.title)
+                    .font(.caption.weight(.semibold))
+                Text(toast.message)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(3)
+            }
+        }
     }
 #endif

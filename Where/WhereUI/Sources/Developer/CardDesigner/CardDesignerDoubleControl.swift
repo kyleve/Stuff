@@ -9,12 +9,7 @@
 
         var body: some View {
             VStack(alignment: .leading, spacing: 6) {
-                LabeledContent {
-                    Text(value, format: .number.precision(.fractionLength(0 ... 4)))
-                        .monospacedDigit()
-                } label: {
-                    Text(title)
-                }
+                CardDesignerValueLabel(title: title, value: value)
                 Slider(value: $value, in: range, step: step)
             }
             .onChange(of: value) { _, newValue in

@@ -1,6 +1,7 @@
-import SFSafeSymbols
 #if DEBUG
+    import BroadwayUI
     import RegionKit
+    import SFSafeSymbols
     import SnapshotKit
     import SwiftUI
     import WhereCore
@@ -39,64 +40,15 @@ import SFSafeSymbols
                 Divider()
 
                 Form {
-                    Section {
-                        Picker(String(localized: .cardDesignerVariant), selection: $variant) {
-                            ForEach(
-                                CardDesignerConfiguration.Variant.allCases,
-                                id: \.self,
-                            ) { variant in
-                                Text(variant.localizedName).tag(variant)
-                            }
-                        }
-                        .pickerStyle(.segmented)
-
-                        Picker(
-                            String(localized: .cardDesignerAppearance),
-                            selection: $previewColorScheme,
-                        ) {
-                            Text(String(localized: .cardDesignerLight))
-                                .tag(ColorScheme.light as ColorScheme?)
-                            Text(String(localized: .cardDesignerDark))
-                                .tag(ColorScheme.dark as ColorScheme?)
-                        }
-                        .pickerStyle(.segmented)
-
-                        Picker(String(localized: .cardDesignerRegion), selection: $previewRegion) {
-                            ForEach(RegionCatalog.shared.all, id: \.self) { region in
-                                Text(region.localizedName).tag(region)
-                            }
-                        }
-
-                        Picker(String(localized: .cardDesignerColor), selection: $previewColor) {
-                            ForEach(RegionAppearanceCatalog.colors, id: \.self) { color in
-                                Label {
-                                    Text(WhereFormat.regionColorAccessibility(color))
-                                } icon: {
-                                    Circle().fill(color.color)
-                                }
-                                .tag(color)
-                            }
-                        }
-
-                        Stepper(
-                            String(localized: .cardDesignerDays(previewDays)),
-                            value: $previewDays,
-                            in: 0 ... 366,
-                        )
-                        Stepper(
-                            String(localized: .cardDesignerYear(previewYear)),
-                            value: $previewYear,
-                            in: 1900 ... 2200,
-                        )
-                        Toggle(
-                            String(localized: .cardDesignerApplyToApp),
-                            isOn: $model.appliesToApp,
-                        )
-                    } header: {
-                        Text(String(localized: .cardDesignerPreview))
-                    } footer: {
-                        Text(String(localized: .cardDesignerApplyFooter))
-                    }
+                    CardDesignerPreviewSection(
+                        variant: $variant,
+                        previewColorScheme: $previewColorScheme,
+                        previewRegion: $previewRegion,
+                        previewColor: $previewColor,
+                        previewDays: $previewDays,
+                        previewYear: $previewYear,
+                        appliesToApp: $model.appliesToApp,
+                    )
 
                     switch variant {
                         case .regular:
@@ -122,23 +74,11 @@ import SFSafeSymbols
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Menu {
-                        Button(String(localized: .cardDesignerResetVariant)) {
-                            model.reset(variant)
-                        }
-                        Button(
-                            String(localized: .cardDesignerResetShared),
-                            action: model.resetShared,
-                        )
-                        Button(String(localized: .cardDesignerResetAll), role: .destructive) {
-                            isConfirmingResetAll = true
-                        }
-                    } label: {
-                        Label(
-                            String(localized: .cardDesignerReset),
-                            systemSymbol: .arrowCounterclockwise,
-                        )
-                    }
+                    CardDesignerResetMenu(
+                        resetVariant: { model.reset(variant) },
+                        resetShared: model.resetShared,
+                        confirmResetAll: { isConfirmingResetAll = true },
+                    )
                 }
             }
             .confirmationDialog(
@@ -192,6 +132,330 @@ import SFSafeSymbols
             title: "Card Designer Studio",
         ) { _ in
             CardDesignerStudioView(model: CardDesignerModel(configuration: .standard))
+        }
+    }
+
+    private struct CardDesignerResetMenu: View {
+        let resetVariant: () -> Void
+        let resetShared: () -> Void
+        let confirmResetAll: () -> Void
+
+        var body: some View {
+            Menu {
+                Button(String(localized: .cardDesignerResetVariant)) {
+                    resetVariant()
+                }
+                Button(
+                    String(localized: .cardDesignerResetShared),
+                    action: resetShared,
+                )
+                Button(String(localized: .cardDesignerResetAll), role: .destructive) {
+                    confirmResetAll()
+                }
+            } label: {
+                Label(
+                    String(localized: .cardDesignerReset),
+                    systemSymbol: .arrowCounterclockwise,
+                )
+            }
+        }
+    }
+
+    private struct CardDesignerPreview: View {
+        let configuration: CardDesignerConfiguration
+        let variant: CardDesignerConfiguration.Variant
+        let colorScheme: ColorScheme
+        let region: Region
+        let color: RegionColorToken
+        let days: Int
+        let year: Int
+        let tilt: TiltProvider
+        @Environment(\.stylesheet) private var stylesheet
+
+        var body: some View {
+            GlassEffectContainer(spacing: 16) {
+                CardDesignerPreviewButton(
+                    region: region,
+                    days: days,
+                    year: year,
+                    variant: variant,
+                    tilt: tilt,
+                    previewStyle: previewStyle,
+                    cardStyle: cardStyle,
+                )
+            }
+            .environment(\.cardDesignerConfiguration, configuration)
+            .environment(\.colorScheme, colorScheme)
+            .bMode(.init(colorScheme))
+        }
+
+        private var cardStyle: WhereStylesheet.CardStyle {
+            configuration.resolve(over: stylesheet.card, colorScheme: colorScheme)[variant.style]
+        }
+
+        private var previewStyle: RegionStyle {
+            let fallback = RegionAppearanceCatalog.defaultAppearance(for: region)
+            return RegionStyle(
+                symbol: fallback.symbolName.sfSymbol,
+                emoji: fallback.emoji,
+                tint: color.color,
+            )
+        }
+    }
+
+    #Preview("Card") {
+        @Previewable @State var tilt = TiltProvider()
+        CardDesignerPreview(
+            configuration: .standard,
+            variant: .regular,
+            colorScheme: .light,
+            region: .newYork,
+            color: .indigo,
+            days: 128,
+            year: 2026,
+            tilt: tilt,
+        )
+        .padding()
+        .whereBroadwayRoot()
+    }
+
+    private struct CardDesignerPreviewButton: View {
+        let region: Region
+        let days: Int
+        let year: Int
+        let variant: CardDesignerConfiguration.Variant
+        let tilt: TiltProvider
+        let previewStyle: RegionStyle
+        let cardStyle: WhereStylesheet.CardStyle
+
+        var body: some View {
+            Button(action: {}) {
+                RegionSummaryCard(
+                    regionDays: RegionDays(region: region, days: days),
+                    caption: String(localized: .cardDesignerPreviewCaption),
+                    variant: variant.style,
+                    interactive: true,
+                    year: year,
+                    tilt: tilt,
+                    styleOverride: previewStyle,
+                )
+            }
+            .buttonStyle(cardStyle.buttonStyle(tint: previewStyle.tint))
+        }
+    }
+
+    private struct CardDesignerVariantControls: View {
+        @Binding var card: CardDesignerConfiguration.Card
+        let reset: (CardDesignerModel.Section) -> Void
+
+        var body: some View {
+            CardDesignerCardGeometrySection(card: $card, reset: { reset(.card) })
+
+            CardDesignerTypographySection(card: $card, reset: { reset(.typography) })
+
+            CardDesignerStampSection(stamp: $card.entryStamp, reset: { reset(.entryStamp) })
+
+            CardDesignerArtworkSection(card: $card, reset: { reset(.regionArtwork) })
+
+            if card.usesRegionShape {
+                CardDesignerMicroprintSection(
+                    border: $card.regionShape.securityBorder,
+                    reset: { reset(.microprint) },
+                )
+            }
+
+            CardDesignerRosetteSection(rosette: $card.rosette, reset: { reset(.rosettes) })
+
+            CardDesignerSheenSection(sheen: $card.sheen, reset: { reset(.sheen) })
+
+            CardDesignerShadowsSection(card: $card, reset: { reset(.shadows) })
+        }
+    }
+
+    #Preview("VariantControls") {
+        @Previewable @State var configuration = CardDesignerConfiguration.standard
+        Form {
+            CardDesignerVariantControls(card: $configuration.regular, reset: { _ in })
+        }
+    }
+
+    private struct CardDesignerMicroprintSection: View {
+        @Binding var border: CardDesignerConfiguration.SecurityBorder
+        let reset: () -> Void
+
+        var body: some View {
+            Section {
+                CardDesignerMicroprintControls(border: $border)
+            } header: {
+                CardDesignerSectionHeader(
+                    title: .cardDesignerMicroprint,
+                    reset: { reset() },
+                )
+            }
+        }
+    }
+
+    #Preview("MicroprintSection") {
+        @Previewable @State var card = CardDesignerConfiguration.standard.regular
+        Form { CardDesignerMicroprintSection(border: $card.regionShape.securityBorder, reset: {}) }
+    }
+
+    private struct CardDesignerShadowsSection: View {
+        @Binding var card: CardDesignerConfiguration.Card
+        let reset: () -> Void
+
+        var body: some View {
+            Section {
+                CardDesignerShadowControls(title: .cardDesignerGlow, shadow: $card.glow)
+                CardDesignerShadowControls(title: .cardDesignerLift, shadow: $card.lift)
+            } header: {
+                CardDesignerSectionHeader(
+                    title: .cardDesignerShadows,
+                    reset: { reset() },
+                )
+            }
+        }
+    }
+
+    #Preview("ShadowsSection") {
+        @Previewable @State var card = CardDesignerConfiguration.standard.regular
+        Form { CardDesignerShadowsSection(card: $card, reset: {}) }
+    }
+
+    private struct CardDesignerStampSection: View {
+        @Binding var stamp: CardDesignerConfiguration.EntryStamp
+        let reset: () -> Void
+
+        var body: some View {
+            Section {
+                CardDesignerEntryStampControls(stamp: $stamp)
+            } header: {
+                CardDesignerSectionHeader(
+                    title: .cardDesignerEntryStamp,
+                    reset: { reset() },
+                )
+            }
+        }
+    }
+
+    #Preview("StampSection") {
+        @Previewable @State var card = CardDesignerConfiguration.standard.regular
+        Form { CardDesignerStampSection(stamp: $card.entryStamp, reset: {}) }
+    }
+
+    private struct CardDesignerEntryStampControls: View {
+        @Binding var stamp: CardDesignerConfiguration.EntryStamp
+
+        var body: some View {
+            CardDesignerCGFloatControl(
+                title: .cardDesignerStampSize,
+                value: $stamp.size,
+                range: 32 ... 140,
+                step: 1,
+            )
+            CardDesignerDoubleControl(
+                title: .cardDesignerRotation,
+                value: $stamp.rotationDegrees,
+                range: -30 ... 30,
+                step: 1,
+            )
+            CardDesignerOuterRingControls(outerRing: $stamp.outerRing)
+            CardDesignerInnerRingControls(innerRing: $stamp.innerRing)
+            CardDesignerStampContentControls(content: $stamp.content)
+            Toggle(String(localized: .cardDesignerShowArc), isOn: $stamp.showsArc)
+            if stamp.showsArc {
+                CardDesignerArcControls(arc: $stamp.arc)
+            }
+        }
+    }
+
+    #Preview("EntryStampControls") {
+        @Previewable @State var configuration = CardDesignerConfiguration.standard
+        Form {
+            Section {
+                CardDesignerEntryStampControls(stamp: $configuration.regular.entryStamp)
+            }
+        }
+    }
+
+    private struct CardDesignerOuterRingControls: View {
+        @Binding var outerRing: CardDesignerConfiguration.Ring
+
+        var body: some View {
+            DisclosureGroup(String(localized: .cardDesignerOuterRing)) {
+                CardDesignerDoubleControl(
+                    title: .cardDesignerOpacity,
+                    value: $outerRing.opacity,
+                    range: 0 ... 1,
+                    step: 0.01,
+                )
+                CardDesignerCGFloatControl(
+                    title: .cardDesignerLineWidthFraction,
+                    value: $outerRing.lineWidthFraction,
+                    range: 0 ... 0.1,
+                    step: 0.001,
+                )
+            }
+        }
+    }
+
+    #Preview("OuterRingControls") {
+        @Previewable @State var card = CardDesignerConfiguration.standard.regular
+        Form { CardDesignerOuterRingControls(outerRing: $card.entryStamp.outerRing) }
+    }
+
+    private struct CardDesignerArtworkSection: View {
+        @Binding var card: CardDesignerConfiguration.Card
+        let reset: () -> Void
+
+        var body: some View {
+            Section {
+                CardDesignerArtworkControls(
+                    usesRegionShape: $card.usesRegionShape,
+                    regionShape: $card.regionShape,
+                )
+            } header: {
+                CardDesignerSectionHeader(
+                    title: .cardDesignerRegionArtwork,
+                    reset: { reset() },
+                )
+            }
+        }
+    }
+
+    #Preview("ArtworkSection") {
+        @Previewable @State var card = CardDesignerConfiguration.standard.regular
+        Form { CardDesignerArtworkSection(card: $card, reset: {}) }
+    }
+
+    private struct CardDesignerArtworkControls: View {
+        @Binding var usesRegionShape: Bool
+        @Binding var regionShape: CardDesignerConfiguration.RegionShape
+
+        var body: some View {
+            Toggle(String(localized: .cardDesignerUseRegionOutline), isOn: $usesRegionShape)
+            if usesRegionShape {
+                CardDesignerArtworkLayerControls(
+                    title: .cardDesignerWatermark,
+                    artwork: $regionShape.watermark,
+                )
+                CardDesignerArtworkLayerControls(
+                    title: .cardDesignerStampArtwork,
+                    artwork: $regionShape.stamp,
+                )
+            }
+        }
+    }
+
+    #Preview("ArtworkControls") {
+        @Previewable @State var configuration = CardDesignerConfiguration.standard
+        Form {
+            Section {
+                CardDesignerArtworkControls(
+                    usesRegionShape: $configuration.regular.usesRegionShape,
+                    regionShape: $configuration.regular.regionShape,
+                )
+            }
         }
     }
 #endif
