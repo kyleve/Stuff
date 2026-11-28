@@ -74,7 +74,9 @@ final class CalendarZoomTransitionState {
 
     func updateMeasurement(_ measurement: Measurement?) {
         self.measurement = measurement
-        if let measurement { resolve(destination: measurement) }
+        if let measurement {
+            resolve(destination: measurement)
+        }
     }
 
     func begin(
@@ -102,7 +104,7 @@ final class CalendarZoomTransitionState {
         guard abs(destination.viewport.width - source.measurement.viewport.width) < Self
             .geometryTolerance,
             abs(destination.viewport.height - source.measurement.viewport.height) < Self
-            .geometryTolerance
+                .geometryTolerance
         else {
             cancel()
             return
@@ -227,7 +229,9 @@ final class CalendarZoomTransitionState {
     }
 
     static func ordered(_ lhs: Target, _ rhs: Target) -> Bool {
-        if lhs.month != rhs.month { return lhs.month < rhs.month }
+        if lhs.month != rhs.month {
+            return lhs.month < rhs.month
+        }
         switch (lhs, rhs) {
             case (.month, .estimate): return true
             case (.month, .month), (.estimate, .month), (.estimate, .estimate): return false

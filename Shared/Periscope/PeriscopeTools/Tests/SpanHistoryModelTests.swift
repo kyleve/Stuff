@@ -160,7 +160,9 @@ struct SpanHistoryModelTests {
         defer { running.cancel() }
 
         _ = await waitUntil {
-            if case .loaded = model.state { return true }
+            if case .loaded = model.state {
+                return true
+            }
             return false
         }
 

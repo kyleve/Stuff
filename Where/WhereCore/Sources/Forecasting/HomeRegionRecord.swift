@@ -24,7 +24,9 @@ public struct HomeRegionRecord: Hashable, Sendable, Codable, Identifiable {
     }
 
     public static func newer(_ lhs: HomeRegionRecord, than rhs: HomeRegionRecord) -> Bool {
-        if lhs.updatedAt != rhs.updatedAt { return lhs.updatedAt > rhs.updatedAt }
+        if lhs.updatedAt != rhs.updatedAt {
+            return lhs.updatedAt > rhs.updatedAt
+        }
         return lhs.id.uuidString > rhs.id.uuidString
     }
 }

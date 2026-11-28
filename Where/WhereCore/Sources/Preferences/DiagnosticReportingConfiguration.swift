@@ -87,7 +87,9 @@ public struct RemoteLoggingConfiguration: Codable, Equatable, Sendable {
     }
 
     public var exportPolicy: LogExportPolicy {
-        if let policy = enabledConfiguration?.exportPolicy { return policy }
+        if let policy = enabledConfiguration?.exportPolicy {
+            return policy
+        }
         switch enabledConfiguration?.metadataPolicy ?? .approvedFields {
             case .approvedFields:
                 return LogExportPolicy(mode: .baseline, enabledControls: [])

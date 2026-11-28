@@ -5,7 +5,8 @@ import Testing
 struct BContextStylesheetConvenienceTests {
     private enum ModeTheme: String, BTheme {
         static let defaultValue: Self = .light
-        case light, dark
+        case light
+        case dark
 
         var mode: BMode {
             self == .dark ? .dark : .light

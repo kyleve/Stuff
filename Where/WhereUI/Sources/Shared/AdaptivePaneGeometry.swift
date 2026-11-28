@@ -82,7 +82,9 @@ struct AdaptivePaneGeometry: Equatable {
         return candidates.min { left, right in
             let leftDistance = distance(to: left)
             let rightDistance = distance(to: right)
-            if leftDistance != rightDistance { return leftDistance < rightDistance }
+            if leftDistance != rightDistance {
+                return leftDistance < rightDistance
+            }
             return left.width * left.height > right.width * right.height
         } ?? .zero
     }

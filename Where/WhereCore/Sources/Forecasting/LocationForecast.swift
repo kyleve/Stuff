@@ -36,9 +36,9 @@ public struct LocationForecast: Hashable, Sendable {
         planning: PlanningSnapshot,
     ) -> LocationForecast? {
         let today = CalendarDay(from: date, in: calendar)
-        guard report.year == today.year else { return nil }
-        guard planning.homeRegion != nil
-            || today >= CalendarDay(year: report.year, month: 4, day: 1)
+        guard report.year == today.year,
+              planning.homeRegion != nil
+              || today >= CalendarDay(year: report.year, month: 4, day: 1)
         else { return nil }
 
         let firstDay = CalendarDay(year: report.year, month: 1, day: 1)

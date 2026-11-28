@@ -54,8 +54,11 @@ struct WhereBuildEnvironment: Equatable {
     }
 
     func makeWidgetReloader() -> any WidgetTimelineReloading {
-        if isRunningTests { NoopWidgetTimelineReloader() }
-        else { WidgetCenterTimelineReloader() }
+        if isRunningTests {
+            NoopWidgetTimelineReloader()
+        } else {
+            WidgetCenterTimelineReloader()
+        }
     }
 
     static func current(

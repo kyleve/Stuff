@@ -298,7 +298,9 @@ struct RemindersSettingsModelTests {
     ) async {
         let deadline = ContinuousClock.now.advanced(by: timeout)
         while ContinuousClock.now < deadline {
-            if await predicate() { return }
+            if await predicate() {
+                return
+            }
             try? await Task.sleep(for: .milliseconds(5))
         }
         #expect(await predicate(), "condition was not met before timeout")
@@ -358,7 +360,9 @@ private actor SpyDailySummaryScheduler: DailySummaryScheduling {
 
     func reconcile(enabled: Bool, time: ReminderTime, body _: String) async {
         reconcileCount += 1
-        if reconcileCount == 1 { await firstApplyGate?.suspend() }
+        if reconcileCount == 1 {
+            await firstApplyGate?.suspend()
+        }
         lastEnabled = enabled
         lastTime = time
     }

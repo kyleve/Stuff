@@ -76,7 +76,7 @@ public final class NetworkPathAmbientSource: AmbientEventSource {
     private static func describe(_ path: NWPath) -> AmbientLog.Network {
         switch path.status {
             case .satisfied:
-                return AmbientLog.Network(
+                AmbientLog.Network(
                     status: .shared(.category, .satisfied),
                     interfaces: .restricted(
                         .technicalState,
@@ -84,17 +84,17 @@ public final class NetworkPathAmbientSource: AmbientEventSource {
                     ),
                 )
             case .unsatisfied:
-                return AmbientLog.Network(
+                AmbientLog.Network(
                     status: .shared(.category, .unsatisfied),
                     interfaces: .restricted(.technicalState, []),
                 )
             case .requiresConnection:
-                return AmbientLog.Network(
+                AmbientLog.Network(
                     status: .shared(.category, .requiresConnection),
                     interfaces: .restricted(.technicalState, []),
                 )
             @unknown default:
-                return AmbientLog.Network(
+                AmbientLog.Network(
                     status: .shared(.category, .unknown),
                     interfaces: .restricted(.technicalState, []),
                 )

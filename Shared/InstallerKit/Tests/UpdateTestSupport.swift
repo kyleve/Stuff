@@ -99,7 +99,10 @@ enum UpdateFixtures {
 }
 
 actor UpdateTestClient: UpdateFetching {
-    enum Failure: Error { case offline }
+    enum Failure: Error {
+        case offline
+    }
+
     private(set) var calls = 0
     var result: Result<UpdateCatalog, Failure>
 

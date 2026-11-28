@@ -47,7 +47,9 @@ public struct LogExportDescription: Sendable {
         { policy in
             var values: [String: JSONValue] = [:]
             for (key, field) in keyed {
-                if let value = try field.exportedValue(using: policy) { values[key] = value }
+                if let value = try field.exportedValue(using: policy) {
+                    values[key] = value
+                }
             }
             return .object(values)
         }

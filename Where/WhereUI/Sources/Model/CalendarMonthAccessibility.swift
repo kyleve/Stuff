@@ -56,8 +56,12 @@ struct CalendarMonthAccessibility {
 
         mutating func append(_ cell: CalendarDayCell, day: CalendarDay) {
             dates = dates.lowerBound ... day
-            if cell.hasEvidence { attachmentDays.append(day) }
-            if cell.hasFlight { flightDays.append(day) }
+            if cell.hasEvidence {
+                attachmentDays.append(day)
+            }
+            if cell.hasFlight {
+                flightDays.append(day)
+            }
         }
 
         func summary(calendar: Calendar) -> String? {

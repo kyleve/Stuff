@@ -28,7 +28,9 @@ import Foundation
 
         // Never advance the anchor for tolerated noise: adjacent one-unit
         // matches could otherwise hide a slow fade across the quiet window.
-        if anchor != nil { observedChange = true }
+        if anchor != nil {
+            observedChange = true
+        }
         anchor = sample.map { Anchor(sample: $0, time: elapsed) }
         matchingPasses = 0
         return false
@@ -72,7 +74,9 @@ import Foundation
 
         func matches(_ other: Sample) -> Bool {
             guard width == other.width, height == other.height else { return false }
-            if pixels == other.pixels { return true }
+            if pixels == other.pixels {
+                return true
+            }
             return pixels.withUnsafeBytes { leftBytes in
                 other.pixels.withUnsafeBytes { rightBytes in
                     let left = leftBytes.bindMemory(to: UInt8.self)

@@ -36,14 +36,18 @@ public final class UpdateModel {
     }
 
     public var isChecking: Bool {
-        if case .checking = state { return true }
+        if case .checking = state {
+            return true
+        }
         return false
     }
 
     public func refresh(force: Bool) async {
         guard !Task.isCancelled else { return }
         // A cache-only foreground check must leave the active check's presentation intact.
-        if !force, isChecking, service.cachedForAutomaticRefresh != nil { return }
+        if !force, isChecking, service.cachedForAutomaticRefresh != nil {
+            return
+        }
         refreshSequence += 1
         let sequence = refreshSequence
         let previousState = isChecking ? state.snapshot.map(State.loaded) ?? .idle : state

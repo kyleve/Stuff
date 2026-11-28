@@ -93,7 +93,9 @@ final class RegionAttribution: RegionAttributing, WhereShutdownable {
     /// A pending change-stream callback must not change an authority decision.
     func snapshot(for tracked: Set<Region>) -> RegionAttributor {
         let existing = state.withLock { $0 }
-        if existing.trackedIDs == Set(tracked.map(\.rawValue)) { return existing.attributor }
+        if existing.trackedIDs == Set(tracked.map(\.rawValue)) {
+            return existing.attributor
+        }
         return RegionAttributor(for: Region.inCanonicalOrder(tracked))
     }
 

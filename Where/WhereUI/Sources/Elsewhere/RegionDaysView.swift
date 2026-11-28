@@ -29,7 +29,9 @@ struct RegionDaysView: View {
     }
 
     private var failureMessage: String? {
-        if case let .failed(error) = report.loadState { return error.message }
+        if case let .failed(error) = report.loadState {
+            return error.message
+        }
         return model.failure(for: report.selectedYear)?.localizedDescription
     }
 
@@ -48,8 +50,12 @@ struct RegionDaysView: View {
             .navigationTitle(region.localizedName)
             .navigationBarTitleDisplayMode(.inline)
             .task(id: Request(input: report.elsewhereInput, retryTrigger: retryTrigger)) {
-                if case .failed = report.loadState { await report.refresh() }
-                if let input = report.elsewhereInput { await model.refresh(input) }
+                if case .failed = report.loadState {
+                    await report.refresh()
+                }
+                if let input = report.elsewhereInput {
+                    await model.refresh(input)
+                }
             }
     }
 
@@ -57,7 +63,9 @@ struct RegionDaysView: View {
     private var content: some View {
         if let history, !history.days.isEmpty {
             VStack(spacing: 0) {
-                if !mapPoints.isEmpty { RecordedPointsMap(points: mapPoints) }
+                if !mapPoints.isEmpty {
+                    RecordedPointsMap(points: mapPoints)
+                }
                 List {
                     if let failureMessage {
                         Section {
@@ -166,7 +174,9 @@ private struct DayRow: View {
                 name: "WithData",
                 configurations: .fullContentScreenRepresentative,
                 onReadyToMeasure: {
-                    if let input = report.elsewhereInput { await model.refresh(input) }
+                    if let input = report.elsewhereInput {
+                        await model.refresh(input)
+                    }
                 },
             ) {
                 NavigationStack {

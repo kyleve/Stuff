@@ -49,11 +49,11 @@ public actor CloudKitDataCompatibilityTransport: DataCompatibilityTransport {
     ) async throws -> DataCompatibilityDomain {
         switch status {
             case .available:
-                return try await .cloud(.init(
+                try await .cloud(.init(
                     containerIdentifier: containerIdentifier,
                     userRecordName: userRecordName(),
                 ))
-            case .noAccount: return .local
+            case .noAccount: .local
             case .restricted: throw CKError(.managedAccountRestricted)
             case .couldNotDetermine: throw CKError(.notAuthenticated)
             case .temporarilyUnavailable: throw CKError(.accountTemporarilyUnavailable)
@@ -239,7 +239,9 @@ public actor CloudKitDataCompatibilityTransport: DataCompatibilityTransport {
             case .partialFailure:
                 if let errors = cloudError.partialErrorsByItemID,
                    errors.values.contains(where: { ($0 as? CKError)?.code == .serverRecordChanged })
-                { return DataCompatibilityTransportError.conflict }
+                {
+                    return DataCompatibilityTransportError.conflict
+                }
                 return error
             case .internalError, .badContainer, .badDatabase, .serverRejectedRequest,
                  .participantAlreadyInvited, .missingEntitlement, .notAuthenticated,

@@ -16,7 +16,10 @@ struct CalendarContentView: View {
     private let showsPlanningAction: Bool
     private let showsZoomAction: Bool
     private let onPresentationReady: (() -> Void)?
-    enum ScrollRole: Hashable { case detail }
+    enum ScrollRole: Hashable {
+        case detail
+    }
+
     struct ScrollContext: Hashable { let region: Region?; let year: Int }
     private let model: CalendarModel
     private let suppliedPlanningDestination: Binding<PlannedStaysDestination?>?
@@ -357,7 +360,9 @@ struct CalendarContentView: View {
                 .onGeometryChange(for: Bool.self) { proxy in
                     canReveal && proxy.size.width > 0 && proxy.size.height > 0
                 } action: { isReady in
-                    if isReady { onPresentationReady?() }
+                    if isReady {
+                        onPresentationReady?()
+                    }
                 }
                 .allowsHitTesting(false)
         }
@@ -369,7 +374,9 @@ struct CalendarContentView: View {
                     zoomTile(target, mode: mode, months: months)
                 }, completion: { id in
                     guard zoom.finish(id) else { return }
-                    if presentation.mode == .detail { focusedTarget = detailTarget }
+                    if presentation.mode == .detail {
+                        focusedTarget = detailTarget
+                    }
                 })
             }
         }
@@ -396,10 +403,16 @@ struct CalendarContentView: View {
         switch presentation.mode {
             case .detail:
                 if magnification <= CalendarPresentationState
-                    .overviewThreshold { presentation.mode = .overview }
+                    .overviewThreshold
+                {
+                    presentation.mode = .overview
+                }
             case .overview:
                 if magnification >= CalendarPresentationState.detailThreshold,
-                   let destination { expand(destination) }
+                   let destination
+                {
+                    expand(destination)
+                }
         }
     }
 

@@ -198,7 +198,9 @@ public actor FileLocationOutbox: LocationOutbox {
     }
 
     private func openJournal() throws -> Journal {
-        if let journal { return journal }
+        if let journal {
+            return journal
+        }
         try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true)
         try excludeFromBackup(directoryURL)
         let opened = try Journal(

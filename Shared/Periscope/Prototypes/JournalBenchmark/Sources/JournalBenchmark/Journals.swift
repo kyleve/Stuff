@@ -116,13 +116,13 @@ final class SQLiteJournal: JournalStore {
         )
         var statement: OpaquePointer?
         guard sqlite3_prepare_v2(
-            db,
-            "INSERT INTO journal(seq, payload) VALUES(?, ?)",
-            -1,
-            &statement,
-            nil,
-        ) == SQLITE_OK,
-            let statement
+                  db,
+                  "INSERT INTO journal(seq, payload) VALUES(?, ?)",
+                  -1,
+                  &statement,
+                  nil,
+              ) == SQLITE_OK,
+              let statement
         else { throw Failure("prepare failed") }
         insert = statement
     }
@@ -238,7 +238,9 @@ final class CoreDataJournal: JournalStore {
         container.persistentStoreDescriptions = [description]
         var loadError: Error?
         container.loadPersistentStores { _, error in loadError = error }
-        if let loadError { throw loadError }
+        if let loadError {
+            throw loadError
+        }
         context = container.newBackgroundContext()
         self.saveEvery = saveEvery
     }
@@ -262,7 +264,9 @@ final class CoreDataJournal: JournalStore {
                 }
             }
         }
-        if let thrown { throw thrown }
+        if let thrown {
+            throw thrown
+        }
     }
 
     func finish() throws {
@@ -272,7 +276,9 @@ final class CoreDataJournal: JournalStore {
                 do { try context.save() } catch { thrown = error }
             }
         }
-        if let thrown { throw thrown }
+        if let thrown {
+            throw thrown
+        }
     }
 
     static func recover(url: URL) throws -> Int {
@@ -282,7 +288,9 @@ final class CoreDataJournal: JournalStore {
         container.persistentStoreDescriptions = [description]
         var loadError: Error?
         container.loadPersistentStores { _, error in loadError = error }
-        if let loadError { throw loadError }
+        if let loadError {
+            throw loadError
+        }
         let request = NSFetchRequest<NSFetchRequestResult>(entityName: "Entry")
         return try container.newBackgroundContext().performAndWait {
             try container.newBackgroundContext().count(for: request)

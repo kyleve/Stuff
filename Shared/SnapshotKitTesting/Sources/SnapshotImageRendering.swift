@@ -105,12 +105,12 @@ extension SnapshotRenderingError: LocalizedError {
                     .joined(separator: ", ")
                 return "Snapshot \(name) two-axis full-content size did not converge: \(sizes)."
             case let .fullContentSizeExceedsLimit(
-            name,
-            pixelWidth,
-            pixelHeight,
-            maximumPixelDimension,
-            maximumPixelCount,
-        ):
+                name,
+                pixelWidth,
+                pixelHeight,
+                maximumPixelDimension,
+                maximumPixelCount,
+            ):
                 return "Snapshot \(name) would render at \(pixelWidth)×\(pixelHeight) pixels; two-axis captures are limited to \(maximumPixelDimension) pixels per dimension and \(maximumPixelCount) pixels total."
             case let .pngEncodingFailed(name):
                 return "Snapshot \(name) could not be encoded as a PNG image."
@@ -355,7 +355,9 @@ func renderSnapshotCaptureLocked(
             } else if case .fixed = sizing {
                 viewController.traitCollection.horizontalSizeClass == .regular
                     && viewController.traitCollection.userInterfaceIdiom == .phone
-            } else { false }
+            } else {
+                false
+            }
             if !retainsScene {
                 window.windowScene = nil
                 window.makeKeyAndVisible()
@@ -574,8 +576,8 @@ func renderSnapshotCaptureLocked(
         viewController.view.hideTextInputCursors()
         timing.measure(.drain) { drainInFlightAnimations() }
 
-        /// Drain rendering intermediates before returning to the async caller.
-        /// Only the normalized image and PNG bytes escape this synchronous pool.
+        // Drain rendering intermediates before returning to the async caller.
+        // Only the normalized image and PNG bytes escape this synchronous pool.
         func render() throws -> SnapshotCapture {
             try autoreleasepool {
                 let image = timing.measure(.tileStitch) {

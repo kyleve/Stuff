@@ -56,7 +56,9 @@ extension View {
                         .fullContentPhoneLightDark,
                     measurementReadiness: scenario.requiresRefresh ? .sameAsCapture : .immediate,
                     onReadyToMeasure: {
-                        if scenario.requiresRefresh { await model.refresh(force: true) }
+                        if scenario.requiresRefresh {
+                            await model.refresh(force: true)
+                        }
                     },
                 ) {
                     UpdateBrowserView(model: model, branding: InstallerPreview.branding)

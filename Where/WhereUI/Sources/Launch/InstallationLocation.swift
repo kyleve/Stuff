@@ -23,7 +23,9 @@ public final class InstallationLocation {
     /// The bootstrap and permission flow share this source. After retirement, a fresh source
     /// owns the next scope's stream; a canceled AsyncStream is never reused.
     var source: any LocationSource {
-        if let preparedSource { return preparedSource }
+        if let preparedSource {
+            return preparedSource
+        }
         let source = makeSource()
         preparedSource = source
         return source

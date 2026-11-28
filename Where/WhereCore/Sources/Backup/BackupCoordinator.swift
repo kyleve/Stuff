@@ -407,7 +407,11 @@ public actor BackupCoordinator {
         // bracket the read with start/stop access or `Data(contentsOf:)` fails
         // with a permissions error.
         let accessing = url.startAccessingSecurityScopedResource()
-        defer { if accessing { url.stopAccessingSecurityScopedResource() } }
+        defer {
+            if accessing {
+                url.stopAccessingSecurityScopedResource()
+            }
+        }
 
         let backupService = backupService
         let result = try await Task.detached(priority: .utility) {
@@ -729,7 +733,9 @@ public actor BackupCoordinator {
     /// Load the sidecar exactly once per coordinator lifetime, serializing concurrent first
     /// callers. A prepared marker is resolved against its installation-scoped store receipt.
     private func hydrateImportRecovery() async throws {
-        if hasHydratedImportRecovery { return }
+        if hasHydratedImportRecovery {
+            return
+        }
         if isHydratingImportRecovery {
             await withCheckedContinuation { importRecoveryHydrationWaiters.append($0) }
             return try await hydrateImportRecovery()
@@ -837,15 +843,21 @@ public actor BackupCoordinator {
         var order: [Region] = []
         var seen: Set<Region> = []
         func add(_ region: Region) {
-            if seen.insert(region).inserted { order.append(region) }
+            if seen.insert(region).inserted {
+                order.append(region)
+            }
         }
         for entry in current {
             add(entry.region)
-            if let appearance = entry.appearance { appearances[entry.region] = appearance }
+            if let appearance = entry.appearance {
+                appearances[entry.region] = appearance
+            }
         }
         for entry in archive {
             add(entry.region)
-            if let appearance = entry.appearance { appearances[entry.region] = appearance }
+            if let appearance = entry.appearance {
+                appearances[entry.region] = appearance
+            }
         }
         return order.enumerated().map { index, region in
             PrimaryRegion(region: region, appearance: appearances[region], order: index)

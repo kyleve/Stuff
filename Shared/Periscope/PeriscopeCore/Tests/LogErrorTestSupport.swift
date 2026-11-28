@@ -47,7 +47,8 @@ struct UnencodableLogErrorTestFailure: Error, Encodable {
 }
 
 enum LogErrorTestKey: String, CodingKey {
-    case items, name
+    case items
+    case name
 }
 
 /// Immutable NSError subclass exposes a cycle without retaining itself in stored state.

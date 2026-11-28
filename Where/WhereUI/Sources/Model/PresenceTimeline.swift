@@ -80,8 +80,12 @@ public enum PresenceTimeline {
         }
 
         return stints.sorted { lhs, rhs in
-            if lhs.start != rhs.start { return lhs.start < rhs.start }
-            if lhs.end != rhs.end { return lhs.end < rhs.end }
+            if lhs.start != rhs.start {
+                return lhs.start < rhs.start
+            }
+            if lhs.end != rhs.end {
+                return lhs.end < rhs.end
+            }
             return regionOrder(lhs.region) < regionOrder(rhs.region)
         }
     }

@@ -18,7 +18,9 @@ struct LocationsCardsView: View {
     let showsSelection: Bool
 
     @BScrollPosition<Region, Int> private var position: ScrollPosition
-    enum ScrollRole: Hashable { case browse }
+    enum ScrollRole: Hashable {
+        case browse
+    }
 
     init(
         report: YearReportModel,

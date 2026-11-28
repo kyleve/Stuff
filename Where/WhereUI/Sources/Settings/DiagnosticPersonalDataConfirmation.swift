@@ -33,7 +33,11 @@
 
         var isPresented: Bool {
             get { pendingRevision != nil }
-            set { if !newValue { requestedRevision = nil } }
+            set {
+                if !newValue {
+                    requestedRevision = nil
+                }
+            }
         }
 
         private var canRequestGrant: Bool {

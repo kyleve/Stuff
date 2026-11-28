@@ -69,7 +69,9 @@ struct SampleCorrectionCoordinatorTests {
             driftThresholdMeters: 1000,
         )
         #expect(refreshed?.pointCorrections.contains { $0.sampleID == excluded.id } != true)
-        if excludedMinute >= 1440 { #expect(refreshed == nil) }
+        if excludedMinute >= 1440 {
+            #expect(refreshed == nil)
+        }
         #expect(try await Set(h.store.allSamples()) == Set(samples))
         guard case .stale = try await h.coordinator.apply(restore) else {
             Issue.record("An already applied restoration must be stale")

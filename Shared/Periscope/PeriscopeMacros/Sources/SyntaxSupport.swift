@@ -117,7 +117,9 @@ func fieldKey(in arguments: LabeledExprListSyntax, propertyName: String) -> Stri
                     .contains(previous)
                 let endsAcronym = uppercase.contains(previous)
                     && index + 1 < bytes.count && lowercase.contains(bytes[index + 1])
-                if followsLowercaseOrDigit || endsAcronym { result.append(95) }
+                if followsLowercaseOrDigit || endsAcronym {
+                    result.append(95)
+                }
             }
             result.append(byte + 32)
         } else {

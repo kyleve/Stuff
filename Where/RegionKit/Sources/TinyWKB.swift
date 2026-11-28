@@ -71,7 +71,9 @@ enum TinyWKB {
                 let byte = Int(bytes[offset])
                 offset += 1
                 value |= (byte & 127) << shift
-                if byte < 128 { return value }
+                if byte < 128 {
+                    return value
+                }
                 shift += 7
             }
             throw CocoaError(.fileReadCorruptFile)

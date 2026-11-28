@@ -220,7 +220,9 @@ enum FlightTrajectoryFixtures {
             sample(105, minutes: laterStart + 20, east: 170),
             sample(106, minutes: laterStart + 25, east: 170),
         ]
-        if !laterStartsWithTransition { later.removeFirst() }
+        if !laterStartsWithTransition {
+            later.removeFirst()
+        }
         return SeparatedFlightsTrace(
             samples: earlier.samples.filter { $0.timestamp <= earlier.lastCruiseAt } + later,
             earlierLastObservationAt: earlier.lastCruiseAt,

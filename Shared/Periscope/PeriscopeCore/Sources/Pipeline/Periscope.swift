@@ -469,7 +469,9 @@ public final class Periscope: LogRecorder, Sendable {
     /// are the supported way to silence spans.
     private func redacted(_ record: LogRecord) -> LogRecord? {
         guard let redact = configuration.redact else { return record }
-        if let transformed = redact(record) { return transformed }
+        if let transformed = redact(record) {
+            return transformed
+        }
         guard record.isProtectedFromDropping else { return nil }
         return record.strippedOfSensitivePayload()
     }
@@ -660,8 +662,7 @@ public final class Periscope: LogRecorder, Sendable {
         }
         for span in expired {
             SpanSignposts.end(span.id)
-            guard case let .bounded(budget) = span.lifetime else { continue }
-            guard span.beganRecorded else { continue }
+            guard case let .bounded(budget) = span.lifetime, span.beganRecorded else { continue }
             var closing = LogRecord(
                 date: Date(),
                 event: SpanEnded(
@@ -713,7 +714,9 @@ public final class Periscope: LogRecorder, Sendable {
                         return
                     }
                     try? await Task.sleep(until: wakeAt, clock: .continuous)
-                    if Task.isCancelled { return }
+                    if Task.isCancelled {
+                        return
+                    }
                     self?.sweepOverdueSpans(now: ContinuousClock().now)
                 }
             }
@@ -837,7 +840,11 @@ public final class Periscope: LogRecorder, Sendable {
                 // leading scope run, so a just-added sink has its replay
                 // (including the system scope) before any record.
                 let leadingScopes = items.prefix { item in
-                    if case .scope = item { true } else { false }
+                    if case .scope = item {
+                        true
+                    } else {
+                        false
+                    }
                 }
                 items.insert(.record(dropReport), at: leadingScopes.count)
             }

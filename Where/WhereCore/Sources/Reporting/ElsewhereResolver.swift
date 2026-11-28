@@ -35,7 +35,10 @@ public actor ElsewhereResolver: ElsewhereResolving {
         var revisions: [UUID: SampleAttributionRevision] = [:]
         for revision in input.history.revisions {
             if let previous = revisions[revision.sampleID],
-               !SampleAttributionRevision.newer(revision, than: previous) { continue }
+               !SampleAttributionRevision.newer(revision, than: previous)
+            {
+                continue
+            }
             revisions[revision.sampleID] = revision
         }
 
@@ -98,7 +101,9 @@ public actor ElsewhereResolver: ElsewhereResolving {
     }
 
     private func catalogRegion(at coordinate: Coordinate) -> Region {
-        if let catalog { return catalog.region(at: coordinate) }
+        if let catalog {
+            return catalog.region(at: coordinate)
+        }
         let loaded = Self.logger.measure(.loadCatalog, budget: .seconds(1)) {
             RegionAttributor(for: RegionCatalog.shared.all)
         }

@@ -68,7 +68,9 @@ enum FlightDisplacementInference {
                   anchors[end].timestamp.timeIntervalSince(anchors[start].timestamp)
                   <= Trajectory.maximumCorroboratingGap
             {
-                if end > stop { break }
+                if end > stop {
+                    break
+                }
                 defer { end += 1 }
                 // Existing observed cruise already explains this interval. Windows
                 // may meet a cruise endpoint, but must not absorb its ground lead-in.
@@ -88,7 +90,9 @@ enum FlightDisplacementInference {
                             break
                         }
                     }
-                    if support != nil { break }
+                    if support != nil {
+                        break
+                    }
                 }
                 if let support {
                     result.append(Window(legs: start ..< end, previous: support))
@@ -175,7 +179,9 @@ enum FlightDisplacementInference {
         let seconds = abs(sample.timestamp.timeIntervalSince(anchor.timestamp))
         let distance = sample.coordinate.distance(to: anchor.coordinate)
         let uncertainty = sample.horizontalAccuracy + anchor.horizontalAccuracy
-        if seconds < Trajectory.sameObservationInterval { return distance <= uncertainty }
+        if seconds < Trajectory.sameObservationInterval {
+            return distance <= uncertainty
+        }
         return max(0, distance - uncertainty) / seconds * 3.6
             <= Trajectory.maximumPlausibleSpeedKMH
     }
@@ -187,7 +193,11 @@ extension [LocationSample] {
         var upper = endIndex
         while lower < upper {
             let middle = lower + (upper - lower) / 2
-            if predicate(self[middle]) { upper = middle } else { lower = middle + 1 }
+            if predicate(self[middle]) {
+                upper = middle
+            } else {
+                lower = middle + 1
+            }
         }
         return lower
     }

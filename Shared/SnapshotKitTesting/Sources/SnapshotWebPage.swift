@@ -139,7 +139,9 @@ final class SnapshotWebPage: NSObject, WKNavigationDelegate {
             for _ in 0 ..< 5 {
                 try Task.checkCancellation()
                 let documentHeight = try await waitForPaint()
-                if case let .failed(error) = loadState { throw error }
+                if case let .failed(error) = loadState {
+                    throw error
+                }
                 let measured = CGSize(
                     width: initialSize.width,
                     height: max(initialSize.height, ceil(documentHeight)),

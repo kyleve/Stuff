@@ -59,7 +59,9 @@ struct PresenceTimelineListTests {
             calendar: model.calendar,
         )
         let stint = try #require(items.compactMap { item -> RegionStint? in
-            if case let .stay(stint) = item { return stint }
+            if case let .stay(stint) = item {
+                return stint
+            }
             return nil
         }.first)
         let target = PresenceTimelineList.RowID.recorded(stint.id)

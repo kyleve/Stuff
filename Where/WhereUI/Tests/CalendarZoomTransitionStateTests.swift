@@ -168,7 +168,9 @@ struct CalendarZoomTransitionStateTests {
             focus: november,
         )
         var frames = [november: expanded]
-        if hasOffscreenFrame { frames[december] = expanded.offsetBy(dx: 0, dy: 2000) }
+        if hasOffscreenFrame {
+            frames[december] = expanded.offsetBy(dx: 0, dy: 2000)
+        }
         model.resolve(
             destination: .init(mode: .detail, frames: frames, viewport: viewport, content: content),
         )

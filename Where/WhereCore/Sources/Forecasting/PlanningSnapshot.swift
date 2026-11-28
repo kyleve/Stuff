@@ -50,7 +50,9 @@ public struct PlanningSnapshot: Hashable, Sendable {
                 certainRange: Self.intersection(stay.shortestRange, future),
             )
         }.sorted {
-            if $0.start != $1.start { return $0.start < $1.start }
+            if $0.start != $1.start {
+                return $0.start < $1.start
+            }
             return $0.stayID.rawValue.uuidString < $1.stayID.rawValue.uuidString
         }
     }
@@ -75,7 +77,9 @@ public struct PlanningSnapshot: Hashable, Sendable {
                     certainty: home.certainty,
                 )
             } else {
-                if let current { intervals.append(current) }
+                if let current {
+                    intervals.append(current)
+                }
                 current = home.map {
                     PlannedHomeInterval(
                         region: $0.region,
@@ -86,7 +90,9 @@ public struct PlanningSnapshot: Hashable, Sendable {
                 }
             }
         }
-        if let current { intervals.append(current) }
+        if let current {
+            intervals.append(current)
+        }
         return intervals
     }
 

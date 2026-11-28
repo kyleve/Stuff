@@ -8,7 +8,9 @@ import WhereCore
 
 @MainActor
 func findTabController(in controller: UIViewController) -> UITabBarController? {
-    if let tabs = controller as? UITabBarController { return tabs }
+    if let tabs = controller as? UITabBarController {
+        return tabs
+    }
     return controller.children.lazy.compactMap { findTabController(in: $0) }.first
 }
 

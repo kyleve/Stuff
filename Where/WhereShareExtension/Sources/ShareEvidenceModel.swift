@@ -64,7 +64,9 @@ final class ShareEvidenceModel {
     /// The save error message, if the last save failed. Backing for the alert
     /// binding below.
     var saveErrorMessage: String? {
-        if case let .failed(message) = phase { return message }
+        if case let .failed(message) = phase {
+            return message
+        }
         return nil
     }
 
@@ -73,7 +75,11 @@ final class ShareEvidenceModel {
     /// single source of truth (no closure-based `Binding`).
     var isShowingSaveError: Bool {
         get { saveErrorMessage != nil }
-        set { if !newValue { phase = .composing } }
+        set {
+            if !newValue {
+                phase = .composing
+            }
+        }
     }
 
     /// Pull every usable attachment out of the shared items and open the form.

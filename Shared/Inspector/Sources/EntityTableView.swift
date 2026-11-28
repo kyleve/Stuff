@@ -49,7 +49,11 @@ struct EntityTableView: View {
         // Load once; drilling into a row and back keeps the rows (and any
         // "load more" pages) already on screen. Pull-to-refresh re-reads the
         // same number of pages from a fresh context.
-        .task { if !hasLoaded { await load() } }
+        .task {
+            if !hasLoaded {
+                await load()
+            }
+        }
         .refreshable { await load() }
         .onChange(of: model.mutationTrigger) {
             Task { await load() }

@@ -44,7 +44,11 @@ struct ShareEvidenceView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(.shareSave) {
-                        Task { if await model.save() { onSave() } }
+                        Task {
+                            if await model.save() {
+                                onSave()
+                            }
+                        }
                     }
                     .disabled(model.isSaving || model.phase == .loading)
                 }

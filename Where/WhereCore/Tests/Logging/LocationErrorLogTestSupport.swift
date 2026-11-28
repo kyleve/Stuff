@@ -24,7 +24,9 @@ func verifyLocationErrorEvent<Event: LogEvent>(
         sourceLocation: sourceLocation,
     )
     #expect(event.classifiedFields.allSatisfy {
-        if case .restricted = $0 { return true }
+        if case .restricted = $0 {
+            return true
+        }
         return false
     }, sourceLocation: sourceLocation)
 

@@ -47,7 +47,9 @@ final class LocationForecastModel {
     }
 
     var isLoading: Bool {
-        if case .loading = loadState { return true }
+        if case .loading = loadState {
+            return true
+        }
         return false
     }
 
@@ -98,7 +100,9 @@ final class LocationForecastModel {
         regions.formUnion(planning.stays.filter {
             $0.departure.latest > today && $0.arrival.earliest.year <= report.year
         }.map(\.region))
-        if let home = planning.homeRegion { regions.insert(home) }
+        if let home = planning.homeRegion {
+            regions.insert(home)
+        }
         regions.remove(.other)
         return Region.inCanonicalOrder(regions).compactMap {
             forecast(for: $0, report: report)

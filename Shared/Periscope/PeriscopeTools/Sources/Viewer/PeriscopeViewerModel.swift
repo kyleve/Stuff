@@ -34,33 +34,57 @@ final class PeriscopeViewerModel {
     private(set) var canLoadMore = false
 
     var searchText = "" {
-        didSet { if searchText != oldValue { scheduleReload() } }
+        didSet {
+            if searchText != oldValue {
+                scheduleReload()
+            }
+        }
     }
 
     /// `nil` shows every level.
     var minimumLevel: LogLevel? {
-        didSet { if minimumLevel != oldValue { scheduleReload() } }
+        didSet {
+            if minimumLevel != oldValue {
+                scheduleReload()
+            }
+        }
     }
 
     /// `nil` shows every event type.
     var selectedEventName: String? {
-        didSet { if selectedEventName != oldValue { scheduleReload() } }
+        didSet {
+            if selectedEventName != oldValue {
+                scheduleReload()
+            }
+        }
     }
 
     /// `nil` shows every session.
     var selectedSessionID: UUID? {
-        didSet { if selectedSessionID != oldValue { scheduleReload() } }
+        didSet {
+            if selectedSessionID != oldValue {
+                scheduleReload()
+            }
+        }
     }
 
     /// `nil` shows every scope; set filters to that scope's subtree.
     var selectedScope: ScopeID? {
-        didSet { if selectedScope != oldValue { scheduleReload() } }
+        didSet {
+            if selectedScope != oldValue {
+                scheduleReload()
+            }
+        }
     }
 
     /// `nil` shows everything; set restricts to span-ended events with
     /// that exit ("everything that failed").
     var selectedSpanExitMode: SpanExit.Mode? {
-        didSet { if selectedSpanExitMode != oldValue { scheduleReload() } }
+        didSet {
+            if selectedSpanExitMode != oldValue {
+                scheduleReload()
+            }
+        }
     }
 
     init(store: PeriscopeStore) {

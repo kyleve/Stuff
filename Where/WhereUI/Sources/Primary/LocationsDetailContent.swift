@@ -33,7 +33,9 @@ struct LocationsDetailContent: View {
         }
         .toolbar { LocationsToolbar(report: report, navigation: navigation) }
         .onChange(of: selection) { previous, _ in
-            if arrangement == .compact, let previous { calendars.discard(previous) }
+            if arrangement == .compact, let previous {
+                calendars.discard(previous)
+            }
         }
     }
 }

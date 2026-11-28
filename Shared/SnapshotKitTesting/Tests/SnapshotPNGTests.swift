@@ -116,13 +116,19 @@ struct SnapshotPNGTests {
             safeAreaInsets: .zero,
             measurementReadiness: .immediate,
             onReadyToMeasure: {
-                if scenePolicy == .retained { #expect(window.windowScene === scene) }
-                else { #expect(window.windowScene == nil) }
+                if scenePolicy == .retained {
+                    #expect(window.windowScene === scene)
+                } else {
+                    #expect(window.windowScene == nil)
+                }
             },
             settle: .immediate,
             onReadyToSnapshot: {
-                if scenePolicy == .retained { #expect(window.windowScene === scene) }
-                else { #expect(window.windowScene == nil) }
+                if scenePolicy == .retained {
+                    #expect(window.windowScene === scene)
+                } else {
+                    #expect(window.windowScene == nil)
+                }
             },
         )
 

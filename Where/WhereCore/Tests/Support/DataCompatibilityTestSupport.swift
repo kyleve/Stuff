@@ -33,8 +33,12 @@ actor ScriptedDataCompatibilityTransport: DataCompatibilityTransport {
     func read(domain _: DataCompatibilityDomain) async throws -> PersistedDataModelVersion? {
         readCount += 1
         let captured = remote
-        if holdsRead { await withCheckedContinuation { heldRead = $0 } }
-        if let readError { throw readError }
+        if holdsRead {
+            await withCheckedContinuation { heldRead = $0 }
+        }
+        if let readError {
+            throw readError
+        }
         return captured
     }
 
@@ -55,7 +59,9 @@ actor ScriptedDataCompatibilityTransport: DataCompatibilityTransport {
             revision: "save-\(saveCount)",
             changeReason: version > .baseline ? version.changeReason : nil,
         )
-        if let saveError { throw saveError }
+        if let saveError {
+            throw saveError
+        }
         return remote!
     }
 
@@ -93,7 +99,9 @@ actor ScriptedDataCompatibilityTransport: DataCompatibilityTransport {
 
     func setDomain(_ domain: DataCompatibilityDomain, notify: Bool) {
         currentDomain = domain
-        if notify { continuation.yield() }
+        if notify {
+            continuation.yield()
+        }
     }
 
     func changeAccount() {
@@ -115,12 +123,16 @@ final class InMemoryDataCompatibilityReceipt: DataCompatibilityReceiptStoring {
     }
 
     func load() throws -> DataCompatibilityReceipt? {
-        if let failure { throw failure }
+        if let failure {
+            throw failure
+        }
         return receipt
     }
 
     func save(_ receipt: DataCompatibilityReceipt) throws {
-        if let failure { throw failure }
+        if let failure {
+            throw failure
+        }
         self.receipt = receipt
     }
 }

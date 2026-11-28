@@ -133,8 +133,11 @@ struct PlannedStaysModelTests {
         }
         try await waitForAsync { link() != nil }
         let row = try #require(link())
-        if let control = row as? UIControl { control.sendActions(for: .touchUpInside) }
-        else { try #require(row.accessibilityActivate()) }
+        if let control = row as? UIControl {
+            control.sendActions(for: .touchUpInside)
+        } else {
+            try #require(row.accessibilityActivate())
+        }
     }
 
     private func searchField(

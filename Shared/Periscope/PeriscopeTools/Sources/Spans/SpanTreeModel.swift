@@ -57,20 +57,26 @@ struct SpanNode: Identifiable, Hashable {
     }
 
     var isOpen: Bool {
-        if case .open = outcome { return true }
+        if case .open = outcome {
+            return true
+        }
         return false
     }
 
     /// The stored `SpanEnded` event, or `nil` while the span is still open.
     var ended: StoredLogEvent? {
-        if case let .ended(ended) = outcome { return ended.event }
+        if case let .ended(ended) = outcome {
+            return ended.event
+        }
         return nil
     }
 
     /// How the span ended, or `nil` while open (or when the end row recorded no
     /// exit).
     var exitMode: SpanExit.Mode? {
-        if case let .ended(ended) = outcome { return ended.mode }
+        if case let .ended(ended) = outcome {
+            return ended.mode
+        }
         return nil
     }
 
@@ -214,7 +220,9 @@ final class SpanTreeModel {
         }
 
         let sorted = buildings.sorted { lhs, rhs in
-            if lhs.begin != rhs.begin { return lhs.begin < rhs.begin }
+            if lhs.begin != rhs.begin {
+                return lhs.begin < rhs.begin
+            }
             return lhs.effectiveEnd > rhs.effectiveEnd
         }
 

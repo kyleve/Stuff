@@ -24,7 +24,9 @@ struct PlannedStayEditorTests {
         host.safeAreaRegions = []
         let gate = TestStore.OperationGate()
         await store.gateNextPlannedStayWrite(with: gate)
-        if fails { await store.failPlannedStays() }
+        if fails {
+            await store.failPlannedStays()
+        }
         try await show(host) { controller in
             try await waitForAsync { mounts == 1 }
             let saving = Task { await model.save() }
