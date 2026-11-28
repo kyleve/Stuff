@@ -2,7 +2,7 @@
 
 ## Checkpoint
 
-The user requested an inventory and implementation on November 27. Execution is complete. [PR #589](https://github.com/kyleve/Stuff/pull/589) delivers the main migration. The [numbered plan](01-migrate.md) records verification and the requested before-merge comments.
+The user requested an inventory and implementation on November 27. Execution is complete. [PR #589](https://github.com/kyleve/Stuff/pull/589) delivers the main migration. After #585 merged at `5674d5147`, the user requested its calendar migration in #589. The [numbered plan](01-migrate.md) records the merged-base checks and the before-merge comments.
 
 ## Stories and requirements
 
@@ -25,7 +25,7 @@ Main at fd274c719 includes the [planner discussion](https://github.com/kyleve/St
 
 | Contract | Producers and consumers |
 | --- | --- |
-| One presentation | PlannedStaysModel.EditorRoute, CalendarZoomTransitionState.Source and Plan, LocationCardsPresentationModel.OvertakeMovement and OvertakeEvent, DeveloperToastCenter.Toast, PeriscopeViewer.NDJSONExport |
+| One presentation | LocationsView.CalendarSelection (merged in #585), PlannedStaysModel.EditorRoute, CalendarZoomTransitionState.Source and Plan, LocationCardsPresentationModel.OvertakeMovement and OvertakeEvent, DeveloperToastCenter.Toast, PeriscopeViewer.NDJSONExport |
 | One failure displayed | DevicesSettingsModel.Failure. The row’s OperationFailure identifies the underlying operation error. |
 | Repeatable effects | LocationCardsPresentationModel.feedbackTrigger, CalendarPresentationState.rejectionCount, AppIconView.appearanceToggles |
 | Explicit retry or refresh | ElsewhereView and RegionDaysView retrySequence, YearReportModel.manualScanToken, WhereSession.notificationConfigurationRevision, WhereDemoWorldModel.request, WhereFlyoverLoader.request, InspectorSwiftDataModel.mutationGeneration, FlyoverFrameState.generation |

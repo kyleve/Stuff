@@ -42,7 +42,13 @@ Resume at the first unverified step after checking the branch against its base. 
 - `./test --only BroadwayCoreTests/PresentationIdentityTests` passed both tests on iPhone 17 / iOS 27.2, plus the repository architecture and host checks.
 - `./test --skip-architecture --skip-host-tests --no-generate --only-file /tmp/stuff-presentation-suites.txt` rebuilt the changed targets. Xcode's result bundle reports 125 passed, zero failed and zero skipped across 19 suites. The suite list is below to reproduce the run. Hardware haptics and physical-device motion were outside this representation change.
 - `./swiftformat --lint`, `./sync-agents --check` and `git diff --check` passed. Independent review traced the production counters and PR-only lifetimes. Its corrections are integrated in the overview.
-- Complete. [Implementation PR #589](https://github.com/kyleve/Stuff/pull/589) delivers main. Branch authors own the changes requested in the five linked comments.
+- Complete. [Implementation PR #589](https://github.com/kyleve/Stuff/pull/589) delivers main. Four open PRs retain the before-merge requests. The merged #585 site is included in #589.
+
+### Calendar selection after #585 merged
+
+On November 27, merged main at `5674d5147` into #589 and migrated `LocationsView.CalendarSelection`. Its owner allocates the ID in `select(region:presentation:)`. Independent review checked compact navigation, expanded reveal, retention, and delayed discard.
+
+`./test --only-file /tmp/stuff-presentation-585-merged-suites.txt` ran the 19 suites below plus `LocationsViewTests`, `LocationsViewTestsDuo`, `CalendarContentViewTests`, and `PresenceTimelineListTests` in WhereUITests. Xcode reported 145 passed, zero failed, and zero skipped on iPhone 17 / iOS 27.2. The outgoing-calendar test reopened California, discarded its earlier opening, and verified the newer opening retained its zoom state. Architecture checks, host checks and SwiftFormat lint passed.
 
 ### Focused suites
 
