@@ -342,6 +342,7 @@ struct CalendarContentView: View {
         // Hide the live tiles while their copies move, leaving the page background visible.
         .opacity(zoom.phase == nil ? 1 : 0)
         .overlayPreferenceValue(CalendarZoomFrames.self) { anchors in
+            let canReveal = onPresentationReady != nil && presentation.year == report.selectedYear
             Color.clear
                 .onGeometryChange(for: CalendarZoomTransitionState.Measurement?.self) { proxy in
                     CalendarZoomFrames.measure(
@@ -353,21 +354,16 @@ struct CalendarContentView: View {
                 } action: { value in
                     zoom.updateMeasurement(value)
                 }
+                .onGeometryChange(for: Bool.self) { proxy in
+                    canReveal && proxy.size.width > 0 && proxy.size.height > 0
+                } action: { isReady in
+                    if isReady { onPresentationReady?() }
+                }
                 .allowsHitTesting(false)
         }
         .allowsHitTesting(zoom.phase == nil)
         .accessibilityHidden(zoom.phase != nil)
         .overlay {
-            // Measure the entrance here so the scroll view still reports the month offset.
-            if let onPresentationReady, presentation.year == report.selectedYear {
-                Color.clear
-                    .onGeometryChange(for: Bool.self) { proxy in
-                        proxy.size.width > 0 && proxy.size.height > 0
-                    } action: { isReady in
-                        if isReady { onPresentationReady() }
-                    }
-                    .allowsHitTesting(false)
-            }
             if let phase = zoom.phase {
                 CalendarZoomOverlay(phase: phase, content: { target, mode in
                     zoomTile(target, mode: mode, months: months)
