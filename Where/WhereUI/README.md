@@ -112,7 +112,8 @@ Your Year uses one navigation stack and the bottom calendar/timeline selector at
 Its calendar and timeline share the same selected-year background as Locations.
 Settings uses native list and detail navigation.
 Settings keeps its native search field visible in the navigation drawer across compact and split layouts.
-Narrow windows and accessibility text sizes use one pane. Locations marks the selected region only while its browsing and calendar panes are shown together.
+Narrow windows and accessibility text sizes use one pane. When both Locations panes are visible,
+the selected card has an outline in its region color, darker in light mode and lighter in dark mode.
 Theme choices stack when the available pane cannot fit two readable card specimens.
 
 `AdaptivePaneGeometry` reads independent edge insets and the system's reserved regions.
