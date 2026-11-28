@@ -20,13 +20,13 @@ public struct SpanHistoryView: View {
     }
 
     public var body: some View {
-        content
+        SpanHistoryContent(model: model, store: store)
             .navigationTitle("Span History")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 if model.availableScopes.count > 1 {
                     ToolbarItem(placement: .primaryAction) {
-                        scopeMenu
+                        SpanScopeMenu(model: model)
                     }
                 }
             }
@@ -39,11 +39,12 @@ public struct SpanHistoryView: View {
                 await model.run()
             }
     }
+}
 
-    /// Which builds the percentiles pool. Only shown when the store's sessions
-    /// can support more than one scope — a store with a single unidentified
-    /// session has nothing to narrow to.
-    private var scopeMenu: some View {
+private struct SpanScopeMenu: View {
+    @Bindable var model: SpanHistoryModel
+
+    var body: some View {
         Menu {
             Picker("Builds", selection: $model.scope) {
                 ForEach(model.availableScopes, id: \.self) { scope in
@@ -54,9 +55,13 @@ public struct SpanHistoryView: View {
             Label("Builds", systemSymbol: .line3HorizontalDecreaseCircle)
         }
     }
+}
 
-    @ViewBuilder
-    private var content: some View {
+private struct SpanHistoryContent: View {
+    let model: SpanHistoryModel
+    let store: PeriscopeStore
+
+    var body: some View {
         switch model.state {
             case .loading:
                 ProgressView()
@@ -76,68 +81,73 @@ public struct SpanHistoryView: View {
                     description: Text(model.emptyStateDescription),
                 )
             case let .loaded(summaries):
-                List {
-                    Section {
-                        ForEach(summaries) { summary in
-                            NavigationLink {
-                                SpanKindDetailView(
-                                    summary: summary,
-                                    scopePath: model.scopePath(for:),
-                                    store: store,
-                                )
-                            } label: {
-                                SpanKindRow(summary: summary)
-                            }
-                        }
-                    } header: {
-                        Text(model.scopeSummary)
-                    }
-                }
-                .listStyle(.plain)
+                SpanHistoryList(summaries: summaries, model: model, store: store)
         }
     }
 }
 
-/// One span kind: its name and a stat strip — instance count plus the duration
-/// percentiles (or a note when no instance recorded a duration).
 private struct SpanKindRow: View {
     let summary: SpanKindSummary
-
+    let model: SpanHistoryModel
+    let store: PeriscopeStore
     @Environment(\.stylesheet) private var stylesheet
     @Environment(\.logRowDensity) private var density
 
     var body: some View {
         let row = stylesheet.row[density]
-        let type = stylesheet.typography
-        VStack(alignment: .leading, spacing: row.lineSpacing) {
-            HStack(spacing: row.headerSpacing) {
-                Text(summary.kind.text)
-                    .font(type.spanName)
-                if summary.kind.isRecovered {
-                    // The payload didn't decode, so this bucket's name came
-                    // from the row's message — say so rather than let it read
-                    // as a span kind the code actually declares.
-                    Text("unreadable payload")
-                        .font(type.spanDetail)
-                        .foregroundStyle(.tertiary)
-                }
+        NavigationLink {
+            SpanKindDetailView(summary: summary, scopePath: model.scopePath(for:), store: store)
+        } label: {
+            VStack(alignment: .leading, spacing: row.lineSpacing) {
+                SpanKindTitle(summary: summary)
+                SpanKindStatistics(summary: summary)
             }
-            HStack(alignment: .top, spacing: row.headerSpacing) {
-                SpanStatCell(label: "runs", value: "\(summary.count)")
-                if let percentiles = summary.percentiles {
-                    SpanStatCell(label: "p50", value: percentiles.p50.formatted())
-                    SpanStatCell(label: "p90", value: percentiles.p90.formatted())
-                    SpanStatCell(label: "p95", value: percentiles.p95.formatted())
-                    SpanStatCell(label: "p99", value: percentiles.p99.formatted())
-                } else {
-                    Text("no measured durations")
-                        .font(type.spanDetail)
-                        .foregroundStyle(.tertiary)
-                    Spacer()
-                }
+            .padding(.vertical, row.verticalPadding)
+        }
+    }
+}
+
+private struct SpanKindTitle: View {
+    let summary: SpanKindSummary
+    @Environment(\.stylesheet) private var stylesheet
+    @Environment(\.logRowDensity) private var density
+
+    var body: some View {
+        HStack(spacing: stylesheet.row[density].headerSpacing) {
+            Text(summary.kind.text)
+                .font(stylesheet.typography.spanName)
+            if summary.kind.isRecovered {
+                // The payload didn't decode, so this bucket's name came
+                // from the row's message — say so rather than let it read
+                // as a span kind the code actually declares.
+                Text("unreadable payload")
+                    .font(stylesheet.typography.spanDetail)
+                    .foregroundStyle(.tertiary)
             }
         }
-        .padding(.vertical, row.verticalPadding)
+    }
+}
+
+private struct SpanKindStatistics: View {
+    let summary: SpanKindSummary
+    @Environment(\.stylesheet) private var stylesheet
+    @Environment(\.logRowDensity) private var density
+
+    var body: some View {
+        HStack(alignment: .top, spacing: stylesheet.row[density].headerSpacing) {
+            SpanStatCell(label: "runs", value: "\(summary.count)")
+            if let percentiles = summary.percentiles {
+                SpanStatCell(label: "p50", value: percentiles.p50.formatted())
+                SpanStatCell(label: "p90", value: percentiles.p90.formatted())
+                SpanStatCell(label: "p95", value: percentiles.p95.formatted())
+                SpanStatCell(label: "p99", value: percentiles.p99.formatted())
+            } else {
+                Text("no measured durations")
+                    .font(stylesheet.typography.spanDetail)
+                    .foregroundStyle(.tertiary)
+                Spacer()
+            }
+        }
     }
 }
 
@@ -177,3 +187,30 @@ private struct SpanKindDetailView: View {
             .navigationBarTitleDisplayMode(.inline)
     }
 }
+
+private struct SpanHistoryList: View {
+    let summaries: [SpanKindSummary]
+    let model: SpanHistoryModel
+    let store: PeriscopeStore
+
+    var body: some View {
+        List {
+            Section {
+                ForEach(summaries) { summary in
+                    SpanKindRow(summary: summary, model: model, store: store)
+                }
+            } header: {
+                Text(model.scopeSummary)
+            }
+        }
+        .listStyle(.plain)
+    }
+}
+
+#if DEBUG
+    #Preview {
+        PeriscopeToolsPreview { fixture in
+            SpanHistoryView(store: fixture.store)
+        }
+    }
+#endif

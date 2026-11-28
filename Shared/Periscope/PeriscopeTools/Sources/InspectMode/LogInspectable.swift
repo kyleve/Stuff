@@ -28,110 +28,57 @@ struct LogInspectableModifier: ViewModifier {
     let limit: Int
 
     @Environment(\.periscopeInspector) private var inspector
-    @Environment(\.stylesheet) private var stylesheet
     @State private var isPresentingEvents = false
 
     func body(content: Content) -> some View {
         content.overlay(alignment: .topTrailing) {
             if let inspector, inspector.isEnabled {
-                Button("Inspect Logs", systemSymbol: .waveformBadgeMagnifyingglass) {
-                    isPresentingEvents = true
-                }
-                .labelStyle(.iconOnly)
-                .font(.caption)
-                .padding(stylesheet.badge.inspectPadding)
-                .background(stylesheet.palette.inspectBadge.opacity(0.85), in: .circle)
-                .foregroundStyle(.white)
-                .padding(2)
-                .sheet(isPresented: $isPresentingEvents) {
-                    NavigationStack {
-                        LogInspectorView(store: inspector.store, scopes: scopes, limit: limit)
-                    }
-                }
+                InspectLogsButton(
+                    store: inspector.store,
+                    scopes: scopes,
+                    limit: limit,
+                    isPresentingEvents: $isPresentingEvents,
+                )
             }
         }
     }
 }
 
-/// The sheet log view mode presents: the inspected context's events, newest
-/// first, each linking into the standard event detail (and from there the
-/// tracer).
-struct LogInspectorView: View {
+private struct InspectLogsButton: View {
     let store: PeriscopeStore
     let scopes: [ScopeID]
     let limit: Int
-
-    @State private var model: LogInspectorModel
-    @Environment(\.dismiss) private var dismiss
-
-    init(store: PeriscopeStore, scopes: [ScopeID], limit: Int) {
-        self.store = store
-        self.scopes = scopes
-        self.limit = limit
-        _model = State(initialValue: LogInspectorModel(
-            store: store,
-            inspectedScopes: scopes,
-            limit: limit,
-        ))
-    }
-
-    /// The identity of this view's inputs — re-keying the task rebinds the
-    /// model when any changes in place.
-    private struct Inputs: Equatable {
-        let store: ObjectIdentifier
-        let scopes: [ScopeID]
-        let limit: Int
-    }
+    @Binding var isPresentingEvents: Bool
+    @Environment(\.stylesheet) private var stylesheet
 
     var body: some View {
-        content
-            .navigationTitle("Element Logs")
-            .navigationBarTitleDisplayMode(.inline)
-            .environment(\.logRowDensity, .load(from: .standard))
-            .periscopeBroadwayRoot()
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Done") { dismiss() }
-                }
+        Button("Inspect Logs", systemSymbol: .waveformBadgeMagnifyingglass) {
+            isPresentingEvents = true
+        }
+        .labelStyle(.iconOnly)
+        .font(.caption)
+        .padding(stylesheet.badge.inspectPadding)
+        .background(stylesheet.palette.inspectBadge.opacity(0.85), in: .circle)
+        .foregroundStyle(.white)
+        .padding(2)
+        .sheet(isPresented: $isPresentingEvents) {
+            NavigationStack {
+                LogInspectorView(store: store, scopes: scopes, limit: limit)
             }
-            .task(id: Inputs(store: ObjectIdentifier(store), scopes: scopes, limit: limit)) {
-                if model.store !== store || model.inspectedScopes != scopes
-                    || model.limit != limit
-                {
-                    model = LogInspectorModel(
-                        store: store,
-                        inspectedScopes: scopes,
-                        limit: limit,
-                    )
-                }
-                await model.run()
-            }
-    }
-
-    @ViewBuilder
-    private var content: some View {
-        switch model.state {
-            case .loading:
-                ProgressView()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            case let .failed(reason):
-                ContentUnavailableView(
-                    "Logs Unavailable",
-                    systemSymbol: .exclamationmarkTriangle,
-                    description: Text(reason),
-                )
-            case let .loaded(events) where events.isEmpty:
-                ContentUnavailableView(
-                    "No Events",
-                    systemSymbol: .docTextMagnifyingglass,
-                    description: Text("Nothing has been logged in this element's scopes."),
-                )
-            case let .loaded(events):
-                LogEventList(
-                    events: events,
-                    store: store,
-                    scopePath: model.scopePath(for:),
-                )
         }
     }
 }
+
+#if DEBUG
+    #Preview {
+        @Previewable @State var isPresentingEvents = false
+        PeriscopeToolsPreview { fixture in
+            InspectLogsButton(
+                store: fixture.store,
+                scopes: [fixture.scope.id],
+                limit: 100,
+                isPresentingEvents: $isPresentingEvents,
+            )
+        }
+    }
+#endif

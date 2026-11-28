@@ -17,18 +17,15 @@ import Testing
 struct InspectorSnapshotTests {
     @Test func inspectorSurfaces() async throws {
         let container = try Self.seededContainer()
-        let swiftDataView = NavigationStack {
-            InspectorSwiftDataView(
-                configuration: InspectorSwiftDataConfiguration(
-                    container: container,
-                    modelTypes: nil,
-                    title: "SwiftData",
-                    rowLimit: 500,
-                    valueFormatter: nil,
-                    makeContainer: { try Self.emptyContainer() },
-                ),
-            )
-        }
+        let configuration = InspectorSwiftDataConfiguration(
+            container: container,
+            modelTypes: nil,
+            title: "SwiftData",
+            rowLimit: 500,
+            valueFormatter: nil,
+            makeContainer: { try Self.emptyContainer() },
+        )
+        let swiftDataView = NavigationStack { InspectorSwiftDataView(configuration: configuration) }
         await assertSnapshots(
             of: swiftDataView,
             named: "SwiftData",

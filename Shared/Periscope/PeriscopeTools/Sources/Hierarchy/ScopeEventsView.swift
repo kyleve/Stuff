@@ -33,48 +33,37 @@ struct ScopeEventsView: View {
     }
 
     var body: some View {
-        content
-            .navigationTitle(scopePath.isEmpty ? "Scope" : scopePath)
-            .navigationBarTitleDisplayMode(.inline)
-            .environment(\.logRowDensity, .load(from: .standard))
-            .periscopeBroadwayRoot()
-            .task(id: Inputs(store: ObjectIdentifier(store), scope: scopeID)) {
-                if model.store !== store || model.inspectedScopes != [scopeID] {
-                    model = LogInspectorModel(
-                        store: store,
-                        inspectedScopes: [scopeID],
-                        limit: 500,
-                    )
-                }
-                await model.run()
-            }
-    }
-
-    @ViewBuilder
-    private var content: some View {
-        switch model.state {
-            case .loading:
-                ProgressView()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            case let .failed(reason):
-                ContentUnavailableView(
-                    "Logs Unavailable",
-                    systemSymbol: .exclamationmarkTriangle,
-                    description: Text(reason),
-                )
-            case let .loaded(events) where events.isEmpty:
-                ContentUnavailableView(
-                    "No Events",
-                    systemSymbol: .docTextMagnifyingglass,
-                    description: Text("Nothing has been logged in this scope's subtree."),
-                )
-            case let .loaded(events):
-                LogEventList(
-                    events: events,
+        ScopeEventListContent(
+            model: model,
+            store: store,
+            emptyDescription: "Nothing has been logged in this scope's subtree.",
+            depth: { model.depth(of: $0, below: scopeID) },
+        )
+        .navigationTitle(scopePath.isEmpty ? "Scope" : scopePath)
+        .navigationBarTitleDisplayMode(.inline)
+        .environment(\.logRowDensity, .load(from: .standard))
+        .periscopeBroadwayRoot()
+        .task(id: Inputs(store: ObjectIdentifier(store), scope: scopeID)) {
+            if model.store !== store || model.inspectedScopes != [scopeID] {
+                model = LogInspectorModel(
                     store: store,
-                    scopePath: model.scopePath(for:),
-                    depth: { model.depth(of: $0, below: scopeID) },
+                    inspectedScopes: [scopeID],
+                    limit: 500,
                 )
+            }
+            await model.run()
         }
     }
 }
+
+#if DEBUG
+    #Preview {
+        PeriscopeToolsPreview { fixture in
+            ScopeEventsView(
+                store: fixture.store,
+                scopeID: fixture.scope.id,
+                scopePath: fixture.scope.name,
+            )
+        }
+    }
+#endif

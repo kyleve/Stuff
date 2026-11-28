@@ -739,6 +739,7 @@ let project = Project(
             productDependency: "PeriscopeTools",
             sources: ["Shared/Periscope/PeriscopeTools/Tests/**"],
             extraPackageProducts: [
+                "AccessibilitySnapshotParser",
                 "PeriscopeCore",
                 "PeriscopeUI",
             ],
@@ -748,6 +749,7 @@ let project = Project(
             bundleIdSuffix: "inspector",
             productDependency: "Inspector",
             sources: ["Shared/Inspector/Tests/**"],
+            extraPackageProducts: ["AccessibilitySnapshotParser"],
         ),
         unitTests(
             name: "FlyoverTests",

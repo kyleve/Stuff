@@ -33,39 +33,32 @@ public struct InspectorSwiftDataView: View {
     public var body: some View {
         List {
             ForEach(filteredEntities) { entity in
-                NavigationLink {
-                    EntityTableView(model: model, entity: entity)
-                } label: {
-                    EntityRow(entity: entity)
-                }
+                EntityRow(model: model, entity: entity)
             }
         }
         .navigationTitle(model.title)
         .navigationBarTitleDisplayMode(.inline)
         .searchable(text: $searchText, prompt: "Search entities")
-        .overlay { emptyState }
+        .overlay {
+            EntityListEmptyState(
+                isEmpty: model.entities.isEmpty,
+                hasMatches: !filteredEntities.isEmpty,
+                searchText: searchText,
+            )
+        }
         .task { await model.loadEntities() }
         .refreshable { await model.loadEntities() }
         .toolbar {
             if model.canEraseStore {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button(
-                        "Erase Store",
-                        systemSymbol: .externaldriveBadgeXmark,
-                        role: .destructive,
+                    InspectorDeleteButton(
+                        title: "Erase Store",
+                        symbol: .externaldriveBadgeXmark,
+                        question: "Erase the complete SwiftData store?",
+                        message: "Every entity and row will be removed. This cannot be undone.",
+                        isConfirming: $isConfirmingStoreErase,
                     ) {
-                        isConfirmingStoreErase = true
-                    }
-                    .confirmationDialog(
-                        "Erase the complete SwiftData store?",
-                        isPresented: $isConfirmingStoreErase,
-                        titleVisibility: .visible,
-                    ) {
-                        Button("Erase Store", role: .destructive) {
-                            Task { _ = await model.eraseStore() }
-                        }
-                    } message: {
-                        Text("Every entity and row will be removed. This cannot be undone.")
+                        Task { _ = await model.eraseStore() }
                     }
                 }
             }
@@ -83,32 +76,42 @@ public struct InspectorSwiftDataView: View {
         guard !query.isEmpty else { return model.entities }
         return model.entities.filter { $0.name.localizedCaseInsensitiveContains(query) }
     }
+}
 
-    @ViewBuilder
-    private var emptyState: some View {
-        if model.entities.isEmpty {
+/// One entity in the root list: its name and a row-count badge.
+private struct EntityRow: View {
+    let model: InspectorSwiftDataModel
+    let entity: InspectorEntity
+
+    var body: some View {
+        NavigationLink {
+            EntityTableView(model: model, entity: entity)
+        } label: {
+            HStack {
+                Label(entity.name, systemSymbol: .tablecells)
+                Spacer()
+                Text("\(entity.count)")
+                    .font(.callout.monospacedDigit())
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+}
+
+private struct EntityListEmptyState: View {
+    let isEmpty: Bool
+    let hasMatches: Bool
+    let searchText: String
+
+    var body: some View {
+        if isEmpty {
             ContentUnavailableView(
                 "No Entities",
                 systemSymbol: .tray,
                 description: Text("This store has no model types."),
             )
-        } else if filteredEntities.isEmpty {
+        } else if !hasMatches {
             ContentUnavailableView.search(text: searchText)
-        }
-    }
-}
-
-/// One entity in the root list: its name and a row-count badge.
-private struct EntityRow: View {
-    let entity: InspectorEntity
-
-    var body: some View {
-        HStack {
-            Label(entity.name, systemSymbol: .tablecells)
-            Spacer()
-            Text("\(entity.count)")
-                .font(.callout.monospacedDigit())
-                .foregroundStyle(.secondary)
         }
     }
 }

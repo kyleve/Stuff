@@ -1,6 +1,5 @@
 import SFSafeSymbols
 import SwiftUI
-import UIKit
 
 /// The per-entity detail: a lazily-rendered table of every row's columns. The
 /// header pins while the rows scroll vertically, the whole grid scrolls
@@ -29,16 +28,22 @@ struct EntityTableView: View {
     @State private var pageCount = 1
     @State private var isConfirmingDeleteAll = false
 
-    private let columnSpacing: CGFloat = 20
-    private let minColumnWidth: CGFloat = 48
-    /// Caps how wide any single column grows, so one long blob can't push the
-    /// rest off-screen.
-    private let maxColumnWidth: CGFloat = 280
-
     var body: some View {
         Group {
             if hasLoaded {
-                content
+                EntityTableContent(
+                    columns: .init(names: entity.columns, characterCounts: characterCounts),
+                    hasRows: !rows.isEmpty,
+                    visibleRows: filtered(rows),
+                    searchText: searchText,
+                    select: { selectedRow = $0 },
+                    footer: EntityTableFooter(
+                        countSummary: countSummary,
+                        canLoadMore: canLoadMore,
+                        isLoadingMore: isLoadingMore,
+                        loadMore: loadMore,
+                    ),
+                )
             } else {
                 ProgressView()
             }
@@ -63,31 +68,20 @@ struct EntityTableView: View {
         }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button(
-                    "Delete All Rows",
-                    systemSymbol: .trash,
-                    role: .destructive,
+                InspectorDeleteButton(
+                    title: "Delete All Rows",
+                    symbol: .trash,
+                    question: "Delete every \(entity.name) row?",
+                    message: "SwiftData relationship delete rules will be applied. This cannot be undone.",
+                    isDisabled: totalCount == 0,
+                    isConfirming: $isConfirmingDeleteAll,
                 ) {
-                    isConfirmingDeleteAll = true
-                }
-                .disabled(totalCount == 0)
-                .confirmationDialog(
-                    "Delete every \(entity.name) row?",
-                    isPresented: $isConfirmingDeleteAll,
-                    titleVisibility: .visible,
-                ) {
-                    Button("Delete All Rows", role: .destructive) {
-                        Task {
-                            if await model.deleteAllRows(from: entity) {
-                                pageCount = 1
-                                await load()
-                            }
+                    Task {
+                        if await model.deleteAllRows(from: entity) {
+                            pageCount = 1
+                            await load()
                         }
                     }
-                } message: {
-                    Text(
-                        "SwiftData relationship delete rules will be applied. This cannot be undone.",
-                    )
                 }
             }
         }
@@ -135,92 +129,34 @@ struct EntityTableView: View {
         rows.count < totalCount
     }
 
-    @ViewBuilder
-    private var content: some View {
-        if entity.columns.isEmpty {
-            ContentUnavailableView(
-                "No Columns",
-                systemSymbol: .rectangleSplit3x1,
-                description: Text("This entity exposes no inspectable attributes."),
-            )
-        } else if rows.isEmpty {
-            ContentUnavailableView(
-                "No Rows",
-                systemSymbol: .tray,
-                description: Text("This entity has no saved rows."),
-            )
+    private var countSummary: String {
+        if canLoadMore {
+            "Showing \(rows.count) of \(totalCount) rows"
         } else {
-            let visible = filtered(rows)
-            VStack(spacing: 0) {
-                if visible.isEmpty {
-                    ContentUnavailableView.search(text: searchText)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else {
-                    table(rows: visible)
-                }
-                footerBar
-            }
+            "\(totalCount) row\(totalCount == 1 ? "" : "s")"
         }
     }
 
-    private func table(rows: [InspectorRow]) -> some View {
-        ScrollView([.horizontal, .vertical]) {
-            LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
-                Section {
-                    ForEach(rows) { row in
-                        cellRow(row)
-                        Divider()
-                    }
-                } header: {
-                    headerRow
-                }
-            }
-            .padding(.horizontal)
+    private func filtered(_ rows: [InspectorRow]) -> [InspectorRow] {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return rows }
+        return rows.filter { row in
+            row.cells.values.contains { $0.localizedCaseInsensitiveContains(query) }
         }
     }
+}
 
-    private var headerRow: some View {
-        HStack(spacing: columnSpacing) {
-            ForEach(entity.columns, id: \.self) { column in
-                Text(column)
-                    .font(.caption.bold())
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .frame(width: width(of: column), alignment: .leading)
-            }
-        }
-        .padding(.vertical, 8)
-        .background(.bar)
-    }
+/// The pinned bottom bar: how many rows are loaded versus the total, plus a
+/// "Load more" button (or a spinner while a page is in flight) when more
+/// rows remain. With no `rowLimit` everything loads at once, so the button
+/// never appears.
+struct EntityTableFooter: View {
+    let countSummary: String
+    let canLoadMore: Bool
+    let isLoadingMore: Bool
+    let loadMore: () async -> Void
 
-    /// The whole row is a button into the per-row detail. Cell text selection
-    /// moves to the detail view, where values are shown in full; here a tap drills
-    /// in (selection would otherwise swallow the tap).
-    private func cellRow(_ row: InspectorRow) -> some View {
-        Button {
-            selectedRow = row
-        } label: {
-            HStack(spacing: columnSpacing) {
-                ForEach(entity.columns, id: \.self) { column in
-                    Text(row.cells[column] ?? "—")
-                        .font(.callout.monospaced())
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                        .foregroundStyle(row.cells[column] == nil ? .tertiary : .primary)
-                        .frame(width: width(of: column), alignment: .leading)
-                }
-            }
-            .contentShape(.rect)
-            .padding(.vertical, 6)
-        }
-        .buttonStyle(.plain)
-    }
-
-    /// The pinned bottom bar: how many rows are loaded versus the total, plus a
-    /// "Load more" button (or a spinner while a page is in flight) when more
-    /// rows remain. With no `rowLimit` everything loads at once, so the button
-    /// never appears.
-    private var footerBar: some View {
+    var body: some View {
         HStack(spacing: 12) {
             Text(countSummary)
                 .font(.footnote)
@@ -240,40 +176,6 @@ struct EntityTableView: View {
         .padding(.vertical, 8)
         .background(.bar)
     }
-
-    private var countSummary: String {
-        if canLoadMore {
-            "Showing \(rows.count) of \(totalCount) rows"
-        } else {
-            "\(totalCount) row\(totalCount == 1 ? "" : "s")"
-        }
-    }
-
-    /// Cells are monospaced, so a column's width is the longest string in it
-    /// (header or any cell) times the fixed character advance, clamped to a
-    /// sensible range. The per-cell character counting is done off-main by the
-    /// reader (`columnCharacterCounts`); here it's an O(1) lookup.
-    private func width(of column: String) -> CGFloat {
-        let characters = max(column.count, characterCounts[column] ?? 0)
-        let raw = CGFloat(characters) * Self.characterWidth + 12
-        return min(max(raw, minColumnWidth), maxColumnWidth)
-    }
-
-    private func filtered(_ rows: [InspectorRow]) -> [InspectorRow] {
-        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !query.isEmpty else { return rows }
-        return rows.filter { row in
-            row.cells.values.contains { $0.localizedCaseInsensitiveContains(query) }
-        }
-    }
-
-    private static let characterWidth: CGFloat = {
-        let font = UIFont.monospacedSystemFont(
-            ofSize: UIFont.preferredFont(forTextStyle: .callout).pointSize,
-            weight: .regular,
-        )
-        return ("0" as NSString).size(withAttributes: [.font: font]).width
-    }()
 }
 
 #if DEBUG
