@@ -56,6 +56,8 @@ struct WhereStylesheet: BStylesheet {
         // stays constant, so a default/system context reproduces `default`.
         let traits = context.traits
         theme = context.themes[WhereTheme.self]
+        adaptivePane.selection.borderTint
+            .color = BModeVarying(light: Color.black, dark: .white)[traits.mode]
 
         if traits.horizontalSizeClass == .regular,
            traits.verticalSizeClass == .regular,

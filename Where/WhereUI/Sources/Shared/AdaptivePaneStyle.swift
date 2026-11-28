@@ -21,7 +21,7 @@ extension WhereStylesheet {
         struct Selection: Equatable {
             var cornerRadius: CGFloat = 8
             var borderWidth: CGFloat = 2
-            var border = Color.accentColor
+            var borderTint = TintAdjustment(color: .black, fraction: 0.4)
         }
     }
 }

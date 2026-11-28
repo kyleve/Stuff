@@ -2,6 +2,7 @@ import SwiftUI
 
 private struct PresenceSelection: ViewModifier {
     let isSelected: Bool
+    let tint: Color
     let cornerRadius: CGFloat?
     @Environment(\.stylesheet) private var stylesheet
 
@@ -11,7 +12,10 @@ private struct PresenceSelection: ViewModifier {
                 if isSelected {
                     let style = stylesheet.adaptivePane.selection
                     RoundedRectangle(cornerRadius: cornerRadius ?? style.cornerRadius)
-                        .strokeBorder(style.border, lineWidth: style.borderWidth)
+                        .strokeBorder(
+                            style.borderTint.apply(to: tint),
+                            lineWidth: style.borderWidth,
+                        )
                         .allowsHitTesting(false)
                 }
             }
@@ -20,7 +24,11 @@ private struct PresenceSelection: ViewModifier {
 }
 
 extension View {
-    func presenceSelection(_ isSelected: Bool, cornerRadius: CGFloat? = nil) -> some View {
-        modifier(PresenceSelection(isSelected: isSelected, cornerRadius: cornerRadius))
+    func presenceSelection(
+        _ isSelected: Bool,
+        tint: Color,
+        cornerRadius: CGFloat? = nil,
+    ) -> some View {
+        modifier(PresenceSelection(isSelected: isSelected, tint: tint, cornerRadius: cornerRadius))
     }
 }

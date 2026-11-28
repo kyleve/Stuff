@@ -71,6 +71,7 @@ struct LocationsCardsView: View {
                 ) {
                     ForEach(presentedCards) { item in
                         let isSelected = showsSelection && navigation.selectedRegion == item.region
+                        let tint = regionStyles.style(for: item.region).tint
                         Button {
                             if showsSelection {
                                 navigation.toggleSelection(of: item.region)
@@ -92,9 +93,7 @@ struct LocationsCardsView: View {
                                 recordedPointsID: report.primaryRegionLocations?.id,
                             )
                         }
-                        .buttonStyle(stylesheet.card[cardVariant].buttonStyle(
-                            tint: regionStyles.style(for: item.region).tint,
-                        ))
+                        .buttonStyle(stylesheet.card[cardVariant].buttonStyle(tint: tint))
                         // The card is the zoom source: tapping it expands the
                         // card into the pushed calendar (matched geometry). The
                         // configuration re-states the card's rounded shape and
@@ -106,7 +105,6 @@ struct LocationsCardsView: View {
                             in: calendarTransition,
                         ) { source in
                             let card = stylesheet.card[cardVariant]
-                            let tint = regionStyles.style(for: item.region).tint
                             let elevation = card.transitionElevation(tint: tint)
                             return source
                                 .clipShape(
@@ -136,6 +134,7 @@ struct LocationsCardsView: View {
                         .id(item.region)
                         .presenceSelection(
                             isSelected,
+                            tint: tint,
                             cornerRadius: stylesheet.card[cardVariant].cornerRadius,
                         )
                     }
