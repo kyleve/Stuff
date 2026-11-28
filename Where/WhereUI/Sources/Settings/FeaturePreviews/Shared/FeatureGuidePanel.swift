@@ -15,15 +15,25 @@ struct FeatureGuidePanel<Content: View>: View {
                 alignment: .leading,
                 spacing: stylesheet.featureDiscovery.marketingPanel.contentSpacing,
             ) {
-                Label(String(localized: title), systemSymbol: symbol)
-                    .font(.headline)
-                Text(detail)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+                FeatureGuidePanelHeading(title: title, detail: detail, symbol: symbol)
                 content
             }
         }
+    }
+}
+
+private struct FeatureGuidePanelHeading: View {
+    let title: LocalizedStringResource
+    let detail: LocalizedStringResource
+    let symbol: SFSymbol
+
+    var body: some View {
+        Label(String(localized: title), systemSymbol: symbol)
+            .font(.headline)
+        Text(detail)
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
     }
 }
 

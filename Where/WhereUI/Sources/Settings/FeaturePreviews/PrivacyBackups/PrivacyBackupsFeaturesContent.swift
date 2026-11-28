@@ -7,16 +7,40 @@ import WhereCore
 struct PrivacyBackupsFeaturesContent: View {
     let configuration: DiagnosticReportingConfiguration
 
-    @Environment(\.stylesheet) private var stylesheet
-
     var body: some View {
-        FeatureGuidePanel(
+        FeatureGuideExplanationRow(
             title: .settingsExplorePrivacyBackupsPrivacyTitle,
             detail: .settingsExplorePrivacyBackupsPrivacyDetail,
             symbol: .lockShieldFill,
-        ) {}
-            .featureMarketingRow(order: 1)
-            .settingsRow(PrivacyBackupsFeaturesView.Item.privacy, restingBackground: .clear)
+            item: PrivacyBackupsFeaturesView.Item.privacy,
+            order: 1,
+        )
+        PrivacyBackupsPassportRow(configuration: configuration)
+        FeatureGuideExplanationRow(
+            title: .settingsExplorePrivacyBackupsExportTitle,
+            detail: .settingsExplorePrivacyBackupsExportDetail,
+            symbol: .externaldriveFill,
+            item: PrivacyBackupsFeaturesView.Item.export,
+            order: 3,
+        )
+        FeatureGuideExplanationRow(
+            title: .settingsExplorePrivacyBackupsRestoreTitle,
+            detail: .settingsExplorePrivacyBackupsRestoreDetail,
+            symbol: .squareAndArrowDownFill,
+            item: PrivacyBackupsFeaturesView.Item.restore,
+            order: 4,
+        )
+        FeatureSettingsLink(destination: .data).featureMarketingRow(order: 5)
+        FeatureSettingsLink(destination: .privacyDiagnostics).featureMarketingRow(order: 6)
+    }
+}
+
+private struct PrivacyBackupsPassportRow: View {
+    let configuration: DiagnosticReportingConfiguration
+
+    @Environment(\.stylesheet) private var stylesheet
+
+    var body: some View {
         PrivacyPassportCard(
             presentation: PrivacyPassportPresentation(configuration: configuration),
             disclosureInteraction: .staticContent,
@@ -25,22 +49,6 @@ struct PrivacyBackupsFeaturesContent: View {
         .fixedSize(horizontal: false, vertical: true)
         .frame(maxWidth: .infinity)
         .featureMarketingRow(order: 2)
-        FeatureGuidePanel(
-            title: .settingsExplorePrivacyBackupsExportTitle,
-            detail: .settingsExplorePrivacyBackupsExportDetail,
-            symbol: .externaldriveFill,
-        ) {}
-            .featureMarketingRow(order: 3)
-            .settingsRow(PrivacyBackupsFeaturesView.Item.export, restingBackground: .clear)
-        FeatureGuidePanel(
-            title: .settingsExplorePrivacyBackupsRestoreTitle,
-            detail: .settingsExplorePrivacyBackupsRestoreDetail,
-            symbol: .squareAndArrowDownFill,
-        ) {}
-            .featureMarketingRow(order: 4)
-            .settingsRow(PrivacyBackupsFeaturesView.Item.restore, restingBackground: .clear)
-        FeatureSettingsLink(destination: .data).featureMarketingRow(order: 5)
-        FeatureSettingsLink(destination: .privacyDiagnostics).featureMarketingRow(order: 6)
     }
 }
 

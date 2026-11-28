@@ -1,3 +1,4 @@
+import BroadwayUI
 import SFSafeSymbols
 import SnapshotKit
 import SwiftUI
@@ -108,5 +109,105 @@ extension WidgetFeaturesView: SettingsSection {
             WidgetFeaturesView.self,
             title: "Widgets",
         )
+    }
+#endif
+
+/// Keeps the gallery Form out of the enclosing focus and reveal scopes.
+private struct WidgetFeaturesContent: View {
+    let presentation: FeatureDiscoveryPresentation
+
+    var body: some View {
+        Form {
+            FeatureMarketingHeaderRow(
+                title: String(localized: .settingsExploreWidgetsTitle),
+                tagline: .settingsExploreWidgetsTagline,
+                destination: .widgets,
+            )
+
+            WidgetHomeScreenSection(presentation: presentation)
+
+            WidgetLockScreenSection(presentation: presentation)
+        }
+        .whereFormRoot()
+        .scrollContentBackground(.hidden)
+        .background(FeatureDiscoveryBackground())
+    }
+}
+
+private struct WidgetHomeScreenSection: View {
+    let presentation: FeatureDiscoveryPresentation
+
+    var body: some View {
+        Section {
+            FeatureHomeScreenExample(snapshot: presentation.widgetSnapshot)
+                .listRowInsets(.init())
+                .listRowBackground(Color.clear)
+                .settingsRow(WidgetFeaturesView.Item.homeScreen, restingBackground: .clear)
+                .staggeredReveal(order: 1)
+        } header: {
+            Text(String(localized: .settingsExploreWidgetsHomeHeader))
+                .staggeredReveal(order: 1)
+        } footer: {
+            Text(String(localized: .settingsExploreWidgetsHomeFooter))
+                .staggeredReveal(order: 1)
+        }
+    }
+}
+
+#if DEBUG
+    #Preview("Widget Features Content") {
+        NavigationStack { WidgetFeaturesView.snapshotPreviews }
+            .whereBroadwayRoot()
+    }
+#endif
+
+/// A miniature Home Screen displaying every supported home-screen widget size.
+private struct FeatureHomeScreenExample: View {
+    let snapshot: WidgetSnapshot
+
+    @Environment(\.stylesheet) private var stylesheet
+
+    var body: some View {
+        let style = stylesheet.featureDiscovery
+        VStack(spacing: style.widgets.device.spacing) {
+            SmallHomeScreenWidgets(snapshot: snapshot)
+
+            WidgetExampleFrame(surface: .homeScreen) {
+                YearTotalsWidgetView(snapshot: snapshot, maxRows: 5)
+            }
+            .aspectRatio(2, contentMode: .fit)
+        }
+        .modifier(WidgetExampleDeviceFrame(surface: .homeScreen))
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(String(localized: .settingsExploreWidgetsHomePreviewLabel))
+    }
+}
+
+private struct SmallHomeScreenWidgets: View {
+    let snapshot: WidgetSnapshot
+
+    @Environment(\.stylesheet) private var stylesheet
+
+    var body: some View {
+        let style = stylesheet.featureDiscovery
+        HStack(spacing: style.widgets.device.spacing) {
+            WidgetExampleFrame(surface: .homeScreen) {
+                TodayWidgetView(snapshot: snapshot)
+            }
+            .aspectRatio(1, contentMode: .fit)
+
+            WidgetExampleFrame(surface: .homeScreen) {
+                YearTotalsWidgetView(snapshot: snapshot)
+            }
+            .aspectRatio(1, contentMode: .fit)
+        }
+    }
+}
+
+#if DEBUG
+    #Preview("Feature Home Screen Example") {
+        FeatureHomeScreenExample(snapshot: PreviewSupport.sampleWidgetSnapshot())
+            .padding()
+            .whereBroadwayRoot()
     }
 #endif

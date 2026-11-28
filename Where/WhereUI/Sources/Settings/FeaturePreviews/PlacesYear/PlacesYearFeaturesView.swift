@@ -138,3 +138,105 @@ extension PlacesYearFeaturesView: SettingsSection {
         )
     }
 #endif
+
+/// Builds gallery rows below the page's reveal and focus scopes so those scopes
+/// store only this small view, rather than the complete concrete row tree.
+private struct PlacesYearFeaturesContent: View {
+    let report: YearReportModel
+
+    var body: some View {
+        PlacesLocationsGuideRow(report: report)
+        PlacesCalendarGuideRow(report: report)
+        PlacesTimelineGuideRow(report: report)
+        FeatureGuideExplanationRow(
+            title: .settingsExplorePlacesWelcomeTitle,
+            detail: .settingsExplorePlacesWelcomeDetail,
+            symbol: .sparkles,
+            item: PlacesYearFeaturesView.Item.welcome,
+            order: 4,
+        )
+        FeatureSettingsLink(destination: .year).featureMarketingRow(order: 5)
+        FeatureSettingsLink(destination: .appearance).featureMarketingRow(order: 6)
+    }
+}
+
+private struct PlacesLocationsGuideRow: View {
+    let report: YearReportModel
+
+    var body: some View {
+        FeatureGuidePanel(
+            title: .settingsExplorePlacesLocationsTitle,
+            detail: .settingsExplorePlacesLocationsDetail,
+            symbol: .mapFill,
+        ) {
+            PlacesTrackedRegionExample(report: report)
+            PlacesElsewhereRegionExample(report: report)
+        }
+        .task(id: report.elsewhereInput) {
+            if let input = report.elsewhereInput {
+                await report.elsewhere.refresh(input)
+            }
+        }
+        .featureMarketingRow(order: 1)
+        .settingsRow(PlacesYearFeaturesView.Item.locations, restingBackground: .clear)
+    }
+}
+
+private struct PlacesTrackedRegionExample: View {
+    let report: YearReportModel
+
+    var body: some View {
+        if let region = report.locationRegions.first {
+            RegionSummaryCard(
+                regionDays: region,
+                variant: .compact,
+                yearLength: report.daysInSelectedYear,
+                year: report.selectedYear,
+            )
+        }
+    }
+}
+
+private struct PlacesElsewhereRegionExample: View {
+    let report: YearReportModel
+
+    var body: some View {
+        if let content = report.elsewhere.content(for: report.selectedYear),
+           let region = content.regions.first
+        {
+            RegionSummaryCard(
+                regionDays: RegionDays(region: region.region, days: region.days.count),
+                variant: .elsewhere,
+                year: report.selectedYear,
+                recordedPoints: content.cardLocations.pointsByRegion[region.region] ?? [],
+                showsRecordedPoints: report.showsRecordedLocationDots,
+                recordedPointsID: content.cardLocations.id,
+            )
+        }
+    }
+}
+
+private struct PlacesTimelineGuideRow: View {
+    let report: YearReportModel
+
+    var body: some View {
+        FeatureGuidePanel(
+            title: .settingsExplorePlacesTimelineTitle,
+            detail: .settingsExplorePlacesTimelineDetail,
+            symbol: .calendarDayTimelineLeft,
+        ) {
+            PresenceTimelineList(report: report, presentation: .excerpt)
+        }
+        .featureMarketingRow(order: 3)
+        .settingsRow(PlacesYearFeaturesView.Item.timeline, restingBackground: .clear)
+    }
+}
+
+#if DEBUG
+    #Preview("Places Year Features Content") {
+        NavigationStack {
+            PlacesYearFeaturesView(report: PreviewSupport.plannedStayYearReportModel(), focus: nil)
+        }
+        .whereBroadwayRoot()
+    }
+#endif

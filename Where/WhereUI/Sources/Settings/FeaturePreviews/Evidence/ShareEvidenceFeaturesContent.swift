@@ -11,7 +11,11 @@ struct ShareEvidenceFeaturesContent: View {
 
     var body: some View {
         Form {
-            EvidenceGalleryHeader()
+            FeatureMarketingHeaderRow(
+                title: String(localized: .settingsExploreEvidenceTitle),
+                tagline: .settingsExploreEvidenceTagline,
+                destination: .shareEvidence,
+            )
 
             Section {
                 FeatureShareSheetPreview()
@@ -28,7 +32,7 @@ struct ShareEvidenceFeaturesContent: View {
                     .settingsRow(ShareEvidenceFeaturesView.Item.archive, restingBackground: .clear)
                 ArchiveLink()
             } footer: {
-                EvidenceGalleryFooter()
+                FeatureMarketingFooter(detail: .settingsExploreEvidenceFooter, order: 5)
             }
         }
         .whereFormRoot()
@@ -62,33 +66,6 @@ struct ShareEvidenceFeaturesContent: View {
 
     private enum Route: Hashable {
         case archive
-    }
-}
-
-private struct EvidenceGalleryFooter: View {
-    @Environment(\.stylesheet) private var stylesheet
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: stylesheet.spacing.medium) {
-            Text(String(localized: .settingsExploreEvidenceFooter))
-            FeatureDiscoveryDataFooter()
-        }
-        .staggeredReveal(order: 5)
-    }
-}
-
-private struct EvidenceGalleryHeader: View {
-    var body: some View {
-        FeatureMarketingHeader(
-            title: String(localized: .settingsExploreEvidenceTitle),
-            tagline: String(localized: .settingsExploreEvidenceTagline),
-            systemSymbol: SettingsDestination.shareEvidence.systemSymbol,
-            tint: SettingsDestination.shareEvidence.iconColor,
-        )
-        .listRowInsets(.init())
-        .listRowBackground(Color.clear)
-        .listRowSeparator(.hidden)
-        .staggeredReveal(order: 0)
     }
 }
 

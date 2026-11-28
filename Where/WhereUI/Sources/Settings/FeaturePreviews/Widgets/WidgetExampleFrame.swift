@@ -1,13 +1,13 @@
 import SwiftUI
 
+enum WidgetExampleSurface {
+    case homeScreen
+    case lockScreen
+}
+
 /// A rounded surface separating an actual widget from a miniature system screen.
 struct WidgetExampleFrame<Content: View>: View {
-    enum Surface {
-        case homeScreen
-        case lockScreen
-    }
-
-    let surface: Surface
+    let surface: WidgetExampleSurface
     @ViewBuilder let content: Content
 
     @Environment(\.stylesheet) private var stylesheet
