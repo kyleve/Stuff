@@ -22,8 +22,6 @@ struct LocationForecastPanel: View {
     }
 
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: style.cornerRadius)
-
         VStack(alignment: .leading, spacing: style.rowSpacing) {
             LocationForecastHeader(elapsedDays: forecasts.first?.elapsedDays, isExpanded: true)
             LocationForecastContent(
@@ -35,49 +33,10 @@ struct LocationForecastPanel: View {
         .padding(style.padding)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background {
-            ZStack {
-                shape.fill(.background)
-                if style.ink.surfaceWashOpacity > 0 {
-                    LinearGradient(
-                        colors: [
-                            Color.primary.opacity(style.ink.surfaceWashOpacity),
-                            .clear,
-                            Color.primary.opacity(style.ink.surfaceWashOpacity * 0.45),
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing,
-                    )
-                }
-                SecurityPrintRosette(
-                    tint: .primary,
-                    wobble: style.surface.rosetteWobble,
-                    lineWidth: style.surface.rosetteLineWidth,
-                    primaryRingSpacing: style.surface.primaryRingSpacing,
-                    secondaryRingSpacing: style.surface.secondaryRingSpacing,
-                    primaryOpacity: style.ink.rosettePrimaryOpacity,
-                    secondaryOpacity: style.ink.rosetteSecondaryOpacity,
-                )
-            }
-            .clipShape(shape)
-            .allowsHitTesting(false)
+            ForecastPanelPaper(style: style)
         }
         .overlay {
-            ZStack {
-                shape.strokeBorder(
-                    Color.primary.opacity(style.ink.surfaceOutlineOpacity),
-                    lineWidth: style.surface.outlineWidth,
-                )
-                RegionOutlineSecurityBorder(
-                    paths: regionBorderPaths,
-                    tint: .primary,
-                    cornerRadius: style.cornerRadius,
-                    inset: style.surface.inset,
-                    glyphSize: style.surface.microprintGlyphSize,
-                    spacing: style.surface.microprintSpacing,
-                    opacity: style.ink.microprintOpacity,
-                )
-            }
-            .allowsHitTesting(false)
+            ForecastPanelBorder(style: style, regionBorderPaths: regionBorderPaths)
         }
         .shadow(
             color: style.surface.shadowColor,
@@ -87,6 +46,31 @@ struct LocationForecastPanel: View {
         .regionArtworkTask(id: microprintRegions, model: artworkModel) { cache in
             await LocationForecastArtworkLoader.load(regions: microprintRegions, cache: cache)
         }
+    }
+}
+
+private struct ForecastPanelBorder: View {
+    let style: WhereStylesheet.LocationForecastStyle
+    let regionBorderPaths: [Path]
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: style.cornerRadius)
+        ZStack {
+            shape.strokeBorder(
+                Color.primary.opacity(style.ink.surfaceOutlineOpacity),
+                lineWidth: style.surface.outlineWidth,
+            )
+            RegionOutlineSecurityBorder(
+                paths: regionBorderPaths,
+                tint: .primary,
+                cornerRadius: style.cornerRadius,
+                inset: style.surface.inset,
+                glyphSize: style.surface.microprintGlyphSize,
+                spacing: style.surface.microprintSpacing,
+                opacity: style.ink.microprintOpacity,
+            )
+        }
+        .allowsHitTesting(false)
     }
 }
 

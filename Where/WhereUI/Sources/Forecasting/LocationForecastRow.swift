@@ -24,25 +24,7 @@ struct LocationForecastRow: View {
                 .foregroundStyle(.secondary)
             LocationForecastProgress(forecast: forecast, tint: tint)
 
-            VStack(alignment: .leading, spacing: row.estimateSpacing) {
-                Text(WhereFormat.locationForecastBasis(
-                    yearToDateDays: forecast.yearToDateDays,
-                ))
-                .font(row.detailFont)
-                .foregroundStyle(.secondary)
-
-                if forecast.plannedDays.upper > 0 {
-                    Text(String(localized: .forecastPlannedContribution(WhereFormat
-                            .dayCount(forecast.plannedDays))))
-                        .font(row.detailFont)
-                        .foregroundStyle(.secondary)
-                }
-                if forecast.projectedRemainingDays.upper > 0 {
-                    Text(gapDescription)
-                        .font(row.detailFont)
-                        .foregroundStyle(.secondary)
-                }
-            }
+            ForecastBasisLabels(forecast: forecast, gapDescription: gapDescription, row: row)
         }
         .padding(row.padding)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -92,6 +74,34 @@ struct LocationForecastRow: View {
     }
 }
 
+private struct ForecastBasisLabels: View {
+    let forecast: LocationForecast
+    let gapDescription: String
+    let row: WhereStylesheet.LocationForecastStyle.Row
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: row.estimateSpacing) {
+            Text(WhereFormat.locationForecastBasis(
+                yearToDateDays: forecast.yearToDateDays,
+            ))
+            .font(row.detailFont)
+            .foregroundStyle(.secondary)
+
+            if forecast.plannedDays.upper > 0 {
+                Text(String(localized: .forecastPlannedContribution(WhereFormat
+                        .dayCount(forecast.plannedDays))))
+                    .font(row.detailFont)
+                    .foregroundStyle(.secondary)
+            }
+            if forecast.projectedRemainingDays.upper > 0 {
+                Text(gapDescription)
+                    .font(row.detailFont)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+}
+
 #if DEBUG
     #Preview {
         let report = PreviewSupport.plannedStayYearReportModel()
@@ -102,6 +112,63 @@ struct LocationForecastRow: View {
             )
             .padding()
             .whereBroadwayRoot()
+        }
+    }
+#endif
+
+/// Places a region and its estimate inline when both remain readable.
+struct LocationForecastEstimateLabel: View {
+    let forecast: LocationForecast
+    let tint: Color
+
+    @Environment(\.stylesheet) private var stylesheet
+
+    var body: some View {
+        let row = stylesheet.locationForecast.row
+
+        if row.layout == .stacked {
+            VStack(alignment: .leading, spacing: row.estimateSpacing) {
+                regionLabel
+                estimateLabel
+            }
+        } else {
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .center, spacing: row.contentSpacing) {
+                    regionLabel
+                    estimateLabel
+                }
+                .fixedSize(horizontal: true, vertical: false)
+
+                VStack(alignment: .leading, spacing: row.estimateSpacing) {
+                    regionLabel
+                    estimateLabel
+                }
+            }
+        }
+    }
+
+    private var regionLabel: some View {
+        Text(forecast.region.localizedName)
+            .font(stylesheet.locationForecast.row.regionFont)
+            .bold()
+            .foregroundStyle(tint)
+    }
+
+    private var estimateLabel: some View {
+        Text(WhereFormat.dayCount(forecast.estimatedTotalDays))
+            .font(stylesheet.locationForecast.row.estimateFont)
+            .bold()
+            .monospacedDigit()
+    }
+}
+
+#if DEBUG
+    #Preview {
+        let report = PreviewSupport.plannedStayYearReportModel()
+        if let forecast = report.primaryRegionForecasts.first {
+            LocationForecastEstimateLabel(forecast: forecast, tint: .blue)
+                .padding()
+                .whereBroadwayRoot()
         }
     }
 #endif

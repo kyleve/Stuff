@@ -12,20 +12,11 @@ struct PlannedStaySummaryRow: View {
     let hasPossibleOverlap: Bool
 
     @Environment(\.stylesheet) private var stylesheet
-    @Environment(\.regionStyles) private var regionStyles
 
     var body: some View {
         VStack(alignment: .leading, spacing: stylesheet.spacing.small) {
-            HStack(spacing: stylesheet.spacing.small) {
-                Text(regionStyles.style(for: stay.region).emoji)
-                    .accessibilityHidden(true)
-                Text(stay.region.localizedName)
-                    .font(.headline)
-                Spacer(minLength: 0)
-                Image(systemSymbol: .pencil)
-                    .foregroundStyle(.secondary)
-                    .accessibilityHidden(true)
-            }
+            PlannedStaySummaryHeading(region: stay.region)
+
             LabeledContent(String(localized: .plannedStayEditorArrival)) {
                 Text(WhereFormat.plannedStayWindow(stay.arrival, calendar: calendar))
             }
@@ -33,25 +24,51 @@ struct PlannedStaySummaryRow: View {
                 Text(WhereFormat.plannedStayWindow(stay.departure, calendar: calendar))
             }
             if hasDefiniteOverlap {
-                Label(
-                    String(localized: .plannedStaysDefiniteOverlap),
-                    systemSymbol: .rectangleOnRectangle,
+                PlannedStayOverlapBadge(
+                    title: String(localized: .plannedStaysDefiniteOverlap),
+                    symbol: .rectangleOnRectangle,
                 )
-                .font(.caption)
-                .foregroundStyle(.secondary)
             }
             if hasPossibleOverlap {
-                Label(
-                    String(localized: .plannedStaysPossibleOverlap),
-                    systemSymbol: .rectangleDashed,
+                PlannedStayOverlapBadge(
+                    title: String(localized: .plannedStaysPossibleOverlap),
+                    symbol: .rectangleDashed,
                 )
-                .font(.caption)
-                .foregroundStyle(.secondary)
             }
         }
         .foregroundStyle(.primary)
         .contentShape(.rect)
         .accessibilityElement(children: .combine)
+    }
+}
+
+private struct PlannedStaySummaryHeading: View {
+    let region: Region
+    @Environment(\.stylesheet) private var stylesheet
+    @Environment(\.regionStyles) private var regionStyles
+
+    var body: some View {
+        HStack(spacing: stylesheet.spacing.small) {
+            Text(regionStyles.style(for: region).emoji)
+                .accessibilityHidden(true)
+            Text(region.localizedName)
+                .font(.headline)
+            Spacer(minLength: 0)
+            Image(systemSymbol: .pencil)
+                .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
+        }
+    }
+}
+
+private struct PlannedStayOverlapBadge: View {
+    let title: String
+    let symbol: SFSymbol
+
+    var body: some View {
+        Label(title, systemSymbol: symbol)
+            .font(.caption)
+            .foregroundStyle(.secondary)
     }
 }
 

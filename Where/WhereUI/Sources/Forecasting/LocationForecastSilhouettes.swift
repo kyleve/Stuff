@@ -22,14 +22,7 @@ struct LocationForecastSilhouettes: View {
             ZStack(alignment: .topLeading) {
                 ForEach(artwork.enumerated(), id: \.element.id) { index, item in
                     if frames.indices.contains(index) {
-                        let frame = frames[index]
-                        RegionOutlineArtwork(
-                            path: item.watermark,
-                            tint: summary.ink,
-                            style: style.silhouette,
-                        )
-                        .frame(width: frame.width, height: frame.height)
-                        .position(x: frame.midX, y: frame.midY)
+                        ForecastRegionSilhouette(item: item, frame: frames[index], summary: summary)
                     }
                 }
             }
@@ -48,6 +41,22 @@ struct LocationForecastSilhouettes: View {
         }
         .allowsHitTesting(false)
         .accessibilityHidden(true)
+    }
+}
+
+private struct ForecastRegionSilhouette: View {
+    let item: LocationForecastArtworkLoader.Item
+    let frame: CGRect
+    let summary: WhereStylesheet.LocationForecastStyle.Summary
+
+    var body: some View {
+        RegionOutlineArtwork(
+            path: item.watermark,
+            tint: summary.ink,
+            style: summary.artwork.silhouette,
+        )
+        .frame(width: frame.width, height: frame.height)
+        .position(x: frame.midX, y: frame.midY)
     }
 }
 

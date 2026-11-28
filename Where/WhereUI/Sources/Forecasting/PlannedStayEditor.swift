@@ -32,18 +32,14 @@ struct PlannedStayEditor: View {
         NavigationStack {
             Form {
                 if let error = model.report.forecasts.loadFailure {
-                    Section {
-                        Label(
-                            error.localizedDescription,
-                            systemSymbol: .exclamationmarkTriangleFill,
-                        )
-                        .foregroundStyle(.red)
-                        Button(String(localized: .commonRetry)) {
-                            Task { await model.report.forecasts.refresh() }
-                        }
-                    }
+                    PlanningLoadFailureSection(
+                        message: error.localizedDescription,
+                        retry: { Task { await model.report.forecasts.refresh() } },
+                    )
                 }
-                destinationSection
+
+                PlannedStayDestinationSection(model: model, manage: { showsManageRegions = true })
+
                 PlannedStayBoundarySection(
                     title: String(localized: .plannedStayEditorArrival),
                     boundary: $model.arrival,
@@ -52,31 +48,11 @@ struct PlannedStayEditor: View {
                     title: String(localized: .plannedStayEditorLastDay),
                     boundary: $model.departure,
                 )
-                Section {
-                    if let message = model.validationMessage {
-                        Label(message, systemSymbol: .exclamationmarkCircle)
-                            .foregroundStyle(.secondary)
-                    }
-                } footer: {
-                    Text(String(localized: .plannedStayEditorDatesFooter))
-                }
+
+                PlannedStayValidationSection(validationMessage: model.validationMessage)
+
                 if model.hasDefiniteOverlap || model.hasPossibleOverlap {
-                    Section {
-                        if model.hasDefiniteOverlap {
-                            Label(
-                                String(localized: .plannedStaysDefiniteOverlap),
-                                systemSymbol: .rectangleOnRectangle,
-                            )
-                        }
-                        if model.hasPossibleOverlap {
-                            Label(
-                                String(localized: .plannedStaysPossibleOverlap),
-                                systemSymbol: .rectangleDashed,
-                            )
-                        }
-                    } footer: {
-                        Text(String(localized: .plannedStaysOverlapFooter))
-                    }
+                    PlannedStayOverlapSection(model: model)
                 }
                 if case let .failed(error) = model.saveState {
                     Section {
@@ -89,13 +65,7 @@ struct PlannedStayEditor: View {
                 }
                 if model.isEditing {
                     Section {
-                        Button(String(localized: .plannedStayEditorDelete), role: .destructive) {
-                            Task {
-                                if await model.delete() {
-                                    dismiss()
-                                }
-                            }
-                        }
+                        DeletePlannedStayButton(model: model, dismiss: dismiss.callAsFunction)
                     }
                 }
             }
@@ -117,14 +87,7 @@ struct PlannedStayEditor: View {
                         ProgressView()
                             .accessibilityLabel(String(localized: .commonSave))
                     } else {
-                        Button(String(localized: .commonSave)) {
-                            Task {
-                                if await model.save() {
-                                    dismiss()
-                                }
-                            }
-                        }
-                        .disabled(!model.canSave)
+                        SavePlannedStayButton(model: model, dismiss: dismiss.callAsFunction)
                     }
                 }
             }
@@ -138,42 +101,73 @@ struct PlannedStayEditor: View {
         }
         .task { await model.load() }
     }
+}
 
-    private var destinationSection: some View {
+private struct DeletePlannedStayButton: View {
+    let model: PlannedStayEditorModel
+    let dismiss: () -> Void
+
+    var body: some View {
+        Button(String(localized: .plannedStayEditorDelete), role: .destructive) {
+            Task {
+                if await model.delete() {
+                    dismiss()
+                }
+            }
+        }
+    }
+}
+
+private struct SavePlannedStayButton: View {
+    let model: PlannedStayEditorModel
+    let dismiss: () -> Void
+
+    var body: some View {
+        Button(String(localized: .commonSave)) {
+            Task {
+                if await model.save() {
+                    dismiss()
+                }
+            }
+        }
+        .disabled(!model.canSave)
+    }
+}
+
+private struct PlannedStayOverlapSection: View {
+    let model: PlannedStayEditorModel
+
+    var body: some View {
         Section {
-            NavigationLink {
-                PlanningRegionPickerView(
-                    model: model.regionSelection,
-                    title: String(localized: .plannedStayEditorDestination),
-                    selectedRegion: model.region,
-                ) { region in
-                    model.region = region
-                }
-            } label: {
-                LabeledContent(String(localized: .plannedStayEditorDestination)) {
-                    Text(model.region?
-                        .localizedName ?? String(localized: .plannedStayEditorChooseRegion))
-                }
+            if model.hasDefiniteOverlap {
+                Label(
+                    String(localized: .plannedStaysDefiniteOverlap),
+                    systemSymbol: .rectangleOnRectangle,
+                )
             }
-            if let region = model.region,
-               let tracked = model.regionSelection.trackedRegions,
-               !tracked.contains(region)
-            {
-                Text(String(localized: .plannedStayEditorUntracked))
-                    .foregroundStyle(.secondary)
-                Button(String(localized: .settingsRegionsManage), systemSymbol: .map) {
-                    showsManageRegions = true
-                }
-            }
-            if case let .failed(error) = model.regionSelection.loadState {
-                Label(error.localizedDescription, systemSymbol: .exclamationmarkTriangle)
-                    .foregroundStyle(.secondary)
-                Button(String(localized: .commonRetry)) {
-                    Task { await model.regionSelection.load() }
-                }
+            if model.hasPossibleOverlap {
+                Label(
+                    String(localized: .plannedStaysPossibleOverlap),
+                    systemSymbol: .rectangleDashed,
+                )
             }
         } footer: {
-            Text(String(localized: .plannedStayEditorDestinationFooter))
+            Text(String(localized: .plannedStaysOverlapFooter))
+        }
+    }
+}
+
+private struct PlannedStayValidationSection: View {
+    let validationMessage: String?
+
+    var body: some View {
+        Section {
+            if let message = validationMessage {
+                Label(message, systemSymbol: .exclamationmarkCircle)
+                    .foregroundStyle(.secondary)
+            }
+        } footer: {
+            Text(String(localized: .plannedStayEditorDatesFooter))
         }
     }
 }

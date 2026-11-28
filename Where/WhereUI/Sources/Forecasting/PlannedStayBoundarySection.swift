@@ -7,11 +7,8 @@ struct PlannedStayBoundarySection: View {
 
     var body: some View {
         Section(title) {
-            Toggle(String(localized: .plannedStayEditorFlexibleDates), isOn: $boundary.isFlexible)
-                .accessibilityLabel(String(localized: .plannedStayEditorBoundaryAccessibility(
-                    title,
-                    String(localized: .plannedStayEditorFlexibleDates),
-                )))
+            FlexibleStayDatesToggle(title: title, isFlexible: $boundary.isFlexible)
+
             WhereDatePicker(
                 String(localized: boundary.isFlexible
                     ? .plannedStayEditorEarliest
@@ -38,6 +35,19 @@ struct PlannedStayBoundarySection: View {
                 )
             }
         }
+    }
+}
+
+private struct FlexibleStayDatesToggle: View {
+    let title: String
+    @Binding var isFlexible: Bool
+
+    var body: some View {
+        Toggle(String(localized: .plannedStayEditorFlexibleDates), isOn: $isFlexible)
+            .accessibilityLabel(String(localized: .plannedStayEditorBoundaryAccessibility(
+                title,
+                String(localized: .plannedStayEditorFlexibleDates),
+            )))
     }
 }
 

@@ -72,3 +72,7 @@ The typed theme option owns its complete selection button and selected trait. Th
 ### Remaining mounted test subjects
 
 The searchable region picker, nested screen surface and full-content export retain their native navigation, presentation modifiers and 1,000-point image target. All three live in their owning test files. AdaptivePaneContainerTests measures its named container with a three-line observation callback, and WhereContentRootTests already composes named WidthProbe instances in the single scroller under test. The four WhereUI behavior suites and the hosted Flyover export passed.
+
+### Planned stays and location forecast
+
+The planned-stay editor owns dates, destination, validation and persistence. PlanningRegionButton encapsulates the selectable row. Forecast state and artwork loading retain their lifetime. The hatched fill and paper surface have named renderers and keep the same geometry, accessibility and display conditions.

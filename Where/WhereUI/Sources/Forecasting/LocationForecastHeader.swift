@@ -6,26 +6,14 @@ struct LocationForecastHeader: View {
     let isExpanded: Bool
     var expansionAction: (() -> Void)?
 
-    @Environment(\.stylesheet) private var stylesheet
-
     var body: some View {
         if let expansionAction {
-            Button(action: expansionAction) {
-                LocationForecastHeaderLabel(
-                    elapsedDays: elapsedDays,
-                    isExpanded: isExpanded,
-                    showsDisclosure: true,
-                )
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .frame(
-                maxWidth: .infinity,
-                minHeight: stylesheet.locationForecast.header.minimumHeight,
+            ForecastDisclosureButton(
+                elapsedDays: elapsedDays,
+                isExpanded: isExpanded,
+                expansionAction: expansionAction,
             )
-            .accessibilityValue(String(localized: isExpanded
-                    ? .locationForecastExpanded
-                    : .locationForecastCollapsed))
+
         } else {
             LocationForecastHeaderLabel(
                 elapsedDays: elapsedDays,
@@ -33,6 +21,32 @@ struct LocationForecastHeader: View {
                 showsDisclosure: false,
             )
         }
+    }
+}
+
+private struct ForecastDisclosureButton: View {
+    let elapsedDays: Int?
+    let isExpanded: Bool
+    let expansionAction: () -> Void
+    @Environment(\.stylesheet) private var stylesheet
+
+    var body: some View {
+        Button(action: expansionAction) {
+            LocationForecastHeaderLabel(
+                elapsedDays: elapsedDays,
+                isExpanded: isExpanded,
+                showsDisclosure: true,
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .frame(
+            maxWidth: .infinity,
+            minHeight: stylesheet.locationForecast.header.minimumHeight,
+        )
+        .accessibilityValue(String(localized: isExpanded
+                ? .locationForecastExpanded
+                : .locationForecastCollapsed))
     }
 }
 
