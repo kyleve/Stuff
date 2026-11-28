@@ -101,3 +101,57 @@ extension RecordingFeaturesView: SettingsSection {
         )
     }
 #endif
+
+/// Builds gallery rows below the page's reveal and focus scopes so those scopes
+/// store only this small view, rather than the complete concrete row tree.
+private struct RecordingFeaturesContent: View {
+    let authorizationStatus: LocationAuthorizationStatus
+    let isTracking: Bool
+
+    var body: some View {
+        RecordingStatusGuideRow(authorizationStatus: authorizationStatus, isTracking: isTracking)
+        FeatureGuideExplanationRow(
+            title: .settingsExploreRecordingDevicesTitle,
+            detail: .settingsExploreRecordingDevicesDetail,
+            symbol: .iphoneAndArrowForward,
+            item: RecordingFeaturesView.Item.devices,
+            order: 2,
+        )
+        FeatureGuideExplanationRow(
+            title: .settingsExploreRecordingManualTitle,
+            detail: .settingsExploreRecordingManualDetail,
+            symbol: .calendarBadgePlus,
+            item: RecordingFeaturesView.Item.manual,
+            order: 3,
+        )
+        FeatureSettingsLink(destination: .devices).featureMarketingRow(order: 4)
+        FeatureSettingsLink(destination: .loggedDays).featureMarketingRow(order: 5)
+        FeatureSettingsLink(destination: .siri).featureMarketingRow(order: 6)
+    }
+}
+
+private struct RecordingStatusGuideRow: View {
+    let authorizationStatus: LocationAuthorizationStatus
+    let isTracking: Bool
+
+    var body: some View {
+        FeatureGuidePanel(
+            title: .settingsExploreRecordingAutomaticTitle,
+            detail: .settingsExploreRecordingAutomaticDetail,
+            symbol: .locationFill,
+        ) {
+            LocationStatusRow(status: authorizationStatus, isTracking: isTracking)
+        }
+        .featureMarketingRow(order: 1)
+        .settingsRow(RecordingFeaturesView.Item.automatic, restingBackground: .clear)
+    }
+}
+
+#if DEBUG
+    #Preview("Recording Features Content") {
+        NavigationStack {
+            RecordingFeaturesView(authorizationStatus: .always, isTracking: true, focus: nil)
+        }
+        .whereBroadwayRoot()
+    }
+#endif

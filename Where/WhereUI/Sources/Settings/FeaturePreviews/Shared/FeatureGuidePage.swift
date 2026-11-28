@@ -35,3 +35,36 @@ struct FeatureGuidePage<Content: View>: View {
         .whereBroadwayRoot()
     }
 #endif
+
+/// Keeps the concrete Form value out of the enclosing reveal and focus scopes.
+private struct FeatureGuideForm<Content: View>: View {
+    let destination: SettingsDestination
+    let tagline: LocalizedStringResource
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        Form {
+            FeatureMarketingHeaderRow(
+                title: destination.rowTitle,
+                tagline: tagline,
+                destination: destination,
+            )
+            content
+            Section {} footer: { FeatureDiscoveryDataFooter() }
+        }
+        .whereFormRoot()
+        .scrollContentBackground(.hidden)
+        .background(FeatureDiscoveryBackground())
+    }
+}
+
+#if DEBUG
+    #Preview("Guide form") {
+        NavigationStack {
+            FeatureGuideForm(destination: .placesYear, tagline: .settingsExplorePlacesTagline) {
+                Text(.settingsExplorePlacesLocationsTitle)
+            }
+        }
+        .whereBroadwayRoot()
+    }
+#endif

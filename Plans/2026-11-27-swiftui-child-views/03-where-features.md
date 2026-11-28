@@ -88,3 +88,7 @@ The evidence, manual-day and Elsewhere screens keep their loaders, drafts, navig
 ### Developer overlay, Card Designer and Region Map
 
 Card Designer keeps its observed configuration, native sliders, ranges and reset callbacks. Large editor sections own files and small single-parent controls share their owner’s file. DeveloperOverlay retains presentation state. The 23-line RegionMapLegendButton owns selection, its checkmark, hit shape and accessibility. The map still owns geometry loading and its live camera. The shared 27-line launch-mode button owns its label, hit target, Voice Control strings and action. Both small mode wrappers stay with the menu.
+
+### Explore Features galleries
+
+FeatureMarketingActionButton keeps each gallery action and accessibility label together. Siri examples keep their row identity, request and response. The widget gallery keeps real widget renderers inside the shared 24-line device frame. The Places calendar panel and Lock Screen section each measure 20 lines and own their files. Recording and privacy examples preserve their existing focus IDs and reveal order. Evidence uses the same header and footer as the other galleries. Its 16-line hero now has one parent and lives beside the shared header row.

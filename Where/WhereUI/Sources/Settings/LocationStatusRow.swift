@@ -13,11 +13,7 @@ struct LocationStatusRow: View {
 
     var body: some View {
         HStack(spacing: stylesheet.spacing.large) {
-            Image(systemSymbol: presentation.symbol)
-                .font(.title3)
-                .foregroundStyle(presentation.tint)
-                .frame(width: stylesheet.size.statusIconWidth)
-                .accessibilityHidden(true)
+            LocationStatusIcon(symbol: presentation.symbol, tint: presentation.tint)
 
             Text(presentation.title)
                 .font(.subheadline)
@@ -70,6 +66,21 @@ struct LocationStatusRow: View {
             case .denied: return String(localized: .settingsStatusDenied)
             case .restricted: return String(localized: .settingsStatusRestricted)
         }
+    }
+}
+
+private struct LocationStatusIcon: View {
+    let symbol: SFSymbol
+    let tint: Color
+
+    @Environment(\.stylesheet) private var stylesheet
+
+    var body: some View {
+        Image(systemSymbol: symbol)
+            .font(.title3)
+            .foregroundStyle(tint)
+            .frame(width: stylesheet.size.statusIconWidth)
+            .accessibilityHidden(true)
     }
 }
 
