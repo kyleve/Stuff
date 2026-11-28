@@ -54,108 +54,24 @@ struct RecordedPointsMap: View {
         let bounds = data.bounds(minimumSpanMeters: viewport.minimumSpanMeters)
         Group {
             if isCapturingSnapshot {
-                captureSurface
+                RecordedMapCapture(
+                    data: data,
+                    variant: variant,
+                    tint: tint(for:),
+                    uncertaintyRadius: drawnUncertaintyRadius(for:),
+                )
             } else {
-                Map(
-                    initialPosition: variant == .overview || bounds
-                        .isNull ? .automatic : .rect(bounds),
-                    interactionModes: variant == .overview ? .all : [],
-                ) {
-                    ForEach(data.routes) { route in
-                        MapPolyline(coordinates: route.coordinates.clLocationCoordinates)
-                            .stroke(.secondary, lineWidth: stylesheet.regionMap.routeLineWidth)
-                    }
-                    ForEach(data.pins) { pin in
-                        let tint = tint(for: pin.point)
-                        if let radius = drawnUncertaintyRadius(for: pin.point) {
-                            MapCircle(
-                                center: pin.point.coordinate.clLocationCoordinate,
-                                radius: radius,
-                            )
-                            .foregroundStyle(tint
-                                .opacity(stylesheet.regionMap.uncertaintyFillOpacity))
-                            .stroke(
-                                tint.opacity(stylesheet.regionMap.uncertaintyStrokeOpacity),
-                                lineWidth: stylesheet.regionMap.uncertaintyStrokeWidth,
-                            )
-                        }
-                        Marker("", coordinate: pin.point.coordinate.clLocationCoordinate).tint(tint)
-                    }
-                }
-                .mapStyle(.standard(pointsOfInterest: .excludingAll))
+                RecordedMapLive(
+                    data: data,
+                    bounds: bounds,
+                    variant: variant,
+                    tint: tint(for:),
+                    uncertaintyRadius: drawnUncertaintyRadius(for:),
+                )
             }
         }
         .frame(height: viewport.height)
         .accessibilityLabel(String(localized: .secondaryRegionMapAccessibility))
-    }
-
-    /// Same GPS overlays and height as the live map, over a deterministic tile substrate.
-    private var captureSurface: some View {
-        Canvas { context, size in
-            let bounds = data
-                .bounds(minimumSpanMeters: stylesheet.regionMap[variant].minimumSpanMeters)
-            let inset = stylesheet.regionMap.captureInset
-            guard !bounds.isNull, size.width > 2 * inset, size.height > 2 * inset else { return }
-            let scale = max(
-                bounds.width / (size.width - 2 * inset),
-                bounds.height / (size.height - 2 * inset),
-            )
-            func point(_ coordinate: Coordinate) -> CGPoint {
-                let projected = data.projected(coordinate)
-                return CGPoint(
-                    x: size.width / 2 + (projected.x - bounds.midX) / scale,
-                    y: size.height / 2 + (projected.y - bounds.midY) / scale,
-                )
-            }
-            for route in data.routes {
-                let path = Path { path in
-                    for (index, coordinate) in route.coordinates.enumerated() {
-                        if index == 0 {
-                            path.move(to: point(coordinate))
-                        } else {
-                            path.addLine(to: point(coordinate))
-                        }
-                    }
-                }
-                context.stroke(
-                    path,
-                    with: .style(.secondary),
-                    lineWidth: stylesheet.regionMap.routeLineWidth,
-                )
-            }
-            for pin in data.pins {
-                let center = point(pin.point.coordinate)
-                let tint = tint(for: pin.point)
-                if let meters = drawnUncertaintyRadius(for: pin.point) {
-                    let radius = meters *
-                        MKMapPointsPerMeterAtLatitude(pin.point.coordinate.latitude) / scale
-                    let circle = Path(ellipseIn: CGRect(
-                        x: center.x - radius,
-                        y: center.y - radius,
-                        width: radius * 2,
-                        height: radius * 2,
-                    ))
-                    context.fill(
-                        circle,
-                        with: .color(tint.opacity(stylesheet.regionMap.uncertaintyFillOpacity)),
-                    )
-                    context.stroke(
-                        circle,
-                        with: .color(tint.opacity(stylesheet.regionMap.uncertaintyStrokeOpacity)),
-                        lineWidth: stylesheet.regionMap.uncertaintyStrokeWidth,
-                    )
-                }
-                let diameter = stylesheet.regionMap.capturePointDiameter
-                let dot = Path(ellipseIn: CGRect(
-                    x: center.x - diameter / 2,
-                    y: center.y - diameter / 2,
-                    width: diameter,
-                    height: diameter,
-                ))
-                context.fill(dot, with: .color(tint))
-            }
-        }
-        .background(Color(.secondarySystemBackground))
     }
 
     private func tint(for point: RecordedMapPoint) -> Color {

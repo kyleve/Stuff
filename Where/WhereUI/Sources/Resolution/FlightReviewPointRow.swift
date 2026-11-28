@@ -9,22 +9,32 @@ struct FlightReviewPointRow: View {
     let select: (FlightPointCorrection) -> Void
     var body: some View {
         if let correction = point.correction {
-            Button { select(correction) } label: {
-                FlightReviewPointContent(point: point)
-            }
-            .buttonStyle(.plain)
-            .accessibilityElement(children: .combine)
-            .accessibilityInputLabels([
-                Text(String(localized: .flightReviewPointActionAt(
-                    correction.action.title,
-                    point.point.sample.timestamp.formatted(.dateTime.hour().minute().second()),
-                ))),
-                Text(correction.action.title),
-            ])
+            FlightReviewPointButton(point: point, correction: correction, select: select)
         } else {
             FlightReviewPointContent(point: point)
                 .accessibilityElement(children: .combine)
         }
+    }
+}
+
+private struct FlightReviewPointButton: View {
+    let point: FlightReviewPresentation.Point
+    let correction: FlightPointCorrection
+    let select: (FlightPointCorrection) -> Void
+
+    var body: some View {
+        Button { select(correction) } label: {
+            FlightReviewPointContent(point: point)
+        }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
+        .accessibilityInputLabels([
+            Text(String(localized: .flightReviewPointActionAt(
+                correction.action.title,
+                point.point.sample.timestamp.formatted(.dateTime.hour().minute().second()),
+            ))),
+            Text(correction.action.title),
+        ])
     }
 }
 

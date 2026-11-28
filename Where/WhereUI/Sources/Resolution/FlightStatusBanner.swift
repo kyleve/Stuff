@@ -26,17 +26,7 @@ struct FlightStatusBanner: View {
                 .font(style.bodyFont)
                 .foregroundStyle(.secondary)
             if let flight {
-                if let deviceLabel {
-                    Text(deviceLabel)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                Text(String(localized: .flightStatusLastObservation(
-                    flight.lastObservationAt
-                        .formatted(.dateTime.month(.abbreviated).day().hour().minute()),
-                )))
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                FlightObservationCaption(flight: flight, deviceLabel: deviceLabel)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -83,6 +73,25 @@ struct FlightStatusBanner: View {
             case .ready: String(localized: .flightStatusReadyDescription)
             case .completed: String(localized: .flightStatusCompletedDescription)
         }
+    }
+}
+
+private struct FlightObservationCaption: View {
+    let flight: FlightAssessment
+    let deviceLabel: String?
+
+    var body: some View {
+        if let deviceLabel {
+            Text(deviceLabel)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        Text(String(localized: .flightStatusLastObservation(
+            flight.lastObservationAt
+                .formatted(.dateTime.month(.abbreviated).day().hour().minute()),
+        )))
+        .font(.caption)
+        .foregroundStyle(.secondary)
     }
 }
 

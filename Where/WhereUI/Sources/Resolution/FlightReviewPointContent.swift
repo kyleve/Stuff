@@ -15,11 +15,7 @@ struct FlightReviewPointContent: View {
             Text(point.point.regions.isEmpty
                 ? String(localized: .flightReviewPointExcluded)
                 : point.point.regions.map(\.localizedName).sorted().joined(separator: ", "))
-            RecordedPointsMap(data: point.map, variant: .pointPreview)
-                .clipShape(RoundedRectangle(cornerRadius: stylesheet.flightReviewPoint
-                        .mapCornerRadius))
-                .allowsHitTesting(false)
-                .accessibilityHidden(true)
+            ReviewedPointMap(data: point.map)
             Text(WhereFormat.recordedFlightCoordinate(point.point.sample.coordinate))
                 .font(stylesheet.flightReviewPoint.detailFont)
                 .foregroundStyle(.secondary)
@@ -32,18 +28,40 @@ struct FlightReviewPointContent: View {
                     .foregroundStyle(.secondary)
             }
             if let correction = point.correction {
-                Text(correction.action.title)
-                    .foregroundStyle(.tint)
-                    .frame(
-                        maxWidth: .infinity,
-                        minHeight: stylesheet.flightReviewPoint.minimumActionHeight,
-                        alignment: .leading,
-                    )
+                PointCorrectionTitle(title: correction.action.title)
             }
         }
         .foregroundStyle(.primary)
         .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())
+    }
+}
+
+private struct ReviewedPointMap: View {
+    @Environment(\.stylesheet) private var stylesheet
+    let data: RecordedMapData
+
+    var body: some View {
+        RecordedPointsMap(data: data, variant: .pointPreview)
+            .clipShape(RoundedRectangle(cornerRadius: stylesheet.flightReviewPoint
+                    .mapCornerRadius))
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+    }
+}
+
+private struct PointCorrectionTitle: View {
+    @Environment(\.stylesheet) private var stylesheet
+    let title: String
+
+    var body: some View {
+        Text(title)
+            .foregroundStyle(.tint)
+            .frame(
+                maxWidth: .infinity,
+                minHeight: stylesheet.flightReviewPoint.minimumActionHeight,
+                alignment: .leading,
+            )
     }
 }
 

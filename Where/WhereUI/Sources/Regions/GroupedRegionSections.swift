@@ -20,15 +20,7 @@ struct GroupedRegionSections<Row: View>: View {
     var body: some View {
         Group {
             if !grouping.primary.isEmpty {
-                Section {
-                    ForEach(grouping.primary, id: \.self, content: row)
-                } header: {
-                    Text(String(localized: .regionGroupYours))
-                } footer: {
-                    if let yoursFooter {
-                        Text(yoursFooter)
-                    }
-                }
+                PrimaryRegionsSection(regions: grouping.primary, footer: yoursFooter, row: row)
             }
 
             if !grouping.usedThisYear.isEmpty {
@@ -38,31 +30,63 @@ struct GroupedRegionSections<Row: View>: View {
             }
 
             Section {
-                DisclosureGroup(isExpanded: $showMore) {
-                    ForEach(grouping.other, id: \.self, content: row)
-                } label: {
-                    Text(String(localized: .regionGroupMore))
-                }
+                MoreRegionsDisclosure(regions: grouping.other, isExpanded: $showMore, row: row)
             }
         }
         .task { showMore = grouping.hasNoGroupsBeforeOther }
     }
 }
 
-#if DEBUG
-    #Preview {
-        Form {
-            GroupedRegionSections(
-                grouping: RegionGrouping(
-                    available: [.california, .newYork, .ontario, .europeanUnion, .other],
-                    primary: [.california, .newYork],
-                    usedThisYear: [.ontario],
-                ),
-                yoursFooter: nil,
-            ) { region in
-                Text(region.localizedName)
+private struct PrimaryRegionsSection<Row: View>: View {
+    let regions: [Region]
+    let footer: String?
+    @ViewBuilder let row: (Region) -> Row
+
+    var body: some View {
+        Section {
+            ForEach(regions, id: \.self, content: row)
+        } header: {
+            Text(String(localized: .regionGroupYours))
+        } footer: {
+            if let footer {
+                Text(footer)
             }
         }
-        .whereBroadwayRoot()
+    }
+}
+
+private struct MoreRegionsDisclosure<Row: View>: View {
+    let regions: [Region]
+    @Binding var isExpanded: Bool
+    @ViewBuilder let row: (Region) -> Row
+
+    var body: some View {
+        DisclosureGroup(isExpanded: $isExpanded) {
+            ForEach(regions, id: \.self, content: row)
+        } label: {
+            Text(String(localized: .regionGroupMore))
+        }
+    }
+}
+
+#if DEBUG
+    #Preview { GroupedRegionsExample() }
+
+    private struct GroupedRegionsExample: View {
+        var body: some View {
+            Form {
+                GroupedRegionSections(
+                    grouping: RegionGrouping(
+                        available: [.california, .newYork, .ontario, .europeanUnion, .other],
+                        primary: [.california, .newYork],
+                        usedThisYear: [.ontario],
+                    ),
+                    yoursFooter: nil,
+                ) { region in
+                    Text(region.localizedName)
+                }
+            }
+            .whereBroadwayRoot()
+        }
     }
 #endif
