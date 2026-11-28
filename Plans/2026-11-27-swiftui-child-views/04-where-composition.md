@@ -45,3 +45,7 @@ The 17-line `YearModeButton` lives beside the 19-line picker and retains the com
 ### Calendar grid and zoom
 
 The month and day renderers retain their eager grid rows and stable scroll IDs. The calendar screen keeps both scroll positions, accessibility focus, the zoom transition and planning presentation. The shared calendar scroll view measures 113 lines in its own file. The complete overview month button is 20 lines in its own file. The zoom and planning toolbar controls stay beside their parent. The focused calendar content, month accessibility, snapshot readiness, zoom overlay and zoom transition suites passed, as did the calendar reference images with recording disabled.
+
+### Locations
+
+The Locations screen retains navigation, its selection, tilt provider, calendar namespace and mounted sheet bindings. Its complete 61-line region card button owns the transition, ranking geometry, tap target and accessibility. The compact navigator (20), content (22) and screen (31) have separate files. Both small state views share the screen file. The pane container kept module visibility because its preview and hosted test also construct it. The nine Locations and pane behavior suites passed, including selecting and clearing a pane, restoring scroll and keeping a flight review sheet mounted across folds. Locations snapshots passed with recording disabled.

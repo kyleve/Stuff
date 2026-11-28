@@ -115,55 +115,27 @@ struct LocationsView: View {
             if report.report == nil {
                 browsePane
             } else if arrangement == .columns {
-                NavigationStack {
-                    LocationsColumns(browseWidth: stylesheet.adaptivePane.minimumControlsWidth) {
-                        expandedBrowseContent
-                    } detail: {
-                        detailContent(arrangement: .columns)
-                    }
-                    .navigationTitle(selectedCalendarTitle ?? "")
-                    .navigationBarTitleDisplayMode(.inline)
-                    .containerBackground(.clear, for: .navigation)
-                }
+                LocationsExpandedNavigation(
+                    browse: expandedBrowseContent,
+                    detail: detailContent(arrangement: .columns),
+                    browseWidth: stylesheet.adaptivePane.minimumControlsWidth,
+                    title: selectedCalendarTitle ?? "",
+                )
             } else {
-                NavigationSplitView(
-                    columnVisibility: .constant(.all),
-                    preferredCompactColumn: $navigation.compactColumn,
-                ) {
-                    browsePane
-                        .containerBackground(.clear, for: .navigation)
-                        .containerBackground(.clear, for: .navigationSplitView)
-                        .toolbar(removing: .sidebarToggle)
-                } detail: {
-                    NavigationStack {
-                        detailContent(arrangement: .compact)
-                            // The compact zoom carries this paper over the outgoing region cards.
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            .visitedRegionsBackground(report)
-                            .navigationTitle(
-                                selectedCalendarTitle ?? String(localized: .primaryCalendar),
-                            )
-                            .navigationBarTitleDisplayMode(.inline)
-                            .containerBackground(.clear, for: .navigation)
-                    }
-                    .modifier(RegionCalendarTransition(
-                        region: navigation.selectedRegion,
-                        namespace: calendarTransition,
-                    ))
-                    .containerBackground(.clear, for: .navigation)
-                }
-                .navigationSplitViewStyle(.balanced)
-                .environment(\.horizontalSizeClass, .compact)
-                .bHorizontalSizeClass(.compact)
+                LocationsCompactNavigation(
+                    browse: browsePane,
+                    detail: detailContent(arrangement: .compact),
+                    report: report,
+                    navigation: navigation,
+                    title: selectedCalendarTitle ?? String(localized: .primaryCalendar),
+                    calendarTransition: calendarTransition,
+                )
             }
         }
         .visitedRegionsBackground(report)
         .sheet(item: $navigation.flightReview) { review in
-            NavigationStack {
-                FlightDayDetailView(review: review, report: report)
-                    .toolbar { ToolbarItem(placement: .confirmationAction) {
-                        Button(String(localized: .commonDone)) { navigation.flightReview = nil }
-                    } }
+            LocationsFlightReviewSheet(review: review, report: report) {
+                navigation.flightReview = nil
             }
         }
         .sheet(isPresented: $navigation.showingResolution) {
@@ -263,20 +235,6 @@ private struct LocationsColumns<Browse: View, Detail: View>: View {
     }
 }
 
-/// The compact calendar push zooms from its region card.
-private struct RegionCalendarTransition: ViewModifier {
-    let region: Region?
-    let namespace: Namespace.ID
-
-    func body(content: Content) -> some View {
-        if let region {
-            content.navigationTransition(.zoom(sourceID: region, in: namespace))
-        } else {
-            content
-        }
-    }
-}
-
 /// The stable browse stack. Pushed flows retain their native navigation and draft state.
 struct LocationsBrowsePane: View {
     let report: YearReportModel
@@ -333,118 +291,54 @@ struct LocationsBrowsePane: View {
     }
 }
 
-/// Locations tab: the regions you spend the most days in for the selected year,
-/// shown as prominent Liquid Glass cards, with the Elsewhere summary folded in
-/// at the bottom (only when there are secondary regions), plus toolbar actions
-/// for planned stays and any data issues that need resolution.
-struct LocationsContent: View {
-    let report: YearReportModel
-    var openElsewhere: (() -> Void)?
-    let cardVariant: WhereStylesheet.CardStyle.Variant
-    let showsSelection: Bool
-    let showsToolbarActions: Bool
-
-    @State private var navigation: LocationsView.Navigation
-    @State private var isCardSurfaceVisible = false
-    @State private var cardPresentation: LocationCardsPresentationModel
-
-    /// Drives the region cards' tilt-reactive light sheen. Started/stopped
-    /// with the view's lifecycle; a no-op on hardware without device motion.
-    @State private var tilt = TiltProvider()
-
-    /// Pairs a tapped card with its pushed calendar so the navigation uses a
-    /// matched-geometry zoom (the card expands into the calendar) rather than a
-    /// plain slide.
-    @Namespace private var localCalendarTransition
-    private let transition: Namespace.ID?
-    private var calendarTransition: Namespace.ID {
-        transition ?? localCalendarTransition
-    }
-
-    @Environment(\.stylesheet.card.regular.surface) private var cardSurface
-
-    private var isCardSurfaceUncovered: Bool {
-        isCardSurfaceVisible
-            && navigation.flightReview == nil
-            && !navigation.showingResolution
-            && navigation.planningDestination == nil
-    }
-
-    init(
-        report: YearReportModel,
-        navigation: LocationsView.Navigation? = nil,
-        cardPresentation: LocationCardsPresentationModel? = nil,
-        tilt: TiltProvider? = nil,
-        calendarTransition: Namespace.ID? = nil,
-        cardVariant: WhereStylesheet.CardStyle.Variant = .regular,
-        showsSelection: Bool = false,
-        showsToolbarActions: Bool = true,
-        openElsewhere: (() -> Void)? = nil,
-    ) {
-        _navigation = State(initialValue: navigation ?? LocationsView.Navigation())
-        self.report = report
-        self.openElsewhere = openElsewhere
-        self.cardVariant = cardVariant
-        self.showsSelection = showsSelection
-        self.showsToolbarActions = showsToolbarActions
-        transition = calendarTransition
-        _tilt = State(initialValue: tilt ?? TiltProvider())
-        _cardPresentation = State(initialValue: cardPresentation ?? LocationCardsPresentationModel(
-            preferences: report.preferences,
-            year: report.selectedYear,
-        ))
-    }
+/// Measures one bounded destination. Navigation and presentation owners stay outside it.
+struct AdaptivePaneContainer<Content: View>: View {
+    @Environment(\.stylesheet) private var stylesheet
+    @ViewBuilder var content: (AdaptivePaneArrangement) -> Content
 
     var body: some View {
-        screen
+        AdaptivePaneGeometryReader { geometry in
+            content(AdaptivePaneArrangement.resolve(
+                geometry: geometry,
+                style: stylesheet.adaptivePane,
+            ))
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                if showsToolbarActions {
-                    LocationsToolbar(report: report, navigation: navigation)
-                }
-            }
-            .observesTilt(tilt, enabled: isCardSurfaceUncovered && cardSurface.usesReflection)
-            .debugLogInspectable(WhereLog.session(YearReportModelLog.self))
-    }
-
-    @ViewBuilder
-    private var screen: some View {
-        switch report.loadState {
-            case .loading where report.report == nil, .failed where report.report == nil:
-                LocationsStateView(
-                    report: report,
-                    planningAction: openPlanning,
-                    openReview: { navigation.flightReview = $0 },
-                    openElsewhere: openElsewhere,
-                )
-            case .idle, .loaded, .loading, .failed:
-                if report.locationRegions.isEmpty {
-                    LocationsStateView(
-                        report: report,
-                        planningAction: openPlanning,
-                        openReview: { navigation.flightReview = $0 },
-                        openElsewhere: openElsewhere,
-                    )
-                } else {
-                    LocationsCardsView(
-                        report: report,
-                        cardPresentation: cardPresentation,
-                        tilt: tilt,
-                        calendarTransition: calendarTransition,
-                        isCardSurfaceUncovered: isCardSurfaceUncovered,
-                        isCardSurfaceVisible: $isCardSurfaceVisible,
-                        planningAction: openPlanning,
-                        navigation: navigation,
-                        cardVariant: cardVariant,
-                        showsSelection: showsSelection,
-                    )
-                }
         }
     }
+}
 
-    private func openPlanning() {
-        navigation.planningDestination = .list
+private struct LocationsExpandedNavigation: View {
+    let browse: LocationsContent
+    let detail: LocationsDetailContent
+    let browseWidth: CGFloat
+    let title: String
+
+    var body: some View {
+        NavigationStack {
+            LocationsColumns(browseWidth: browseWidth) {
+                browse
+            } detail: {
+                detail
+            }
+            .navigationTitle(title)
+            .navigationBarTitleDisplayMode(.inline)
+            .containerBackground(.clear, for: .navigation)
+        }
+    }
+}
+
+private struct LocationsFlightReviewSheet: View {
+    let review: GPSCorrectionReview
+    let report: YearReportModel
+    let dismiss: () -> Void
+
+    var body: some View {
+        NavigationStack {
+            FlightDayDetailView(review: review, report: report)
+                .toolbar { ToolbarItem(placement: .confirmationAction) {
+                    Button(String(localized: .commonDone)) { dismiss() }
+                } }
+        }
     }
 }
 
@@ -453,24 +347,31 @@ struct LocationsContent: View {
 private struct ResolveToolbarLabel: View {
     let count: Int
 
-    @Environment(\.stylesheet.spacing) private var spacing
-
     var body: some View {
         Image(systemSymbol: .checklist)
             .overlay(alignment: .topTrailing) {
                 if count > 0 {
-                    Text(count, format: .number)
-                        .font(.caption2.weight(.bold))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, spacing.xSmall)
-                        .padding(.vertical, spacing.xxSmall)
-                        .background(.red, in: Capsule())
-                        .offset(x: spacing.small, y: -spacing.small)
-                        .accessibilityHidden(true)
+                    ResolveIssueCountBadge(count: count)
                 }
             }
             .accessibilityLabel(String(localized: .tabResolution))
             .accessibilityValue(count > 0 ? Text(count, format: .number) : Text(""))
+    }
+}
+
+private struct ResolveIssueCountBadge: View {
+    let count: Int
+    @Environment(\.stylesheet.spacing) private var spacing
+
+    var body: some View {
+        Text(count, format: .number)
+            .font(.caption2.weight(.bold))
+            .foregroundStyle(.white)
+            .padding(.horizontal, spacing.xSmall)
+            .padding(.vertical, spacing.xxSmall)
+            .background(.red, in: Capsule())
+            .offset(x: spacing.small, y: -spacing.small)
+            .accessibilityHidden(true)
     }
 }
 
@@ -707,23 +608,40 @@ struct LocationsToolbar: ToolbarContent {
             // Pending reviews remain accessible without increasing
             // the actionable issue badge.
             if report.dataIssueCount > 0 || report.hasCorrectionReviews {
-                Button {
+                LocationsResolveButton(count: report.dataIssueCount) {
                     navigation.showingResolution = true
-                } label: {
-                    ResolveToolbarLabel(count: report.dataIssueCount)
                 }
-                .accessibilityIdentifier("where_resolution_button")
             }
 
             if report.showsEstimatedTimeAndPlanning {
-                Button(
-                    String(localized: .plannedStaysTitle),
-                    systemSymbol: .calendarBadgeClock,
-                ) {
-                    navigation.planningDestination = .list
-                }
-                .accessibilityIdentifier("where_planning_menu")
+                LocationsPlanningButton { navigation.planningDestination = .list }
             }
         }
+    }
+}
+
+private struct LocationsResolveButton: View {
+    let count: Int
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            ResolveToolbarLabel(count: count)
+        }
+        .accessibilityIdentifier("where_resolution_button")
+    }
+}
+
+private struct LocationsPlanningButton: View {
+    let action: () -> Void
+
+    var body: some View {
+        Button(
+            String(localized: .plannedStaysTitle),
+            systemSymbol: .calendarBadgeClock,
+        ) {
+            action()
+        }
+        .accessibilityIdentifier("where_planning_menu")
     }
 }

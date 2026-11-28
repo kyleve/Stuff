@@ -49,20 +49,15 @@ struct LocationDetailPaneContainer: View {
             }
             ForEach(presentation.calendars) { calendar in
                 let isVisible = calendar.id == revealedID
-                LocationsRegionCalendar(
+                LocationsPaneCalendar(
                     report: report,
                     navigation: navigation,
-                    selection: calendar,
-                    showsEstimateCard: false,
-                    showsZoomAction: isVisible,
-                    onPresentationReady: { reveal(calendar.id) },
+                    calendar: calendar,
+                    isVisible: isVisible,
+                    isCurrent: calendar.id == currentID,
+                    scale: motion.calendarScale,
+                    onReady: { reveal(calendar.id) },
                 )
-                .scaleEffect(isVisible ? 1 : motion.calendarScale ?? 1)
-                .opacity(isVisible ? 1 : 0)
-                .allowsHitTesting(isVisible)
-                .accessibilityHidden(!isVisible)
-                .zIndex(calendar.id == currentID ? 2 : 1)
-                .transition(.identity)
             }
         }
         .onAppear { calendars.retain(presentation.calendars) }
@@ -99,6 +94,33 @@ struct LocationDetailPaneContainer: View {
         withAnimation(stylesheet.locationsDetail.animation) {
             presentation.revealedID = id
         }
+    }
+}
+
+private struct LocationsPaneCalendar: View {
+    let report: YearReportModel
+    let navigation: LocationsView.Navigation
+    let calendar: LocationsView.CalendarSelection
+    let isVisible: Bool
+    let isCurrent: Bool
+    let scale: CGFloat?
+    let onReady: () -> Void
+
+    var body: some View {
+        LocationsRegionCalendar(
+            report: report,
+            navigation: navigation,
+            selection: calendar,
+            showsEstimateCard: false,
+            showsZoomAction: isVisible,
+            onPresentationReady: onReady,
+        )
+        .scaleEffect(isVisible ? 1 : scale ?? 1)
+        .opacity(isVisible ? 1 : 0)
+        .allowsHitTesting(isVisible)
+        .accessibilityHidden(!isVisible)
+        .zIndex(isCurrent ? 2 : 1)
+        .transition(.identity)
     }
 }
 
