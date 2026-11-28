@@ -7,7 +7,9 @@ import SwiftUI
 /// Pass a synchronous factory so SwiftUI can rebuild the host without rebuilding the model:
 ///
 /// ```swift
-/// ObservableHostingView({ DetailModel(itemID: itemID) }) { model in
+/// ObservableHostingView {
+///     DetailModel(itemID: itemID)
+/// } content: { model in
 ///     DetailView(model: model)
 /// }
 /// ```
@@ -43,7 +45,9 @@ struct ObservableHostingView<Model: Observable, Content: View>: View {
     }
 
     #Preview {
-        ObservableHostingView({ ObservableHostingPreviewModel() }) { model in
+        ObservableHostingView {
+            ObservableHostingPreviewModel()
+        } content: { model in
             VStack {
                 Text(model.step, format: .number)
                 Button(String(localized: .onboardingNext)) { model.step += 1 }

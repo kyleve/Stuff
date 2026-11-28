@@ -11,7 +11,9 @@ struct AlertsSettingsDestination: View {
     var focus: SettingsFocus?
 
     var body: some View {
-        ObservableHostingView({ RemindersSettingsModel(session: session) }) { reminders in
+        ObservableHostingView {
+            RemindersSettingsModel(session: session)
+        } content: { reminders in
             AlertsSettingsView(report: report, reminders: reminders, focus: focus)
         }
     }

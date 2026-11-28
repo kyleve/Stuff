@@ -168,7 +168,9 @@ private struct HomeRegionPickerDestination: View {
     let report: YearReportModel
 
     var body: some View {
-        ObservableHostingView({ PlanningRegionSelectionModel(report: report) }) { model in
+        ObservableHostingView {
+            PlanningRegionSelectionModel(report: report)
+        } content: { model in
             PlanningRegionPickerView(
                 model: model,
                 title: String(localized: .plannedStaysHomeRegion),

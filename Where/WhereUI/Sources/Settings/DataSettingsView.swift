@@ -11,7 +11,9 @@ struct DataSettingsDestination: View {
     var focus: SettingsFocus?
 
     var body: some View {
-        ObservableHostingView({ BackupModel(services: report.services) }) { backup in
+        ObservableHostingView {
+            BackupModel(services: report.services)
+        } content: { backup in
             DataSettingsView(report: report, backup: backup, focus: focus)
         }
     }

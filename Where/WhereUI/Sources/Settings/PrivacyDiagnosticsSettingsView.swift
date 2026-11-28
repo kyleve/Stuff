@@ -81,9 +81,9 @@ struct PrivacyDiagnosticsSettingsView: View {
 
                 #if DEBUG
                     if reporting.selectedRemoteLevel != nil {
-                        ObservableHostingView({
+                        ObservableHostingView {
                             DiagnosticPersonalDataConfirmation(reporting: reporting)
-                        }) { confirmation in
+                        } content: { confirmation in
                             DiagnosticPersonalDataSection(confirmation: confirmation)
                         }
                     }
