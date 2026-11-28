@@ -1,6 +1,12 @@
 import SwiftUI
 
-/// Animates mounted calendars so native scroll content moves in both directions.
+/// Animates region changes in the side-by-side Locations detail pane.
+///
+/// When switching regions, `current` updates immediately. The outgoing calendar stays
+/// mounted for its exit animation, while the incoming calendar mounts with zero opacity.
+/// Once its content has laid out, `reveal(_:)` sets `revealedID` and animates it into view.
+/// Reveal and removal use each opening's ID because the user can reopen the same region
+/// before its previous exit animation finishes.
 struct LocationsAnimatedDetail: View {
     private struct Presentation {
         var current: LocationsView.CalendarSelection?
