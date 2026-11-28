@@ -7,7 +7,7 @@ import SwiftUI
 /// Once its content has laid out, `reveal(_:)` sets `revealedID` and animates it into view.
 /// Reveal and removal use each opening's ID because the user can reopen the same region
 /// before its previous exit animation finishes.
-struct LocationsAnimatedDetail: View {
+struct LocationDetailPaneContainer: View {
     private struct Presentation {
         var current: LocationsView.CalendarSelection?
         var revealedID: LocationsView.CalendarSelection.ID?
@@ -106,7 +106,7 @@ struct LocationsAnimatedDetail: View {
     #Preview {
         let report = PreviewSupport.loadedYearReportModel()
         let calendars = LocationsView.makeCalendarPresentations(for: .california, report: report)
-        LocationsAnimatedDetail(
+        LocationDetailPaneContainer(
             report: report,
             navigation: LocationsView.Navigation(),
             selection: calendars.selected,

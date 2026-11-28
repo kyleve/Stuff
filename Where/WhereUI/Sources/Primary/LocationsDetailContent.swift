@@ -14,7 +14,7 @@ struct LocationsDetailContent: View {
     var body: some View {
         Group {
             if arrangement == .columns {
-                LocationsAnimatedDetail(
+                LocationDetailPaneContainer(
                     report: report,
                     navigation: navigation,
                     selection: selection,
