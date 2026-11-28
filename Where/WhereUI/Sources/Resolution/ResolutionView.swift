@@ -26,7 +26,7 @@ struct ResolutionView: View {
 
     var body: some View {
         NavigationStack {
-            screen
+            ResolutionContent(report: report, resolve: resolve)
                 .navigationTitle(String(localized: .resolutionTitle))
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) {
@@ -44,21 +44,18 @@ struct ResolutionView: View {
         // events. A no-op in release.
         .debugLogInspectable(WhereLog.session(ResolveModelLog.self))
     }
+}
 
-    @ViewBuilder
-    private var screen: some View {
+private struct ResolutionContent: View {
+    let report: YearReportModel
+    let resolve: ResolveModel
+
+    var body: some View {
         switch report.loadState {
             case .loading where report.report == nil:
                 AppIconLoadingView(caption: String(localized: .primaryLoading))
             case let .failed(error):
-                ContentUnavailableView {
-                    Label(
-                        String(localized: .commonLoadErrorTitle),
-                        systemSymbol: .exclamationmarkIcloud,
-                    )
-                } description: {
-                    Text(error.message)
-                }
+                ReportLoadFailure(message: error.message)
             case .idle, .loaded, .loading:
                 if !resolve.hasLoaded {
                     // The report is loaded but this tab's own scan hasn't landed
@@ -68,182 +65,60 @@ struct ResolutionView: View {
                 } else if let error = resolve.loadError, resolve.dataIssues.isEmpty,
                           resolve.reviews.isEmpty
                 {
-                    ContentUnavailableView {
-                        Label(
-                            String(localized: .commonLoadErrorTitle),
-                            systemSymbol: .exclamationmarkTriangle,
-                        )
-                    } description: {
-                        Text(error)
-                    } actions: {
-                        Button(String(localized: .commonRetry)) {
-                            Task { await report.rescanForIssues() }
-                        }
-                    }
+                    IssueScanFailure(error: error, report: report)
                 } else if resolve.dataIssues.isEmpty, resolve.reviews.isEmpty {
-                    ContentUnavailableView {
-                        Label(
-                            String(localized: .resolutionEmptyTitle),
-                            systemSymbol: .checkmarkSeal,
-                        )
-                    } description: {
-                        Text(String(localized: .resolutionEmptyDescription))
-                    }
+                    NoResolutionIssues()
                 } else {
-                    issueList
+                    ResolutionIssueList(report: report, resolve: resolve)
                 }
-        }
-    }
-
-    private var issueList: some View {
-        List {
-            if let error = resolve.loadError {
-                Section {
-                    Label(error, systemSymbol: .exclamationmarkTriangle)
-                }
-            }
-            if !resolve.pendingReviews.isEmpty {
-                Section(String(localized: .flightStatusPendingSection)) {
-                    ForEach(resolve.pendingReviews) { review in
-                        reviewLink(review)
-                    }
-                }
-            }
-            ForEach(DataIssueCategory.allCases, id: \.self) { category in
-                let issues = issues(in: category)
-                if !issues.isEmpty {
-                    Section {
-                        ForEach(issues, id: \.id) { issue in
-                            IssueRow(issue: issue, report: report, resolve: resolve)
-                        }
-                    } header: {
-                        Label(
-                            WhereFormat.resolutionSectionHeader(category),
-                            systemSymbol: sectionIcon(category),
-                        )
-                    }
-                }
-            }
-            if !resolve.completedReviews.isEmpty {
-                Section(String(localized: .flightStatusCompletedSection)) {
-                    ForEach(resolve.completedReviews) { review in
-                        reviewLink(review)
-                    }
-                }
-            }
-        }
-        .refreshable { await report.rescanForIssues() }
-        .accessibilityIdentifier("where_resolution_list")
-    }
-
-    private func reviewLink(_ review: GPSCorrectionReview) -> some View {
-        NavigationLink {
-            FlightDayDetailView(review: review, report: report)
-        } label: {
-            VStack(alignment: .leading) {
-                Text(review.day.displayDate, format: .dateTime.month(.abbreviated).day().year())
-                    .font(.headline)
-                FlightStatusBanner(
-                    review: review,
-                    deviceLabel: review.flight.map(report.flightDeviceLabel),
-                )
-            }
-        }
-    }
-
-    private func issues(in category: DataIssueCategory) -> [any DataIssue] {
-        resolve.dataIssues.filter { $0.category == category }
-    }
-
-    private func sectionIcon(_ category: DataIssueCategory) -> SFSymbol {
-        switch category {
-            case .missingDays: .calendarBadgeExclamationmark
-            case .borderDrift: .locationCircle
-            case .abruptChange: .arrowTriangleSwap
-            case .flightDay: .airplane
         }
     }
 }
 
-private struct IssueRow: View {
-    let issue: any DataIssue
-    let report: YearReportModel
-    let resolve: ResolveModel
-
-    @Environment(\.stylesheet) private var stylesheet
+private struct ReportLoadFailure: View {
+    let message: String
 
     var body: some View {
-        NavigationLink {
-            destination
-        } label: {
-            VStack(alignment: .leading, spacing: stylesheet.spacing.xxSmall) {
-                Text(title)
-                    .font(.headline)
-                if let subtitle {
-                    Text(subtitle)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
+        ContentUnavailableView {
+            Label(
+                String(localized: .commonLoadErrorTitle),
+                systemSymbol: .exclamationmarkIcloud,
+            )
+        } description: {
+            Text(message)
+        }
+    }
+}
+
+private struct IssueScanFailure: View {
+    let error: String
+    let report: YearReportModel
+
+    var body: some View {
+        ContentUnavailableView {
+            Label(
+                String(localized: .commonLoadErrorTitle),
+                systemSymbol: .exclamationmarkTriangle,
+            )
+        } description: {
+            Text(error)
+        } actions: {
+            Button(String(localized: .commonRetry)) {
+                Task { await report.rescanForIssues() }
             }
-            .padding(.vertical, stylesheet.spacing.xSmall)
-        }
-        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-            if issue.isDismissible {
-                Button(role: .destructive) {
-                    Task { await resolve.dismiss(issue) }
-                } label: {
-                    Label(String(localized: .resolutionDismiss), systemSymbol: .xmark)
-                }
-            }
         }
     }
+}
 
-    @ViewBuilder
-    private var destination: some View {
-        switch issue.resolution {
-            case let .backfill(range):
-                ManualDayView(report: report, mode: .add(prefill: range))
-            case .markTravelDay:
-                AbruptChangeDetailView(issue: issue, report: report, resolve: resolve)
-            case let .correctSamples(proposal):
-                if let review = resolve.review(for: issue) {
-                    FlightDayDetailView(review: review, report: report)
-                } else {
-                    ContentUnavailableView {
-                        Label(String(localized: .commonLoadErrorTitle), systemSymbol: .infoCircle)
-                    } description: {
-                        Text(String(localized: .flightReviewUnavailable))
-                    } actions: {
-                        NavigationLink(String(localized: .flightReviewManualEdit)) {
-                            DayRelabelView(day: proposal.day, report: report)
-                        }
-                    }
-                }
-        }
-    }
-
-    private var title: String {
-        switch issue.resolution {
-            case let .backfill(range):
-                DateRangeFormatting.abbreviated(start: range.start, end: range.end)
-            case let .markTravelDay(earlier, later, _):
-                WhereFormat.resolutionAbruptRowTitle(
-                    earlier: earlier.regions,
-                    later: later.regions,
-                )
-            case let .correctSamples(proposal):
-                proposal.day.displayDate.formatted(.dateTime.month(.abbreviated).day().year())
-        }
-    }
-
-    private var subtitle: String? {
-        switch issue.resolution {
-            case let .backfill(range):
-                WhereFormat.dayCount(range.dayCount)
-            case let .markTravelDay(_, later, _):
-                later.displayDate.formatted(.dateTime.month(.abbreviated).day().year())
-            case .correctSamples:
-                String(localized: .flightStatusReadyTitle)
+private struct NoResolutionIssues: View {
+    var body: some View {
+        ContentUnavailableView {
+            Label(
+                String(localized: .resolutionEmptyTitle),
+                systemSymbol: .checkmarkSeal,
+            )
+        } description: {
+            Text(String(localized: .resolutionEmptyDescription))
         }
     }
 }

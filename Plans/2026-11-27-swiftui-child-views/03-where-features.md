@@ -60,3 +60,7 @@ The 72-line Settings destination has its own file. The demo exit (8) and warning
 ### WhereUI widget rendering
 
 The Today and Year Totals roots keep family selection and accessible summaries. Both use the shared home-widget title and empty state. Ranking tests and six reference-image suites passed on iPhone 17, covering populated, empty, rectangular, circular, inline and compatibility renders. The WidgetKit extension host is tracked separately in plan 04.
+
+### Region appearance, resolution and flight review
+
+The region color button measures 25 lines and the Settings overview 22, each in its own file. Emoji and symbol buttons measure 11 and 13 and share the appearance editor file. Flight resolution keeps the issue list (26), edited point (29), and save status (24) in separate files. The review-point action remains one button with the same input labels, disabled state and selection. Flight-review, resolution, region-selection and map data behavior passed. The appearance, Settings, resolution, flight-detail, point-row and status banner snapshots passed.

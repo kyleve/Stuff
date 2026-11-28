@@ -21,7 +21,7 @@ struct RegionsSettingsView: View {
     @State private var isSaving = false
     @State private var saveError = SaveErrorAlertState()
 
-    private enum Destination: Hashable {
+    enum Destination: Hashable {
         case appearance(Region)
         case manage
     }
@@ -36,20 +36,17 @@ struct RegionsSettingsView: View {
         NavigationStack {
             Group {
                 if let draft {
-                    overview(draft)
+                    RegionsSettingsOverview(draft: draft, isSaving: isSaving) { save(draft) }
                         .navigationDestination(for: Destination.self) {
-                            destinationView($0, draft: draft)
-                                .whereScreenBoundary()
+                            RegionSettingsDestination(
+                                destination: $0,
+                                draft: draft,
+                                usedThisYear: usedThisYear,
+                            )
+                            .whereScreenBoundary()
                         }
                 } else {
-                    ProgressView()
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .navigationTitle(String(localized: .settingsRegionsSection))
-                        .toolbar {
-                            ToolbarItem(placement: .cancellationAction) {
-                                Button(String(localized: .commonCancel)) { dismiss() }
-                            }
-                        }
+                    RegionsSettingsLoading()
                 }
             }
         }
@@ -68,85 +65,6 @@ struct RegionsSettingsView: View {
         // Log View Mode: reveal an inspect badge for the region-editor events. A
         // no-op in release.
         .debugLogInspectable(WhereLog.session(RegionsSettingsViewLog.self))
-    }
-
-    private func overview(_ draft: PrimaryRegionDraft) -> some View {
-        List {
-            Section(String(localized: .regionGroupYours)) {
-                if draft.selectedRegions.isEmpty {
-                    Text(String(localized: .settingsRegionsEmpty))
-                        .foregroundStyle(.secondary)
-                } else {
-                    ForEach(draft.selectedRegions, id: \.self) { region in
-                        NavigationLink(value: Destination.appearance(region)) {
-                            regionRow(region, draft: draft)
-                        }
-                    }
-                }
-            }
-
-            Section {
-                NavigationLink(value: Destination.manage) {
-                    Label(
-                        String(localized: .settingsRegionsManage),
-                        systemSymbol: .map,
-                    )
-                }
-            }
-        }
-        .whereFormRoot()
-        .disabled(isSaving)
-        .navigationTitle(String(localized: .settingsRegionsSection))
-        .toolbar {
-            ToolbarItem(placement: .cancellationAction) {
-                Button(String(localized: .commonCancel)) { dismiss() }
-                    .disabled(isSaving)
-            }
-            ToolbarItem(placement: .confirmationAction) {
-                if isSaving {
-                    ProgressView()
-                        .accessibilityLabel(String(localized: .commonSave))
-                } else {
-                    Button(String(localized: .commonDone)) { save(draft) }
-                        .disabled(!draft.hasSelection)
-                }
-            }
-        }
-    }
-
-    private func regionRow(
-        _ region: Region,
-        draft: PrimaryRegionDraft,
-    ) -> some View {
-        let appearance = draft[appearanceFor: region]
-        return HStack {
-            Text(appearance.emoji)
-                .accessibilityHidden(true)
-            Text(region.localizedName)
-            Spacer(minLength: 0)
-            Image(systemSymbol: appearance.symbolName.sfSymbol)
-                .foregroundStyle(appearance.color.color)
-                .accessibilityHidden(true)
-        }
-        .accessibilityElement(children: .combine)
-    }
-
-    @ViewBuilder
-    private func destinationView(
-        _ destination: Destination,
-        draft: PrimaryRegionDraft,
-    ) -> some View {
-        @Bindable var draft = draft
-        switch destination {
-            case let .appearance(region):
-                RegionAppearanceEditor(region: region, appearance: $draft[appearanceFor: region])
-                    .navigationTitle(region.localizedName)
-                    .navigationBarTitleDisplayMode(.inline)
-            case .manage:
-                RegionPickerView(draft: draft, usedThisYear: usedThisYear)
-                    .navigationTitle(String(localized: .settingsRegionsManage))
-                    .navigationBarTitleDisplayMode(.inline)
-        }
     }
 
     private func loadIfNeeded() async {
@@ -180,6 +98,40 @@ struct RegionsSettingsView: View {
                 saveError.message = error.localizedDescription
                 isSaving = false
             }
+        }
+    }
+}
+
+private struct RegionsSettingsLoading: View {
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        ProgressView()
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .navigationTitle(String(localized: .settingsRegionsSection))
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(String(localized: .commonCancel)) { dismiss() }
+                }
+            }
+    }
+}
+
+private struct RegionSettingsDestination: View {
+    let destination: RegionsSettingsView.Destination
+    @Bindable var draft: PrimaryRegionDraft
+    let usedThisYear: Set<Region>
+
+    var body: some View {
+        switch destination {
+            case let .appearance(region):
+                RegionAppearanceEditor(region: region, appearance: $draft[appearanceFor: region])
+                    .navigationTitle(region.localizedName)
+                    .navigationBarTitleDisplayMode(.inline)
+            case .manage:
+                RegionPickerView(draft: draft, usedThisYear: usedThisYear)
+                    .navigationTitle(String(localized: .settingsRegionsManage))
+                    .navigationBarTitleDisplayMode(.inline)
         }
     }
 }
