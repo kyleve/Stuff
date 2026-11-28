@@ -57,3 +57,7 @@ The root owns compatibility and session identity. MainTabs owns selection and th
 ### Timeline, region cards and welcome
 
 The timeline owns its scroll position, stable item identities, planning destination and sheet. The named item row switches between the existing semantic row types. Region cards retain accessibility and rendering inputs. The welcome overlay keeps its animation and dismissal lifetime. The complete dismissal and location-settings buttons carry their action, label, styling and hit target.
+
+### Share sheet, widgets and intent snippets
+
+Today and Day Counts retain their WidgetKit entry, family and compatibility branches. On the iPhone 17 Pro simulator, WidgetKit displayed Today small and Day Counts small and medium. The medium widget also rendered its live zero-day state on the Home Screen. Photos shared a synthetic screenshot to Where and showed the attachment, kind, date and note. Cancel returned to the originating share sheet. A second invocation saved and returned to Photos. The snippet’s native Button(intent:) keeps LogDayIntent, the original label, style and region tint together. The maintainer requested that the Siri/Shortcuts invocation on physical hardware remain pending.

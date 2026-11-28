@@ -77,28 +77,49 @@ struct DaysInRegionInteractiveSnippet: View {
     let theme: WhereTheme
 
     var body: some View {
-        content
-            .whereBroadwayRoot(theme: theme, regionStyles: regionStyles)
-    }
-
-    @ViewBuilder private var content: some View {
-        if canLogToday {
-            // WhereUI owns the card's spacing/padding (stylesheet-driven); this
-            // layer only supplies the intent-backed button and its region tint.
-            DaysInRegionSnippetCard(snapshot: snapshot) {
-                Button(intent: LogDayIntent(regions: [region])) {
-                    Label {
-                        Text(IntentStrings.logTodayHere)
-                    } icon: {
-                        Image(systemSymbol: .plusCircleFill)
-                    }
-                    .frame(maxWidth: .infinity)
+        Group {
+            if canLogToday {
+                // The shared card supplies the spacing and padding around the intent action.
+                DaysInRegionSnippetCard(snapshot: snapshot) {
+                    LogTodayButton(
+                        region: region,
+                        tint: regionStyles.style(for: snapshot.region).tint,
+                    )
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(regionStyles.style(for: snapshot.region).tint)
+            } else {
+                DaysInRegionSnippetView(snapshot: snapshot)
             }
-        } else {
-            DaysInRegionSnippetView(snapshot: snapshot)
         }
+        .whereBroadwayRoot(theme: theme, regionStyles: regionStyles)
     }
 }
+
+private struct LogTodayButton: View {
+    let region: RegionEntity
+    let tint: Color
+
+    var body: some View {
+        Button(intent: LogDayIntent(regions: [region])) {
+            Label {
+                Text(IntentStrings.logTodayHere)
+            } icon: {
+                Image(systemSymbol: .plusCircleFill)
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.borderedProminent)
+        .tint(tint)
+    }
+}
+
+#if DEBUG
+    #Preview("Log today") {
+        DaysInRegionInteractiveSnippet(
+            snapshot: .init(region: .california, year: 2026, dayCount: 12),
+            region: RegionEntity(.california),
+            canLogToday: true,
+            regionStyles: .default,
+            theme: .standard,
+        )
+    }
+#endif
