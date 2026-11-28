@@ -7,38 +7,68 @@ struct FlyoverAppearanceMenu<ScreenID: Hashable>: View {
 
     var body: some View {
         Menu {
-            Picker("Appearance", selection: $model.appearance) {
-                ForEach(FlyoverAppearance.allCases) { appearance in
-                    Text(appearance.title)
-                        .tag(appearance)
-                }
-            }
-            Picker("Dynamic Type", selection: $model.dynamicType) {
-                ForEach(FlyoverDynamicType.allCases) { size in
-                    Text(size.title)
-                        .tag(size)
-                }
-            }
-            Picker("Contrast", selection: $model.contrast) {
-                Text("Standard")
-                    .tag(ColorSchemeContrast.standard)
-                Text("Increased")
-                    .tag(ColorSchemeContrast.increased)
-            }
-            Picker("Layout Direction", selection: $model.layoutDirection) {
-                Text("Left to Right")
-                    .tag(LayoutDirection.leftToRight)
-                Text("Right to Left")
-                    .tag(LayoutDirection.rightToLeft)
-            }
-            Picker("Text Weight", selection: $model.legibilityWeight) {
-                Text("Regular")
-                    .tag(LegibilityWeight.regular)
-                Text("Bold")
-                    .tag(LegibilityWeight.bold)
-            }
+            FlyoverOptionsPicker(
+                title: "Appearance",
+                choices: FlyoverAppearance.allCases,
+                selection: $model.appearance,
+                label: \.title,
+            )
+            FlyoverOptionsPicker(
+                title: "Dynamic Type",
+                choices: FlyoverDynamicType.allCases,
+                selection: $model.dynamicType,
+                label: \.title,
+            )
+            FlyoverContrastPicker(selection: $model.contrast)
+            FlyoverDirectionPicker(selection: $model.layoutDirection)
+            FlyoverWeightPicker(selection: $model.legibilityWeight)
         } label: {
             Label("Traits", systemSymbol: .circleLefthalfFilled)
         }
     }
 }
+
+private struct FlyoverContrastPicker: View {
+    @Binding var selection: ColorSchemeContrast
+
+    var body: some View {
+        Picker("Contrast", selection: $selection) {
+            Text("Standard")
+                .tag(ColorSchemeContrast.standard)
+            Text("Increased")
+                .tag(ColorSchemeContrast.increased)
+        }
+    }
+}
+
+private struct FlyoverDirectionPicker: View {
+    @Binding var selection: LayoutDirection
+
+    var body: some View {
+        Picker("Layout Direction", selection: $selection) {
+            Text("Left to Right")
+                .tag(LayoutDirection.leftToRight)
+            Text("Right to Left")
+                .tag(LayoutDirection.rightToLeft)
+        }
+    }
+}
+
+private struct FlyoverWeightPicker: View {
+    @Binding var selection: LegibilityWeight
+
+    var body: some View {
+        Picker("Text Weight", selection: $selection) {
+            Text("Regular")
+                .tag(LegibilityWeight.regular)
+            Text("Bold")
+                .tag(LegibilityWeight.bold)
+        }
+    }
+}
+
+#if DEBUG
+    #Preview {
+        FlyoverView(catalog: FlyoverPreview.catalog)
+    }
+#endif

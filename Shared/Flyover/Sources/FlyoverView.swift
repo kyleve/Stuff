@@ -21,3 +21,31 @@ public struct FlyoverView<ScreenID: Hashable>: View {
             .broadwayRoot()
     }
 }
+
+#if DEBUG
+    @MainActor enum FlyoverPreview {
+        static let catalog: FlyoverCatalog<String> = {
+            let screens = ["Inbox", "Message"].map { name in
+                FlyoverScreen(id: name, title: name, variants: [
+                    FlyoverVariant(id: FlyoverVariantID("populated"), title: "Populated") {
+                        Text(name)
+                    },
+                    FlyoverVariant(id: FlyoverVariantID("empty"), title: "Empty") {
+                        Text("No messages")
+                    },
+                ])
+            }
+            return FlyoverCatalog(
+                groups: [FlyoverGroup(
+                    id: FlyoverGroupID("mail"),
+                    title: "Mail",
+                    root: "Inbox",
+                    screens: screens,
+                )],
+                transitions: [FlyoverTransition(from: "Inbox", to: "Message", kind: .push)],
+            )
+        }()
+    }
+
+    #Preview { FlyoverView(catalog: FlyoverPreview.catalog) }
+#endif

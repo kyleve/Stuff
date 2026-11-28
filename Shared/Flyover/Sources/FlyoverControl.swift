@@ -33,13 +33,7 @@ public struct FlyoverControl {
         step: Double? = nil,
     ) -> FlyoverControl {
         FlyoverControl(id: id) {
-            LabeledContent(title) {
-                if let step {
-                    Slider(value: value, in: bounds, step: step)
-                } else {
-                    Slider(value: value, in: bounds)
-                }
-            }
+            FlyoverSliderControl(title: title, value: value, bounds: bounds, step: step)
         }
     }
 
@@ -62,12 +56,12 @@ public struct FlyoverControl {
         label: @escaping @MainActor (Selection) -> String,
     ) -> FlyoverControl where Values.Element == Selection {
         FlyoverControl(id: id) {
-            Picker(title, selection: selection) {
-                ForEach(Array(values), id: \.self) { value in
-                    Text(label(value))
-                        .tag(value)
-                }
-            }
+            FlyoverPickerControl(
+                title: title,
+                selection: selection,
+                values: Array(values),
+                label: label,
+            )
         }
     }
 
@@ -82,3 +76,43 @@ public struct FlyoverControl {
         }
     }
 }
+
+private struct FlyoverSliderControl: View {
+    let title: String
+    @Binding var value: Double
+    let bounds: ClosedRange<Double>
+    let step: Double?
+
+    var body: some View {
+        LabeledContent(title) {
+            if let step {
+                Slider(value: $value, in: bounds, step: step)
+            } else {
+                Slider(value: $value, in: bounds)
+            }
+        }
+    }
+}
+
+private struct FlyoverPickerControl<Selection: Hashable>: View {
+    let title: String
+    @Binding var selection: Selection
+    let values: [Selection]
+    let label: @MainActor (Selection) -> String
+
+    var body: some View {
+        Picker(title, selection: $selection) {
+            ForEach(values, id: \.self) { value in
+                Text(label(value))
+                    .tag(value)
+            }
+        }
+    }
+}
+
+#if DEBUG
+    #Preview {
+        @Previewable @State var value = 0.5
+        FlyoverSliderControl(title: "Opacity", value: $value, bounds: 0 ... 1, step: nil)
+    }
+#endif

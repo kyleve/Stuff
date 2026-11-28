@@ -7,20 +7,26 @@ struct FlyoverViewportMenu<ScreenID: Hashable>: View {
 
     var body: some View {
         Menu {
-            Picker("Device", selection: $model.device) {
-                ForEach(FlyoverDevice.allCases) { device in
-                    Text(device.title)
-                        .tag(device)
-                }
-            }
-            Picker("Orientation", selection: $model.orientation) {
-                ForEach(FlyoverOrientation.allCases) { orientation in
-                    Text(orientation.title)
-                        .tag(orientation)
-                }
-            }
+            FlyoverOptionsPicker(
+                title: "Device",
+                choices: FlyoverDevice.allCases,
+                selection: $model.device,
+                label: \.title,
+            )
+            FlyoverOptionsPicker(
+                title: "Orientation",
+                choices: FlyoverOrientation.allCases,
+                selection: $model.orientation,
+                label: \.title,
+            )
         } label: {
             Label("Viewport", systemSymbol: .rectangleOnRectangle)
         }
     }
 }
+
+#if DEBUG
+    #Preview {
+        FlyoverView(catalog: FlyoverPreview.catalog)
+    }
+#endif

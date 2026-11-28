@@ -120,7 +120,21 @@ public struct LifecycleContainer<
             if runner.reason.buildsNoViewTree {
                 EmptyView()
             } else {
-                phaseContent
+                let overlay = launchOverlay
+                PhaseContent(
+                    value: runner.phase.readyValue,
+                    coversContent: overlay.coversContent,
+                    content: content,
+                    transition: transition,
+                    surface: LaunchSurface(
+                        overlay: overlay,
+                        splash: splash,
+                        failureView: failureView,
+                        gates: gates,
+                        transition: transition,
+                        didReveal: contentDidReveal,
+                    ),
+                )
             }
         }
         .environment(\.lifecycle, LifecycleProxy(runner))
@@ -240,22 +254,29 @@ public struct LifecycleContainer<
     /// Because it's in the tree early, it's explicitly hidden from VoiceOver
     /// and hit-testing while a surface covers it — an opaque splash hides it
     /// visually, but not from assistive technology.
-    private var phaseContent: some View {
-        let overlay = launchOverlay
-        return ZStack {
-            if let value = runner.phase.readyValue {
-                content(value)
-                    // Warmed up beneath the launch surface, but not *reachable*
-                    // through it. An opaque splash hides the content visually;
-                    // without these it stays in the accessibility tree and the
-                    // hit-test path, so during the hold VoiceOver could focus an
-                    // app the user can't see yet.
-                    .accessibilityHidden(overlay.coversContent)
-                    .allowsHitTesting(!overlay.coversContent)
-                    .transition(transition)
-                    .zIndex(Self.contentZIndex)
+    private struct PhaseContent: View {
+        let value: Launch?
+        let coversContent: Bool
+        let content: (Launch) -> Content
+        let transition: AnyTransition
+        let surface: LaunchSurface
+
+        var body: some View {
+            ZStack {
+                if let value {
+                    content(value)
+                        // Warmed up beneath the launch surface, but not *reachable*
+                        // through it. An opaque splash hides the content visually;
+                        // without these it stays in the accessibility tree and the
+                        // hit-test path, so during the hold VoiceOver could focus an
+                        // app the user can't see yet.
+                        .accessibilityHidden(coversContent)
+                        .allowsHitTesting(!coversContent)
+                        .transition(transition)
+                        .zIndex(LifecycleContainer.contentZIndex)
+                }
+                surface
             }
-            launchSurface(overlay)
         }
     }
 
@@ -304,27 +325,41 @@ public struct LifecycleContainer<
         }
     }
 
-    @ViewBuilder private func launchSurface(_ overlay: LaunchOverlay) -> some View {
-        switch overlay {
-            case let .splash(context):
-                splash(context).transition(transition).zIndex(Self.launchSurfaceZIndex)
-            case let .gate(handle):
-                gateView(for: handle).transition(transition).zIndex(Self.launchSurfaceZIndex)
-            case let .failure(failure):
-                failureView(failure).transition(transition).zIndex(Self.launchSurfaceZIndex)
-            case .revealed:
-                // Timer expiry only permits the overlay to leave. Make the
-                // reveal sticky after SwiftUI commits that uncovered frame, so
-                // an intervening inactive scene still owes its first reveal.
-                Color.clear
-                    .frame(width: 0, height: 0)
-                    .accessibilityHidden(true)
-                    .allowsHitTesting(false)
-                    .onAppear {
-                        guard isPresentationVisible, runner.phase.isReady else { return }
-                        readyRevealState.contentDidReveal()
-                    }
+    private struct LaunchSurface: View {
+        let overlay: LaunchOverlay
+        let splash: (LifecycleStepContext?) -> Splash
+        let failureView: (LifecycleFailure) -> Failure
+        let gates: [GateRegistration]
+        let transition: AnyTransition
+        let didReveal: () -> Void
+
+        var body: some View {
+            switch overlay {
+                case let .splash(context):
+                    splash(context).transition(transition)
+                        .zIndex(LifecycleContainer.launchSurfaceZIndex)
+                case let .gate(handle):
+                    GateSurface(handle: handle, gates: gates, splash: splash).transition(transition)
+                        .zIndex(LifecycleContainer.launchSurfaceZIndex)
+                case let .failure(failure):
+                    failureView(failure).transition(transition)
+                        .zIndex(LifecycleContainer.launchSurfaceZIndex)
+                case .revealed:
+                    // Timer expiry only permits the overlay to leave. Make the
+                    // reveal sticky after SwiftUI commits that uncovered frame, so
+                    // an intervening inactive scene still owes its first reveal.
+                    Color.clear
+                        .frame(width: 0, height: 0)
+                        .accessibilityHidden(true)
+                        .allowsHitTesting(false)
+                        .onAppear(perform: didReveal)
+            }
         }
+    }
+
+    private func contentDidReveal() {
+        guard isPresentationVisible, runner.phase.isReady else { return }
+        readyRevealState.contentDidReveal()
     }
 
     /// The registered view for the parked gate. A parked gate with no
@@ -338,19 +373,24 @@ public struct LifecycleContainer<
     /// only resumes the drive's parked continuation, so the phase change it
     /// causes lands on the drive task after this render commits. The splash
     /// shows for the beat in between.
-    @ViewBuilder
-    private func gateView(for handle: LifecycleGateHandle) -> some View {
-        if let gateType = handle.gateType,
-           let value = handle.value,
-           let registration = gates.first(where: { $0.gateType == gateType })
-        {
-            registration.build(handle, value)
-        } else {
-            splash(nil).onAppear {
-                Self.logger.error(
-                    "No gate view registered for gate '\(String(describing: handle.id), privacy: .public)' — add a GateView(for:) entry.",
-                )
-                handle.fail(MissingGateViewError(gateID: handle.id))
+    private struct GateSurface: View {
+        let handle: LifecycleGateHandle
+        let gates: [GateRegistration]
+        let splash: (LifecycleStepContext?) -> Splash
+
+        var body: some View {
+            if let gateType = handle.gateType,
+               let value = handle.value,
+               let registration = gates.first(where: { $0.gateType == gateType })
+            {
+                registration.build(handle, value)
+            } else {
+                splash(nil).onAppear {
+                    LifecycleContainer.logger.error(
+                        "No gate view registered for gate '\(String(describing: handle.id), privacy: .public)' — add a GateView(for:) entry.",
+                    )
+                    handle.fail(MissingGateViewError(gateID: handle.id))
+                }
             }
         }
     }

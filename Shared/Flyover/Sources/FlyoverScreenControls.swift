@@ -8,20 +8,11 @@ struct FlyoverScreenControls<ScreenID: Hashable>: View {
     @Environment(\.flyoverStylesheet) private var stylesheet
 
     var body: some View {
-        @Bindable var state = model.state(for: screen)
         let style = stylesheet.screenControls
 
         ScrollView {
             VStack(alignment: .leading, spacing: style.spacing) {
-                if screen.variants.count > 1 {
-                    Picker("Variant", selection: $state.variantID) {
-                        ForEach(screen.variants, id: \.id) { variant in
-                            Text(variant.title)
-                                .tag(variant.id)
-                        }
-                    }
-                    .pickerStyle(.menu)
-                }
+                FlyoverVariantPicker(screen: screen, model: model)
 
                 ForEach(screen.controls, id: \.id) { control in
                     control.content
@@ -50,3 +41,9 @@ struct FlyoverScreenControls<ScreenID: Hashable>: View {
         .controlSize(style.controlSize)
     }
 }
+
+#if DEBUG
+    #Preview {
+        FlyoverView(catalog: FlyoverPreview.catalog)
+    }
+#endif

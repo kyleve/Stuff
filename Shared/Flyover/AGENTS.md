@@ -30,7 +30,7 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first. That file owns build, format
 - **Keep global traits session-only.** Apply them to registered content, not Flyover chrome.
 - **Apply device layout traits to device-sized previews.** Phone orientation selects compact/regular or compact/compact; tablet uses regular/regular. Fixed components inherit host layout traits. Guard: `FlyoverModelTests.devicePreviewsApplyTheirOwnLayoutTraits`.
 - **Register forward push/modal routes only.** Flyover derives Back/Dismiss cues from incoming routes.
-- **Render connectors as vector views.** A graph-sized Canvas texture can exceed the GPU dimension limit. Source: [`FlyoverConnectorCanvas`](Sources/FlyoverConnectorCanvas.swift).
+- **Render connectors as vector views.** A graph-sized Canvas texture can exceed the GPU dimension limit. Source: [`FlyoverConnector`](Sources/FlyoverConnector.swift).
 - **Type erase only at the heterogeneous content/control registry boundary.**
 - **Validate every stable screen and variant identifier before capture.** Use generated ordinals for image paths.
 - **Reject non-finite or non-positive fixed viewport dimensions before capture.** Guard: `FlyoverWebExporterTests`.
