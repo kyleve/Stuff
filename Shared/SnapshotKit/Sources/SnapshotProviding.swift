@@ -39,15 +39,23 @@ struct SnapshotCutsheet: View {
         {
             VStack(alignment: .leading, spacing: 32) {
                 ForEach(cases) { snapshotCase in
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text(snapshotCase.name)
-                            .font(.headline)
-                        snapshotCase
-                    }
+                    SnapshotCutsheetSection(snapshotCase: snapshotCase)
                 }
             }
             .padding()
             .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+}
+
+private struct SnapshotCutsheetSection: View {
+    let snapshotCase: SnapshotCase
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(snapshotCase.name)
+                .font(.headline)
+            snapshotCase
         }
     }
 }

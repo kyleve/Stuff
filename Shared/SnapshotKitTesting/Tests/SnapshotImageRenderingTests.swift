@@ -8,19 +8,7 @@ import UIKit
 @MainActor
 struct SnapshotImageRenderingTests {
     @Test func fixedViewportPreservesNativeTitleSpace() async throws {
-        let host = UIHostingController(rootView: NavigationStack {
-            Color.white
-                .navigationTitle("Calendar")
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button("Overview", systemSymbol: .squareGrid3x3, action: {})
-                    }
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button("Planning", systemSymbol: .calendarBadgeClock, action: {})
-                    }
-                }
-        })
+        let host = UIHostingController(rootView: NativeTitleSpaceFixture())
         SnapshotConfiguration(device: .iPhone).applyTraits(to: host)
         host.view.frame = CGRect(x: 0, y: 0, width: 402, height: 874)
         _ = try await renderSnapshotImage(
@@ -315,6 +303,28 @@ private final class NativeBarGeometryProbe {
     }
 }
 
+private struct NativeTitleSpaceFixture: View {
+    var body: some View {
+        NavigationStack {
+            Color.white
+                .navigationTitle("Calendar")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar { CalendarFixtureToolbar() }
+        }
+    }
+}
+
+private struct CalendarFixtureToolbar: ToolbarContent {
+    var body: some ToolbarContent {
+        ToolbarItem(placement: .topBarTrailing) {
+            Button("Overview", systemSymbol: .squareGrid3x3, action: {})
+        }
+        ToolbarItem(placement: .topBarTrailing) {
+            Button("Planning", systemSymbol: .calendarBadgeClock, action: {})
+        }
+    }
+}
+
 private struct NativeBarGeometryFixture: View {
     let probe: NativeBarGeometryProbe
     @State private var position = ScrollPosition(idType: Int.self)
@@ -326,48 +336,54 @@ private struct NativeBarGeometryFixture: View {
                     Text("Controls")
                         .navigationSplitViewColumnWidth(min: 280, ideal: 280)
                 } detail: {
-                    NavigationStack {
-                        ScrollView {
-                            VStack {
-                                ForEach(0 ..< 12, id: \.self) { month in
-                                    Text("Month \(month)")
-                                        .frame(maxWidth: .infinity)
-                                        .frame(height: 240)
-                                        .background(.blue.opacity(0.2))
-                                        .id(month)
-                                }
-                            }
-                            .scrollTargetLayout()
-                            .padding()
-                        }
-                        .scrollPosition($position)
-                        .task { position.scrollTo(id: 11, anchor: .bottom) }
-                        .onScrollGeometryChange(for: NativeBarGeometryProbe.Measurement.self) {
-                            .init(
-                                size: $0.containerSize,
-                                topInset: $0.contentInsets.top,
-                                bottomInset: $0.contentInsets.bottom,
-                            )
-                        } action: { _, measurement in
-                            probe.record(measurement)
-                        }
-                        .navigationTitle("Calendar")
-                        .navigationBarTitleDisplayMode(.inline)
-                        .toolbar {
-                            ToolbarItem(placement: .topBarTrailing) {
-                                Button("Overview", systemSymbol: .squareGrid3x3, action: {})
-                            }
-                            ToolbarItem(placement: .topBarTrailing) {
-                                Button("Planning", systemSymbol: .calendarBadgeClock, action: {})
-                            }
-                        }
-                    }
+                    NativeCalendarDetail(position: $position, probe: probe)
                 }
                 .navigationSplitViewStyle(.balanced)
             }
             Tab("Other", systemSymbol: .gear) { Color.gray }
         }
         .tabBarMinimizeBehavior(.never)
+    }
+}
+
+private struct NativeCalendarDetail: View {
+    @Binding var position: ScrollPosition
+    let probe: NativeBarGeometryProbe
+
+    var body: some View {
+        NavigationStack {
+            ScrollView { CalendarMonthRows() }
+                .scrollPosition($position)
+                .task { position.scrollTo(id: 11, anchor: .bottom) }
+                .onScrollGeometryChange(for: NativeBarGeometryProbe.Measurement.self) {
+                    .init(
+                        size: $0.containerSize,
+                        topInset: $0.contentInsets.top,
+                        bottomInset: $0.contentInsets.bottom,
+                    )
+                } action: { _, measurement in
+                    probe.record(measurement)
+                }
+                .navigationTitle("Calendar")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar { CalendarFixtureToolbar() }
+        }
+    }
+}
+
+private struct CalendarMonthRows: View {
+    var body: some View {
+        VStack {
+            ForEach(0 ..< 12, id: \.self) { month in
+                Text("Month \(month)")
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 240)
+                    .background(.blue.opacity(0.2))
+                    .id(month)
+            }
+        }
+        .scrollTargetLayout()
+        .padding()
     }
 }
 

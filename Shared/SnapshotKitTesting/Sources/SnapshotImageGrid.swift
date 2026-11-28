@@ -22,18 +22,8 @@ struct SnapshotImageGrid: View {
                         panels[start ..< min(start + 2, panels.count)],
                         id: \.identity,
                     ) { panel in
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text(verbatim: panel.label)
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundStyle(.black)
-                                .frame(width: panel.image.size.width, alignment: .leading)
-                                .fixedSize(horizontal: false, vertical: true)
-                            Image(uiImage: panel.image)
-                                .onGeometryChange(for: CGRect.self) { geometry in
-                                    geometry.frame(in: .named(space))
-                                } action: { bounds in
-                                    measurement.bounds[panel.identity] = bounds
-                                }
+                        SnapshotImageGridCell(panel: panel, space: space) { bounds in
+                            measurement.bounds[panel.identity] = bounds
                         }
                     }
                 }
@@ -129,5 +119,27 @@ struct SnapshotImageGrid: View {
         case mixedScales
         case oversizedGrid
         case invalidGeometry
+    }
+}
+
+private struct SnapshotImageGridCell: View {
+    let panel: SnapshotPanelCapture
+    let space: Namespace.ID
+    let measure: (CGRect) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(verbatim: panel.label)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(.black)
+                .frame(width: panel.image.size.width, alignment: .leading)
+                .fixedSize(horizontal: false, vertical: true)
+            Image(uiImage: panel.image)
+                .onGeometryChange(for: CGRect.self) { geometry in
+                    geometry.frame(in: .named(space))
+                } action: { bounds in
+                    measure(bounds)
+                }
+        }
     }
 }

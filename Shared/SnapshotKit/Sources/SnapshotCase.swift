@@ -158,45 +158,66 @@ extension SnapshotCase: View {
     public var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             ForEach(previewConfigurations, id: \.self) { configuration in
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(label(for: configuration))
-                        .font(.caption.monospaced())
-                        .foregroundStyle(.secondary)
-                    switch capture {
-                        case let .single(content):
-                            framed(content(), for: configuration)
-                                .snapshotTraits(configuration)
-                                .environment(\.isCapturingSnapshot, true)
-                        case let .cutsheet(panels):
-                            let width = configuration.device.size.previewPanelWidth
-                            LazyVGrid(
-                                columns: [GridItem(.fixed(width)), GridItem(.fixed(width))],
-                                spacing: 16,
-                            ) {
-                                ForEach(panels.panels) { panel in
-                                    VStack(alignment: .leading) {
-                                        Text(panel.label).font(.caption)
-                                        framed(panel.content, for: configuration)
-                                            .snapshotTraits(configuration)
-                                            .environment(\.isCapturingSnapshot, true)
-                                    }
-                                }
-                            }
-                    }
-                }
+                SnapshotPreviewVariant(configuration: configuration, capture: capture)
             }
         }
     }
+}
 
-    private func label(for configuration: SnapshotConfiguration) -> String {
-        configuration.identifier.isEmpty ? "default" : configuration.identifier
+private struct SnapshotPreviewVariant: View {
+    let configuration: SnapshotConfiguration
+    let capture: SnapshotCase.Capture
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(configuration.identifier.isEmpty ? "default" : configuration.identifier)
+                .font(.caption.monospaced())
+                .foregroundStyle(.secondary)
+            switch capture {
+                case let .single(content):
+                    SnapshotPreviewFrame(content: content(), configuration: configuration)
+                        .snapshotTraits(configuration)
+                        .environment(\.isCapturingSnapshot, true)
+                case let .cutsheet(panels):
+                    SnapshotPreviewPanelGrid(panels: panels, configuration: configuration)
+            }
+        }
     }
+}
 
-    @ViewBuilder
-    @MainActor private func framed(
-        _ content: AnyView,
-        for configuration: SnapshotConfiguration,
-    ) -> some View {
+private struct SnapshotPreviewPanelGrid: View {
+    let panels: SnapshotPanelCollection
+    let configuration: SnapshotConfiguration
+
+    var body: some View {
+        let width = configuration.device.size.previewPanelWidth
+        LazyVGrid(columns: [GridItem(.fixed(width)), GridItem(.fixed(width))], spacing: 16) {
+            ForEach(panels.panels) { panel in
+                SnapshotPreviewPanel(panel: panel, configuration: configuration)
+            }
+        }
+    }
+}
+
+private struct SnapshotPreviewPanel: View {
+    let panel: SnapshotPanel
+    let configuration: SnapshotConfiguration
+
+    var body: some View {
+        VStack(alignment: .leading) {
+            Text(panel.label).font(.caption)
+            SnapshotPreviewFrame(content: panel.content, configuration: configuration)
+                .snapshotTraits(configuration)
+                .environment(\.isCapturingSnapshot, true)
+        }
+    }
+}
+
+private struct SnapshotPreviewFrame: View {
+    let content: AnyView
+    let configuration: SnapshotConfiguration
+
+    var body: some View {
         switch configuration.device.size {
             case let .intrinsic(maxWidth):
                 if let maxWidth {

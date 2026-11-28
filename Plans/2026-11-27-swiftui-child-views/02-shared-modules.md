@@ -40,3 +40,7 @@ Apply each slice against its recorded parent. Format and remeasure its complete 
 ### Installer build browser
 
 UpdateBuildRow and UpdateChangeLink each have 22-line bodies in their own files. The 10-line history link and nine-line workflow row live beside their parents. The six-line commit row and five-line notice each have several callers. The browser, history and build destinations use the same typed routes in production and the hosted test. All 13 Installer behavior tests and five snapshot tests passed on iPhone 17 with recording disabled. The final helper recount for this module found zero qualifying opaque child helpers.
+
+### Snapshot preview and capture fixtures
+
+SnapshotCase keeps lazy preview construction, trait application and capture readiness. Its 16-line preview frame shares the file. The grid keeps its per-image geometry capture. The seven-line centered accessibility button owns its action, original label, padding and frame. The native bar fixture now measures 13 lines and stays with the tests that exercise its actual tab, stack and scrolling geometry.
