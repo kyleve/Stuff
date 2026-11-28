@@ -11,19 +11,14 @@ struct PlanningRegionPickerView: View {
     let onSelect: @MainActor (Region) async throws -> Void
 
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.regionStyles) private var regionStyles
-    @Environment(\.stylesheet) private var stylesheet
 
     var body: some View {
         List {
             if case let .failed(error) = model.loadState {
-                Section {
-                    Label(error.localizedDescription, systemSymbol: .exclamationmarkTriangle)
-                        .foregroundStyle(.secondary)
-                    Button(String(localized: .commonRetry)) {
-                        Task { await model.load() }
-                    }
-                }
+                PlanningRegionLoadFailure(
+                    message: error.localizedDescription,
+                    retry: { Task { await model.load() } },
+                )
             }
             if case let .failed(error) = model.selectionState {
                 Section {
@@ -53,29 +48,29 @@ struct PlanningRegionPickerView: View {
         }
     }
 
-    private func regionRow(_ region: Region) -> some View {
-        Button {
-            Task {
-                if await model.select(region, commit: onSelect) {
-                    dismiss()
-                }
+    private func regionRow(_ region: Region) -> PlanningRegionButton {
+        PlanningRegionButton(
+            region: region,
+            selectedRegion: selectedRegion,
+            model: model,
+            onSelect: onSelect,
+            dismiss: dismiss.callAsFunction,
+        )
+    }
+}
+
+private struct PlanningRegionLoadFailure: View {
+    let message: String
+    let retry: () -> Void
+
+    var body: some View {
+        Section {
+            Label(message, systemSymbol: .exclamationmarkTriangle)
+                .foregroundStyle(.secondary)
+            Button(String(localized: .commonRetry)) {
+                retry()
             }
-        } label: {
-            HStack(spacing: stylesheet.spacing.medium) {
-                Text(regionStyles.style(for: region).emoji)
-                    .accessibilityHidden(true)
-                Text(region.localizedName)
-                    .foregroundStyle(.primary)
-                Spacer(minLength: 0)
-                if selectedRegion == region {
-                    Image(systemSymbol: .checkmark)
-                        .foregroundStyle(.tint)
-                        .accessibilityHidden(true)
-                }
-            }
-            .contentShape(.rect)
         }
-        .accessibilityAddTraits(selectedRegion == region ? [.isSelected] : [])
     }
 }
 

@@ -32,17 +32,7 @@ struct LocationForecastSummarySurface: View {
             LocationForecastSilhouettes(artwork: artwork)
         }
         .background {
-            if style.treatment.usesReflection {
-                if style.usesOpaquePaper {
-                    shape.fill(style.paper)
-                } else {
-                    shape.fill(.clear)
-                        .glassEffect(
-                            .regular.tint(style.ink.opacity(style.glassTintOpacity)),
-                            in: shape,
-                        )
-                }
-            }
+            ForecastSummaryPaper(style: style)
         }
         .clipShape(shape)
         .matteSurface(style.treatment, tint: style.ink, in: shape)
@@ -61,6 +51,25 @@ struct LocationForecastSummarySurface: View {
         )
         .allowsHitTesting(false)
         .accessibilityHidden(true)
+    }
+}
+
+private struct ForecastSummaryPaper: View {
+    let style: WhereStylesheet.LocationForecastStyle.Summary
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: style.cornerRadius)
+        if style.treatment.usesReflection {
+            if style.usesOpaquePaper {
+                shape.fill(style.paper)
+            } else {
+                shape.fill(.clear)
+                    .glassEffect(
+                        .regular.tint(style.ink.opacity(style.glassTintOpacity)),
+                        in: shape,
+                    )
+            }
+        }
     }
 }
 

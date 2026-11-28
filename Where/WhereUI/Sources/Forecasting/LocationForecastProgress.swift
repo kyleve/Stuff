@@ -25,30 +25,7 @@ struct LocationForecastProgress: View {
                     .fill(Color.primary.opacity(style.ink.progressTrackOpacity))
 
                 if estimatedWidth > 0 {
-                    Capsule()
-                        .fill(tint.opacity(style.ink.progressEstimateFillOpacity))
-                        .frame(width: estimatedWidth)
-                        .overlay {
-                            Canvas { context, size in
-                                for x in stride(
-                                    from: -size.height,
-                                    through: size.width,
-                                    by: progress.hatchSpacing,
-                                ) {
-                                    var path = Path()
-                                    path.move(to: CGPoint(x: x, y: size.height))
-                                    path.addLine(to: CGPoint(x: x + size.height, y: 0))
-                                    context.stroke(
-                                        path,
-                                        with: .color(tint.opacity(
-                                            style.ink.progressHatchOpacity,
-                                        )),
-                                        lineWidth: progress.hatchLineWidth,
-                                    )
-                                }
-                            }
-                            .clipShape(.capsule)
-                        }
+                    HatchedForecastFill(tint: tint, width: estimatedWidth, style: style)
                 }
 
                 if !forecast.estimatedTotalDays.isExact {

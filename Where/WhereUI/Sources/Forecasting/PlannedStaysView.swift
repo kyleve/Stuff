@@ -26,59 +26,20 @@ struct PlannedStaysView: View {
         NavigationStack {
             List {
                 if let error = model.report.forecasts.loadFailure {
-                    Section {
-                        Label(
-                            error.localizedDescription,
-                            systemSymbol: .exclamationmarkTriangleFill,
-                        )
-                        .foregroundStyle(.red)
-                        Button(String(localized: .commonRetry)) {
-                            Task { await model.report.forecasts.refresh() }
-                        }
-                    }
+                    PlanningLoadFailureSection(
+                        message: error.localizedDescription,
+                        retry: { Task { await model.report.forecasts.refresh() } },
+                    )
                 }
 
-                Section {
-                    if !model.report.forecasts.hasLoaded,
-                       model.report.forecasts.loadFailure == nil
-                    {
-                        ProgressView()
-                    } else if model.report.forecasts.hasLoaded, model.upcoming.isEmpty {
-                        Text(String(localized: .plannedStaysEmpty))
-                            .foregroundStyle(.secondary)
-                    } else {
-                        ForEach(model.upcoming) { stay in
-                            stayRow(stay)
-                        }
-                    }
-                    Button(
-                        String(localized: .plannedStaysAdd),
-                        systemSymbol: .plus,
-                        action: model.add,
-                    )
-                } header: {
-                    Text(String(localized: .plannedStaysUpcoming))
-                } footer: {
-                    Text(String(localized: .plannedStaysFooter))
-                }
+                UpcomingStaysSection(model: model)
 
                 if model.report.forecasts.hasLoaded {
-                    gapSection
+                    UnplannedDaysSection(model: model)
                 }
 
                 if !model.past.isEmpty {
-                    Section {
-                        DisclosureGroup(
-                            String(localized: .plannedStaysPast),
-                            isExpanded: $model.showsPast,
-                        ) {
-                            ForEach(model.past) { stay in
-                                stayRow(stay)
-                            }
-                        }
-                    } footer: {
-                        Text(String(localized: .plannedStaysPastFooter))
-                    }
+                    PastStaysSection(model: model)
                 }
             }
             .navigationTitle(String(localized: .plannedStaysTitle))
@@ -94,46 +55,60 @@ struct PlannedStaysView: View {
         }
         .task { await model.load() }
     }
+}
 
-    private var gapSection: some View {
+private struct UpcomingStaysSection: View {
+    let model: PlannedStaysModel
+
+    var body: some View {
         Section {
-            Button {
-                Task { await model.usePastTravelPattern() }
-            } label: {
-                HStack {
-                    Label(
-                        String(localized: .plannedStaysPastPattern),
-                        systemSymbol: .clockArrowTriangleheadCounterclockwiseRotate90,
-                    )
-                    .foregroundStyle(.primary)
-                    Spacer(minLength: 0)
-                    if model.report.forecasts.planning.homeRegion == nil {
-                        Image(systemSymbol: .checkmark)
-                            .foregroundStyle(.tint)
-                    }
+            if !model.report.forecasts.hasLoaded,
+               model.report.forecasts.loadFailure == nil
+            {
+                ProgressView()
+            } else if model.report.forecasts.hasLoaded, model.upcoming.isEmpty {
+                Text(String(localized: .plannedStaysEmpty))
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(model.upcoming) { stay in
+                    EditPlannedStayButton(stay: stay, model: model)
                 }
             }
-            .accessibilityAddTraits(model.report.forecasts.planning
-                .homeRegion == nil ? [.isSelected] : [])
+            AddPlannedStayButton(add: model.add)
+        } header: {
+            Text(String(localized: .plannedStaysUpcoming))
+        } footer: {
+            Text(String(localized: .plannedStaysFooter))
+        }
+    }
+}
 
-            NavigationLink {
-                HomeRegionPickerDestination(report: model.report)
-            } label: {
-                LabeledContent {
-                    HStack {
-                        Text(model.report.forecasts.planning.homeRegion?.localizedName
-                            ?? String(localized: .plannedStayEditorChooseRegion))
-                        if model.report.forecasts.planning.homeRegion != nil {
-                            Image(systemSymbol: .checkmark).foregroundStyle(.tint)
-                        }
-                    }
-                } label: {
-                    Label(String(localized: .plannedStaysHomeRegion), systemSymbol: .house)
+private struct PastStaysSection: View {
+    @Bindable var model: PlannedStaysModel
+
+    var body: some View {
+        Section {
+            DisclosureGroup(
+                String(localized: .plannedStaysPast),
+                isExpanded: $model.showsPast,
+            ) {
+                ForEach(model.past) { stay in
+                    EditPlannedStayButton(stay: stay, model: model)
                 }
             }
-            .accessibilityAddTraits(model.report.forecasts.planning
-                .homeRegion != nil ? [.isSelected] : [])
+        } footer: {
+            Text(String(localized: .plannedStaysPastFooter))
+        }
+    }
+}
 
+private struct UnplannedDaysSection: View {
+    let model: PlannedStaysModel
+
+    var body: some View {
+        Section {
+            PastTravelPatternButton(model: model)
+            PlanningHomeRegionLink(report: model.report)
             if case let .failed(error) = model.saveState {
                 Label(error.localizedDescription, systemSymbol: .exclamationmarkTriangleFill)
                     .foregroundStyle(.red)
@@ -147,8 +122,25 @@ struct PlannedStaysView: View {
         }
         .disabled(model.isSaving)
     }
+}
 
-    private func stayRow(_ stay: PlannedStay) -> some View {
+private struct AddPlannedStayButton: View {
+    let add: () -> Void
+
+    var body: some View {
+        Button(
+            String(localized: .plannedStaysAdd),
+            systemSymbol: .plus,
+            action: add,
+        )
+    }
+}
+
+private struct EditPlannedStayButton: View {
+    let stay: PlannedStay
+    let model: PlannedStaysModel
+
+    var body: some View {
         Button {
             model.edit(stay)
         } label: {
@@ -161,6 +153,55 @@ struct PlannedStaysView: View {
         }
         .buttonStyle(.plain)
         .accessibilityHint(String(localized: .plannedStaysEditHint))
+    }
+}
+
+private struct PastTravelPatternButton: View {
+    let model: PlannedStaysModel
+
+    var body: some View {
+        Button {
+            Task { await model.usePastTravelPattern() }
+        } label: {
+            HStack {
+                Label(
+                    String(localized: .plannedStaysPastPattern),
+                    systemSymbol: .clockArrowTriangleheadCounterclockwiseRotate90,
+                )
+                .foregroundStyle(.primary)
+                Spacer(minLength: 0)
+                if model.report.forecasts.planning.homeRegion == nil {
+                    Image(systemSymbol: .checkmark)
+                        .foregroundStyle(.tint)
+                }
+            }
+        }
+        .accessibilityAddTraits(model.report.forecasts.planning
+            .homeRegion == nil ? [.isSelected] : [])
+    }
+}
+
+private struct PlanningHomeRegionLink: View {
+    let report: YearReportModel
+
+    var body: some View {
+        NavigationLink {
+            HomeRegionPickerDestination(report: report)
+        } label: {
+            LabeledContent {
+                HStack {
+                    Text(report.forecasts.planning.homeRegion?.localizedName
+                        ?? String(localized: .plannedStayEditorChooseRegion))
+                    if report.forecasts.planning.homeRegion != nil {
+                        Image(systemSymbol: .checkmark).foregroundStyle(.tint)
+                    }
+                }
+            } label: {
+                Label(String(localized: .plannedStaysHomeRegion), systemSymbol: .house)
+            }
+        }
+        .accessibilityAddTraits(report.forecasts.planning
+            .homeRegion != nil ? [.isSelected] : [])
     }
 }
 
