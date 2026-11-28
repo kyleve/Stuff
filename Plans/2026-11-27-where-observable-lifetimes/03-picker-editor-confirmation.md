@@ -22,7 +22,7 @@ Home region selection starts with fresh picker state. Each planner sheet creates
 ## Known design and assumptions
 
 - **Home picker.** [PlannedStaysModel](../../Where/WhereUI/Sources/Forecasting/PlannedStaysModel.swift) owns and preloads a `PlanningRegionSelectionModel`. Move that instance into the Home navigation destination and load upon entry. The [stay editor](../../Where/WhereUI/Sources/Forecasting/PlannedStayEditor.swift) also needs tracked-region data in its parent form and after Manage Regions. Preserve that editor-owned data.
-- **Stay editor.** The current planner stores the model as its sheet item. Use a value route describing Add or Edit plus a stable presentation identity. Construct the model in a host at the sheet's stable entrance. Keep the existing domain stay identity, and preserve the planned-stay entry points that already present an editor directly. Leave shared forecast reads on the scene.
+- **Stay editor.** The current planner stores the model as its sheet item. Use a value route describing Add or Edit plus an explicit ID that is fresh for each presentation and stable while the sheet is open. Construct the model in a host at the sheet's stable entrance. Keep the existing domain stay identity, and preserve the planned-stay entry points that already present an editor directly. Leave shared forecast reads on the scene.
 - **Diagnostics.** [PrivacyDiagnosticsSettingsView](../../Where/WhereUI/Sources/Settings/PrivacyDiagnosticsSettingsView.swift) binds the DEBUG confirmation flag to [DiagnosticReportingSettingsModel](../../Where/WhereUI/Sources/Settings/DiagnosticReportingSettingsModel.swift). Use destination-owned presentation state and keep the actual grant, disable, retry, effective-state, and revision logic on the process model. Preserve the repository's model-backed derived binding convention when wiring the toggle and dismissing a prompt after it becomes ineligible.
 
 ```mermaid
@@ -37,14 +37,18 @@ flowchart LR
 
 ```swift
 // Proposed composition. Form controls and prepared fixture injection are omitted.
-ObservableHostingView({ PlanningRegionSelectionModel(report: report) }) { model in
+ObservableHostingView {
+    PlanningRegionSelectionModel(report: report)
+} content: { model in
     PlanningRegionPickerView(model: model, title: homeTitle, selectedRegion: home, onSelect: setHome)
 }
 .sheet(item: $editorRoute) { route in
     PlannedStayEditorDestination(report: report, mode: route.mode)
 }
 
-ObservableHostingView({ DiagnosticPersonalDataConfirmation(reporting: reporting) }) { confirmation in
+ObservableHostingView {
+    DiagnosticPersonalDataConfirmation(reporting: reporting)
+} content: { confirmation in
     DiagnosticPersonalDataSection(confirmation: confirmation)
 }
 ```
@@ -86,6 +90,7 @@ When a draft is recreated during resize, inspect the sheet item ID and the host'
 | Date | Decision | Source |
 | --- | --- | --- |
 | 2026-11-27 | Deliver the three smaller audit recommendations together in Phase 2. | User request |
+| 2026-11-27 | Require the Add and Edit callers to supply a fresh sheet ID. | [PR review](https://github.com/kyleve/Stuff/pull/578#discussion_r4724697629) |
 
 ## Progress
 

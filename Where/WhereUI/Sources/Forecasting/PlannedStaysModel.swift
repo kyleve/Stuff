@@ -14,7 +14,7 @@ final class PlannedStaysModel {
     }
 
     struct EditorRoute: Identifiable {
-        let id = UUID()
+        let id: UUID
         let mode: PlannedStayEditorModel.Mode
     }
 
@@ -56,11 +56,11 @@ final class PlannedStaysModel {
     }
 
     func add() {
-        editorRoute = EditorRoute(mode: .new(initialRegion: initialRegion))
+        editorRoute = EditorRoute(id: UUID(), mode: .new(initialRegion: initialRegion))
     }
 
     func edit(_ stay: PlannedStay) {
-        editorRoute = EditorRoute(mode: .edit(stay))
+        editorRoute = EditorRoute(id: UUID(), mode: .edit(stay))
     }
 
     func usesDefiniteOverlap(_ stay: PlannedStay) -> Bool {
