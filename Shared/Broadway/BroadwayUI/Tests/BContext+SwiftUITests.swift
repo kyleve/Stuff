@@ -9,7 +9,8 @@ import UIKit
 struct BContextEnvironmentTests {
     private enum ProbeTheme: String, BTheme {
         static let defaultValue: Self = .a
-        case a, b
+        case a
+        case b
     }
 
     @Test("A SwiftUI-set context takes precedence and reads back synchronously")
@@ -44,7 +45,8 @@ struct BContextEnvironmentTests {
 
 private enum MirrorTheme: String, BTheme {
     static let defaultValue: Self = .a
-    case a, b
+    case a
+    case b
 }
 
 private final class MirrorBox {

@@ -6,7 +6,8 @@ import WhereCore
 /// provenance describes the exported data, never the private input path or origin.
 struct RecordedFlightFixture: Codable, Equatable {
     enum Coordinates: String, Codable {
-        case rotated, original
+        case rotated
+        case original
     }
 
     enum Name: String, CaseIterable {

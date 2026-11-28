@@ -31,7 +31,10 @@ struct InstallerStylesheet: BStylesheet {
 
     static let `default` = InstallerStylesheet()
 
-    enum Arrangement: Equatable { case horizontal, stacked }
+    enum Arrangement: Equatable {
+        case horizontal
+        case stacked
+    }
 
     struct Page: Equatable {
         var background = Color(.systemGroupedBackground)
@@ -69,7 +72,11 @@ struct InstallerStylesheet: BStylesheet {
     }
 
     struct Summary: Equatable {
-        enum Columns: Equatable { case adaptive, single }
+        enum Columns: Equatable {
+            case adaptive
+            case single
+        }
+
         var columns = Columns.adaptive
         var minimumColumnWidth: CGFloat = 140
         var spacing: CGFloat = 20

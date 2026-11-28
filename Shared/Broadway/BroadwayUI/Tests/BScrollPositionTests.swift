@@ -173,7 +173,11 @@ struct BScrollPositionTests {
     }
 }
 
-private enum ScrollRole: Hashable { case first, second, third }
+private enum ScrollRole: Hashable {
+    case first
+    case second
+    case third
+}
 
 @MainActor @Observable
 private final class ScrollFixture {

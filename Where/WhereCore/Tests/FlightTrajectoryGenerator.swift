@@ -6,8 +6,18 @@ import WhereCore
 /// variations. Expected ground identities come from the journey, never the detector.
 enum FlightTrajectoryGenerator {
     enum Profile: String, CaseIterable {
-        case denseJet, sparseJet, shortSparseJet, mixedSampling, longHaul, connections
-        case overnightDateLine, stationaryDrift, clusteredDrift, road, fastGround, slowerAircraft
+        case denseJet
+        case sparseJet
+        case shortSparseJet
+        case mixedSampling
+        case longHaul
+        case connections
+        case overnightDateLine
+        case stationaryDrift
+        case clusteredDrift
+        case road
+        case fastGround
+        case slowerAircraft
     }
 
     struct JourneyPoint {

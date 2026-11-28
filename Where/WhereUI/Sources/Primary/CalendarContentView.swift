@@ -14,7 +14,10 @@ import SwiftUI
 struct CalendarContentView: View {
     private let showsEstimateCard: Bool
     private let showsPlanningAction: Bool
-    enum ScrollRole: Hashable { case detail }
+    enum ScrollRole: Hashable {
+        case detail
+    }
+
     struct ScrollContext: Hashable { let region: Region?; let year: Int }
     private let model: CalendarModel
     private let suppliedPlanningDestination: Binding<PlannedStaysDestination?>?

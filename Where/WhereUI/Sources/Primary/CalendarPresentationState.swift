@@ -5,7 +5,11 @@ import WhereCore
 /// View-owned zoom and rejection feedback. The native detail position owns restoration.
 @MainActor @Observable
 final class CalendarPresentationState {
-    enum Mode: Hashable { case detail, overview }
+    enum Mode: Hashable {
+        case detail
+        case overview
+    }
+
     enum Target: Hashable {
         case month(CalendarDay)
         case estimate(CalendarDay)

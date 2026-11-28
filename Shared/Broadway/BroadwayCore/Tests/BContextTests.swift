@@ -6,7 +6,8 @@ import Testing
 private enum ColorTheme: String, BTheme {
     static let defaultValue: Self = .light
 
-    case light, dark
+    case light
+    case dark
 }
 
 private struct TestStylesheet: BStylesheet {

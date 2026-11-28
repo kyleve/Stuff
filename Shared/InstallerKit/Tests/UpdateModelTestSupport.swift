@@ -3,7 +3,10 @@ import Foundation
 
 @MainActor
 final class UpdateModelClient: UpdateFetching {
-    enum Failure: Error { case offline }
+    enum Failure: Error {
+        case offline
+    }
+
     var result: Result<UpdateCatalog, Failure>
     var held = false
     private(set) var fetchCount = 0

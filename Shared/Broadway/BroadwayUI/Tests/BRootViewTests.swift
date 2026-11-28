@@ -7,7 +7,8 @@ import UIKit
 
 private enum Marker: String, BTheme {
     static let defaultValue: Self = .a
-    case a, b
+    case a
+    case b
 }
 
 @MainActor

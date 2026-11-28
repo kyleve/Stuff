@@ -94,7 +94,10 @@ struct WhereFormRootTests {
     }
 
     enum NativeKind: CaseIterable {
-        case form, list, plain, sidebar
+        case form
+        case list
+        case plain
+        case sidebar
     }
 
     @MainActor @Observable

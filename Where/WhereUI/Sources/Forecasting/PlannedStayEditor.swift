@@ -17,7 +17,9 @@ struct PlannedStayEditorDestination: View {
     }
 
     var body: some View {
-        ObservableHostingView(makeModel) { PlannedStayEditor(model: $0) }
+        ObservableHostingView(makeModel) {
+            PlannedStayEditor(model: $0)
+        }
     }
 }
 

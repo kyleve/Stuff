@@ -4,7 +4,12 @@ import PeriscopeCore
 /// Region metadata in canonical manifest order. Reading the hierarchy loads no polygons.
 public struct RegionCatalog: Sendable {
     public enum Kind: String, Decodable, Hashable, Sendable {
-        case state, federalDistrict, territory, province, country, bloc
+        case state
+        case federalDistrict
+        case territory
+        case province
+        case country
+        case bloc
     }
 
     struct Boundary: Decodable, Hashable {

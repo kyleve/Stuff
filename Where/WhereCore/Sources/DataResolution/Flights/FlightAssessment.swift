@@ -60,7 +60,11 @@ public struct FlightAssessment: Identifiable, Hashable, Sendable {
 
     /// Positive evidence of travel; gaps between these intervals remain unknown.
     public struct TravelInterval: Hashable, Sendable {
-        public enum Kind: Hashable, Sendable { case observedMotion, displacement }
+        public enum Kind: Hashable, Sendable {
+            case observedMotion
+            case displacement
+        }
+
         public let start: Date
         public let end: Date
         public let kind: Kind

@@ -3,7 +3,10 @@ import Foundation
 /// Device-local evidence shared with the share extension. It never belongs in a backup.
 /// The version is a monotonic floor even when access has been withdrawn.
 public struct DataCompatibilityReceipt: Codable, Equatable, Sendable {
-    public enum Access: String, Codable, Equatable, Sendable { case verified, blocked }
+    public enum Access: String, Codable, Equatable, Sendable {
+        case verified
+        case blocked
+    }
 
     public let domain: DataCompatibilityDomain
     public let version: DataModelVersion

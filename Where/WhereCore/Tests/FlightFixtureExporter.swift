@@ -9,7 +9,8 @@ import WhereCore
 struct FlightFixtureExporter {
     struct Configuration: Decodable {
         enum CoordinateMode: String, Decodable {
-            case rotate, preserve
+            case rotate
+            case preserve
         }
 
         let backupPath: String
@@ -42,8 +43,11 @@ struct FlightFixtureExporter {
     }
 
     enum ExportError: Error, Equatable {
-        case invalidWindow, invalidCoordinate, noSamples
-        case missingReplacementOrigin, unexpectedReplacementOrigin
+        case invalidWindow
+        case invalidCoordinate
+        case noSamples
+        case missingReplacementOrigin
+        case unexpectedReplacementOrigin
     }
 
     let originalSamples: [LocationSample]

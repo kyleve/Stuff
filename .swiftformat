@@ -24,3 +24,7 @@
 # `false` makes wrapping all-or-nothing: either everything on one
 # line, or one arg/parameter per line.
 --allow-partial-wrapping false
+
+--enable wrapEnumCases,wrapClosureBodies
+--wrap-single-line-enum-cases true
+--wrap-closure-bodies ObservableHostingView

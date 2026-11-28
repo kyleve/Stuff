@@ -25,7 +25,9 @@ struct LocationsView: View {
         }
     }
 
-    enum ScrollRole: Hashable { case calendar }
+    enum ScrollRole: Hashable {
+        case calendar
+    }
 
     let report: YearReportModel
     var openElsewhere: (() -> Void)?

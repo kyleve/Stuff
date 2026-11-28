@@ -165,7 +165,9 @@ struct SnapshotAccessibilityViewportTests {
         (bar.accessibilityElements as? [NSObject] ?? []).compactMap(\.accessibilityLabel)
     }
 
-    private enum CaptureFailure: Error { case expected }
+    private enum CaptureFailure: Error {
+        case expected
+    }
 }
 
 /// Reproduces native off-screen element filtering independently of UIKit's

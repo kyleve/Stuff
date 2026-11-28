@@ -11,7 +11,9 @@ enum FlightGroundInference {
     }
 
     private enum Mode: CaseIterable {
-        case stationary, sparseStationary, moving
+        case stationary
+        case sparseStationary
+        case moving
 
         var duration: TimeInterval {
             switch self {

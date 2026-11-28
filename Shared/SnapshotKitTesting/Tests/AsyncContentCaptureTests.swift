@@ -29,11 +29,16 @@ struct AsyncContentCaptureTests {
     }
 
     enum MeasuredCapture: CaseIterable {
-        case standard, afterMeasurement, afterSettledMeasurement, nativeInsetChange,
-             syntheticInsetChange,
-             prepareForCapture,
-             onReadyToSnapshot, raisedFloor,
-             accessibility, fixed
+        case standard
+        case afterMeasurement
+        case afterSettledMeasurement
+        case nativeInsetChange
+        case syntheticInsetChange
+        case prepareForCapture
+        case onReadyToSnapshot
+        case raisedFloor
+        case accessibility
+        case fixed
     }
 
     @Test(arguments: MeasuredCapture.allCases)

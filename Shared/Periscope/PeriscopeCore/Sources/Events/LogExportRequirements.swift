@@ -54,8 +54,16 @@ public enum LogExportRequirements: Equatable, Sendable {
 
 /// Stable requirement tags and sorted control identities, independent of associated-value coding.
 extension LogExportRequirements: Codable {
-    private enum CodingKeys: String, CodingKey { case mode, controls }
-    private enum Mode: String, Codable { case baseline, diagnostic, never }
+    private enum CodingKeys: String, CodingKey {
+        case mode
+        case controls
+    }
+
+    private enum Mode: String, Codable {
+        case baseline
+        case diagnostic
+        case never
+    }
 
     public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)

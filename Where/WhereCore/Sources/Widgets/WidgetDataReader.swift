@@ -41,7 +41,11 @@ public struct WidgetSnapshot: Hashable, Sendable, Codable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case day, year, dayRegions, totals, appearances
+        case day
+        case year
+        case dayRegions
+        case totals
+        case appearances
     }
 
     public init(from decoder: any Decoder) throws {

@@ -8,7 +8,9 @@ import WhereCore
 /// A floating Liquid Glass pill at the bottom (Photos-style) zooms between the
 /// calendar (month detail) and the timeline (year overview).
 struct YearView: View {
-    enum ScrollRole: Hashable { case calendar }
+    enum ScrollRole: Hashable {
+        case calendar
+    }
 
     let report: YearReportModel
 

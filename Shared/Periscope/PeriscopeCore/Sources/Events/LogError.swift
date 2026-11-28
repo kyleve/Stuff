@@ -50,7 +50,8 @@ public struct LogError: Codable, Equatable, LogExportable {
         }
 
         private enum CodingKeys: String, CodingKey {
-            case kind, description
+            case kind
+            case description
             case codingPath = "coding_path"
         }
 

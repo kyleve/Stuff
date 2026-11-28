@@ -128,7 +128,9 @@ struct SnapshotImageRenderingTests {
     }
 
     enum Attachment: CaseIterable {
-        case none, controller, view
+        case none
+        case controller
+        case view
     }
 
     @Test func aNilInsetOverrideKeepsTheNativeScene() async throws {
@@ -164,8 +166,11 @@ struct SnapshotImageRenderingTests {
     }
 
     private enum CaptureLayout: CaseIterable {
-        case compactViewport, regularViewport, fullContent, retainedTabletViewport,
-             retainedFullContent
+        case compactViewport
+        case regularViewport
+        case fullContent
+        case retainedTabletViewport
+        case retainedFullContent
     }
 
     private func verifyWindowRestoration(

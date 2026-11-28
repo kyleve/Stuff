@@ -16,7 +16,9 @@ struct RegionPickerView: View {
     }
 
     var body: some View {
-        ObservableHostingView(makeModel) { RegionPickerContent(model: $0) }
+        ObservableHostingView(makeModel) {
+            RegionPickerContent(model: $0)
+        }
     }
 }
 

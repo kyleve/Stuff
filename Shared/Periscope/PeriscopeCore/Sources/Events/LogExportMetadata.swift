@@ -66,8 +66,24 @@ public indirect enum LogExportSchema: Equatable, Sendable {
 /// Explicit tags decouple the persisted format from Swift associated-value encoding.
 extension LogExportSchema: Codable {
     private enum CodingKeys: String,
-        CodingKey { case type, fields, elements, requirement, child, allowedValues, allowsNil }
-    private enum Kind: String, Codable { case value, object, array, gated, category }
+        CodingKey
+    {
+        case type
+        case fields
+        case elements
+        case requirement
+        case child
+        case allowedValues
+        case allowsNil
+    }
+
+    private enum Kind: String, Codable {
+        case value
+        case object
+        case array
+        case gated
+        case category
+    }
 
     public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
