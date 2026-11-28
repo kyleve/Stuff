@@ -20,7 +20,6 @@ public struct YearTotalsWidgetView: View {
     }
 
     @Environment(\.stylesheet) private var stylesheet
-    @Environment(\.regionStyles) private var regionStyles
 
     private var ranked: [RegionDays] {
         snapshot.rankedTotals(maxRows: maxRows)
@@ -28,18 +27,17 @@ public struct YearTotalsWidgetView: View {
 
     public var body: some View {
         VStack(alignment: .leading, spacing: stylesheet.spacing.small) {
-            Text(WhereFormat.widgetYearTitle(year: snapshot.year))
-                .font(.caption2.weight(.semibold))
-                .textCase(.uppercase)
-                .tracking(1)
-                .foregroundStyle(.secondary)
+            HomeWidgetTitle(title: WhereFormat.widgetYearTitle(year: snapshot.year))
 
             Spacer(minLength: 0)
 
             if ranked.isEmpty {
-                emptyContent
+                HomeWidgetEmptyState(
+                    symbol: .calendarBadgeExclamationmark,
+                    title: String(localized: .widgetYearEmpty),
+                )
             } else {
-                rows
+                YearTotalsWidgetRows(ranked: ranked)
             }
 
             Spacer(minLength: 0)
@@ -49,37 +47,42 @@ public struct YearTotalsWidgetView: View {
         .accessibilityLabel(WhereFormat.widgetYearTitle(year: snapshot.year))
         .accessibilityValue(WhereFormat.widgetYearAccessibilityValue(entries: ranked))
     }
+}
 
-    private var rows: some View {
+private struct YearTotalsWidgetRows: View {
+    let ranked: [RegionDays]
+
+    @Environment(\.stylesheet) private var stylesheet
+
+    var body: some View {
         VStack(alignment: .leading, spacing: stylesheet.spacing.xSmall) {
             ForEach(ranked) { entry in
-                HStack(spacing: stylesheet.spacing.small) {
-                    Text(regionStyles.style(for: entry.region).emoji)
-                        .font(.caption)
-                        .accessibilityHidden(true)
-                    Text(entry.region.localizedName)
-                        .font(.caption.weight(.medium))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.7)
-                    Spacer(minLength: stylesheet.spacing.small)
-                    Text(entry.days, format: .number)
-                        .font(stylesheet.typography.widgetTotalNumber)
-                        .monospacedDigit()
-                        .foregroundStyle(regionStyles.style(for: entry.region).tint)
-                }
+                YearTotalsWidgetRow(entry: entry)
             }
         }
     }
+}
 
-    private var emptyContent: some View {
-        VStack(alignment: .leading, spacing: stylesheet.spacing.xSmall) {
-            Image(systemSymbol: .calendarBadgeExclamationmark)
-                .font(.title3)
-                .foregroundStyle(.tertiary)
+private struct YearTotalsWidgetRow: View {
+    let entry: RegionDays
+
+    @Environment(\.stylesheet) private var stylesheet
+    @Environment(\.regionStyles) private var regionStyles
+
+    var body: some View {
+        HStack(spacing: stylesheet.spacing.small) {
+            Text(regionStyles.style(for: entry.region).emoji)
+                .font(.caption)
                 .accessibilityHidden(true)
-            Text(String(localized: .widgetYearEmpty))
+            Text(entry.region.localizedName)
                 .font(.caption.weight(.medium))
-                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+            Spacer(minLength: stylesheet.spacing.small)
+            Text(entry.days, format: .number)
+                .font(stylesheet.typography.widgetTotalNumber)
+                .monospacedDigit()
+                .foregroundStyle(regionStyles.style(for: entry.region).tint)
         }
     }
 }

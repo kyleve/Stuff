@@ -6,32 +6,24 @@ import WidgetKit
 /// History-free widget recovery. Opening the app supplies the specific update/verification action.
 public struct WidgetCompatibilityView: View {
     private let family: WidgetFamily
-    @Environment(\.stylesheet) private var stylesheet
 
     public init(family: WidgetFamily) {
         self.family = family
     }
 
     public var body: some View {
-        content
+        WidgetCompatibilityContent(family: family)
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(Text(.widgetCompatibilityTitle))
             .accessibilityValue(Text(.widgetCompatibilityMessage))
-            .containerBackground(for: .widget) {
-                switch family {
-                    case .accessoryInline, .accessoryCircular, .accessoryRectangular,
-                         .accessoryCorner:
-                        Color.clear
-                    case .systemSmall, .systemMedium, .systemLarge, .systemExtraLarge,
-                         .systemExtraLargePortrait:
-                        Rectangle().fill(.background)
-                    @unknown default:
-                        Rectangle().fill(.background)
-                }
-            }
+            .containerBackground(for: .widget) { WidgetCompatibilityBackground(family: family) }
     }
+}
 
-    @ViewBuilder private var content: some View {
+private struct WidgetCompatibilityContent: View {
+    let family: WidgetFamily
+
+    var body: some View {
         switch family {
             case .accessoryInline:
                 Label(String(localized: .widgetCompatibilityTitle), systemSymbol: .lock)
@@ -41,29 +33,32 @@ public struct WidgetCompatibilityView: View {
                     Image(systemSymbol: .lock).font(.title3)
                 }
             case .accessoryRectangular:
-                VStack(alignment: .leading, spacing: stylesheet.spacing.xSmall) {
-                    Label(String(localized: .widgetCompatibilityTitle), systemSymbol: .lock)
-                        .font(.caption.weight(.semibold))
-                    Text(.widgetCompatibilityMessage).font(.caption2)
-                }
+                WidgetCompatibilityRectangularContent()
             case .systemSmall, .systemMedium, .systemLarge, .systemExtraLarge,
                  .systemExtraLargePortrait:
-                homeContent
+                WidgetCompatibilityHomeContent()
             @unknown default:
-                homeContent
+                WidgetCompatibilityHomeContent()
         }
     }
+}
 
-    private var homeContent: some View {
+private struct WidgetCompatibilityRectangularContent: View {
+    @Environment(\.stylesheet) private var stylesheet
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: stylesheet.spacing.xSmall) {
+            Label(String(localized: .widgetCompatibilityTitle), systemSymbol: .lock)
+                .font(.caption.weight(.semibold))
+            Text(.widgetCompatibilityMessage).font(.caption2)
+        }
+    }
+}
+
+private struct WidgetCompatibilityHomeContent: View {
+    var body: some View {
         ViewThatFits(in: .vertical) {
-            VStack(spacing: stylesheet.spacing.small) {
-                Image(systemSymbol: .lock).font(.title3).foregroundStyle(.secondary)
-                VStack(spacing: stylesheet.spacing.xSmall) {
-                    Text(.widgetCompatibilityTitle).font(.headline)
-                    Text(.widgetCompatibilityMessage).font(.caption).foregroundStyle(.secondary)
-                }
-            }
-            .fixedSize(horizontal: false, vertical: true)
+            WidgetCompatibilityHomeMessage()
             Text(.widgetCompatibilityTitle)
                 .font(.headline)
                 .lineLimit(2)
@@ -71,6 +66,38 @@ public struct WidgetCompatibilityView: View {
         }
         .multilineTextAlignment(.center)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+private struct WidgetCompatibilityHomeMessage: View {
+    @Environment(\.stylesheet) private var stylesheet
+
+    var body: some View {
+        VStack(spacing: stylesheet.spacing.small) {
+            Image(systemSymbol: .lock).font(.title3).foregroundStyle(.secondary)
+            VStack(spacing: stylesheet.spacing.xSmall) {
+                Text(.widgetCompatibilityTitle).font(.headline)
+                Text(.widgetCompatibilityMessage).font(.caption).foregroundStyle(.secondary)
+            }
+        }
+        .fixedSize(horizontal: false, vertical: true)
+    }
+}
+
+private struct WidgetCompatibilityBackground: View {
+    let family: WidgetFamily
+
+    var body: some View {
+        switch family {
+            case .accessoryInline, .accessoryCircular, .accessoryRectangular,
+                 .accessoryCorner:
+                Color.clear
+            case .systemSmall, .systemMedium, .systemLarge, .systemExtraLarge,
+                 .systemExtraLargePortrait:
+                Rectangle().fill(.background)
+            @unknown default:
+                Rectangle().fill(.background)
+        }
     }
 }
 

@@ -48,8 +48,6 @@ public struct TodayCircularAccessoryView: View {
         self.snapshot = snapshot
     }
 
-    @Environment(\.regionStyles) private var regionStyles
-
     private var regions: [Region] {
         snapshot.orderedDayRegions
     }
@@ -57,19 +55,29 @@ public struct TodayCircularAccessoryView: View {
     public var body: some View {
         ZStack {
             AccessoryWidgetBackground()
-            VStack(spacing: 0) {
-                Image(systemSymbol: regions.first
-                    .map { regionStyles.style(for: $0).symbol } ?? .locationSlash)
-                    .font(.title3)
-                if regions.count > 1 {
-                    Text(verbatim: "+\(regions.count - 1)")
-                        .font(.caption2.weight(.semibold))
-                }
-            }
+            TodayCircularAccessoryGlyph(regions: regions)
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(WhereFormat.widgetTodayAccessibilityLabel(date: snapshot.day))
         .accessibilityValue(WhereFormat.widgetTodayAccessibilityValue(regions: regions))
+    }
+}
+
+private struct TodayCircularAccessoryGlyph: View {
+    let regions: [Region]
+
+    @Environment(\.regionStyles) private var regionStyles
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Image(systemSymbol: regions.first
+                .map { regionStyles.style(for: $0).symbol } ?? .locationSlash)
+                .font(.title3)
+            if regions.count > 1 {
+                Text(verbatim: "+\(regions.count - 1)")
+                    .font(.caption2.weight(.semibold))
+            }
+        }
     }
 }
 
