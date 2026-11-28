@@ -42,11 +42,6 @@ public final class BackupModel {
     private let services: WhereServices
     private static let logger = WhereLog.session(BackupModelLog.self)
 
-    private enum ExportUpdate {
-        case progress(Double)
-        case archive(URL)
-    }
-
     public init(services: WhereServices) {
         self.services = services
     }
@@ -68,33 +63,25 @@ public final class BackupModel {
             backupProgress = 0
         }
 
-        let (updates, continuation) = AsyncThrowingStream<ExportUpdate, any Error>.makeStream()
-        let coordinator = services.backup
-        let request = Task {
-            do {
-                let url = try await coordinator.exportBackup {
-                    continuation.yield(.progress($0))
-                }
-                continuation.yield(.archive(url))
-                continuation.finish()
-            } catch {
-                continuation.finish(throwing: error)
+        let (progress, continuation) = AsyncStream<Double>.makeStream()
+        let observer = Task { @MainActor [weak self] in
+            for await fraction in progress {
+                guard !Task.isCancelled else { return }
+                self?.backupProgress = fraction
             }
         }
-        continuation.onTermination = { _ in
-            request.cancel()
+        defer {
+            continuation.finish()
+            observer.cancel()
         }
 
         do {
-            for try await update in updates {
-                try Task.checkCancellation()
-                switch update {
-                    case let .progress(fraction): backupProgress = fraction
-                    case let .archive(url):
-                        Self.logger.exported()
-                        return url
-                }
-            }
+            let url = try await services.backup.exportBackup { continuation.yield($0) }
+            continuation.finish()
+            await observer.value
+            try Task.checkCancellation()
+            Self.logger.exported()
+            return url
         } catch is CancellationError {
             return nil
         } catch {

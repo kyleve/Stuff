@@ -102,7 +102,6 @@ public actor BackupCoordinator {
     /// archive on disk). Actor-isolated, so it survives the UI that triggered
     /// the export being torn down.
     private var previousExportDirectory: URL?
-    private var activeExport: Task<URL, any Error>?
 
     init(
         store: any WhereStore,
@@ -138,24 +137,12 @@ public actor BackupCoordinator {
     /// executor; a UI caller should marshal it back to the main actor (e.g. via
     /// an `AsyncStream`).
     public func exportBackup(
-        onProgress: @escaping @Sendable (Double) -> Void = { _ in },
+        onProgress: @Sendable (Double) -> Void = { _ in },
     ) async throws -> URL {
-        while let activeExport {
-            _ = await activeExport.result
-            try Task.checkCancellation()
-        }
         try Task.checkCancellation()
-
-        // Hold ownership across the store read and archive encoding. An accepted
-        // export finishes even if its presenter stops waiting for it.
-        let export = Task {
-            defer { activeExport = nil }
-            return try await Self.logger.measure(.exportBackup) {
-                try await performExport(onProgress: onProgress)
-            }
+        return try await Self.logger.measure(.exportBackup) {
+            try await performExport(onProgress: onProgress)
         }
-        activeExport = export
-        return try await export.value
     }
 
     /// `exportBackup`'s body, split out so the outer span reads as one leg-by-leg
@@ -190,6 +177,7 @@ public actor BackupCoordinator {
             try await Self.logger.measure(.exportBlobLoad) {
                 var lastPercent = -1
                 for (index, item) in evidence.enumerated() {
+                    try Task.checkCancellation()
                     if let blob = try await store.evidenceBlob(for: item.id) {
                         blobs[item.id] = blob
                     }
@@ -203,6 +191,7 @@ public actor BackupCoordinator {
             }
             return ExportSnapshot(tables: tables, blobs: blobs)
         }
+        try Task.checkCancellation()
         let tables = snapshot.tables
         let backupService = backupService
         let url = try await Task.detached(priority: .utility) {
@@ -223,6 +212,11 @@ public actor BackupCoordinator {
                 blobs: snapshot.blobs,
             )
         }.value
+        // An in-flight ZIP can finish after cancellation. Reclaim only its own directory.
+        if Task.isCancelled {
+            removeExportDirectory(url.deletingLastPathComponent())
+            throw CancellationError()
+        }
         onProgress(1)
         previousExportDirectory = url.deletingLastPathComponent()
         return url
@@ -266,8 +260,12 @@ public actor BackupCoordinator {
     private func purgePreviousExport() {
         guard let previous = previousExportDirectory else { return }
         previousExportDirectory = nil
+        removeExportDirectory(previous)
+    }
+
+    private func removeExportDirectory(_ directory: URL) {
         do {
-            try FileManager.default.removeItem(at: previous)
+            try FileManager.default.removeItem(at: directory)
         } catch {
             Self.logger.removePreviousExportFailed(
                 error: .restricted(.errorDetails, error),

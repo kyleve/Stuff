@@ -81,7 +81,6 @@ actor TestStore: WhereStore {
     private var nextPlanningOperationGate: OperationGate?
     private var nextPlannedStayWriteGate: OperationGate?
     private var nextExportReadGate: OperationGate?
-    private(set) var exportSampleReadCount = 0
     private(set) var plannedStayWriteCount = 0
 
     private var shouldFailManualDay = false
@@ -237,7 +236,6 @@ actor TestStore: WhereStore {
     }
 
     func allSamples() async throws -> [LocationSample] {
-        exportSampleReadCount += 1
         let gate = nextExportReadGate
         nextExportReadGate = nil
         if let gate { await gate.suspend() }

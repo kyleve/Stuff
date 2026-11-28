@@ -3,13 +3,13 @@
 ## Planning checkpoint
 
 - Updated 2026-11-27 against main at `c41708712`.
-- Operation is revision. The owner approved withdrawing the Elsewhere ownership change after comparing its cost with the benefit of the existing shared cache.
-- Stage is review handoff for [PR #578](https://github.com/kyleve/Stuff/pull/578). The scope revision is verified. [STU-350](https://linear.app/kve/issue/STU-350/tie-where-presentation-observables-to-their-owning-views) tracks the retained work.
+- Operation is revision. Elsewhere retains its shared cache. Data Settings now owns cancellation of its export request.
+- Stage is review follow-up for [PR #578](https://github.com/kyleve/Stuff/pull/578). [STU-350](https://linear.app/kve/issue/STU-350/tie-where-presentation-observables-to-their-owning-views) tracks the retained work.
 - Test evidence and limits are recorded in [Settings](01-settings-destinations.md#execution-record), [Elsewhere history](02-elsewhere-flow.md#execution-record), and the [follow-ups](03-picker-editor-confirmation.md#execution-record).
 
 ## Outcome and scope
 
-Create each selected presentation observable at the smallest stable SwiftUI identity that serves its consumers. Returning to a destination should get fresh presentation state. Navigation within a flow and layout changes should preserve the active draft or shared projection. Accepted work can finish through the service that owns it, with progress, errors, and prompts confined to their active presentation.
+Create each selected presentation observable at the smallest stable SwiftUI identity that serves its consumers. Returning to a destination should get fresh presentation state. Navigation within a flow and layout changes should preserve the active draft or shared projection. Data cancels its export on dismissal. The session applies saved notification choices while their presentation is gone.
 
 ## User stories
 
@@ -24,7 +24,7 @@ Create each selected presentation observable at the smallest stable SwiftUI iden
 
 | ID | Required behavior or constraint | Story | Implementing plan |
 | --- | --- | --- | --- |
-| R-01 | Data creates and owns its export presentation model. Dismissal suppresses late UI, and a new Data presentation can export successfully while earlier work drains. | US-01 | [01 — Settings destinations](01-settings-destinations.md) |
+| R-01 | Data owns its export model and request. Dismissal cancels the request and suppresses late UI. Reopening Data can start a new export. | US-01 | [01 — Settings destinations](01-settings-destinations.md) |
 | R-02 | Alerts creates and owns its editing model, re-reads preferences and permission state, and reconciles saved reminder, summary, issue-alert, and badge intent even after dismissal. | US-01 | [01 — Settings destinations](01-settings-destinations.md) |
 | R-03 | Withdrawn. The proposed Elsewhere flow would have owned resolution and optional place labels for the list, detail, and map. | US-02 | [02 — Elsewhere flow (superseded)](02-elsewhere-flow.md) |
 | R-04 | Home picker search, load state, and selection errors belong to its presentation. The editor retains the tracked-region data its own form needs. Home continues to update the shared planning snapshot by the normal store-change path. | US-03 | [03 — Picker, editor, and confirmation](03-picker-editor-confirmation.md) |
@@ -56,7 +56,7 @@ Source observations refer to `c41708712`. The choices in the plans are proposals
 | Source observation | Implication |
 | --- | --- |
 | [ObservableHostingView](../../Where/WhereUI/Sources/Shared/ObservableHostingView.swift) calls its factory after mount and retains the result with view identity. Its initial body is clear. | Build the host at durable navigation boundaries. Preserve root navigation and keep mounted test evidence separate from initializer inspection. |
-| [SettingsView](../../Where/WhereUI/Sources/Settings/SettingsView.swift) owns both objects, and [DataSettingsView](../../Where/WhereUI/Sources/Settings/DataSettingsView.swift) owns the share sheet. The [backup coordinator](../../Where/WhereCore/Sources/Backup/BackupCoordinator.swift) awaits a store read and detached archive encoding before recording the archive directory. | The destination owns export UI. Overlapping submissions must account for coordinator reentrancy and archive ownership after dismissal. |
+| [SettingsView](../../Where/WhereUI/Sources/Settings/SettingsView.swift) owns both objects, and [DataSettingsView](../../Where/WhereUI/Sources/Settings/DataSettingsView.swift) owns the share sheet. The [backup coordinator](../../Where/WhereCore/Sources/Backup/BackupCoordinator.swift) awaits a store read and detached archive encoding before recording the archive directory. | Tie the request to the Data view and reclaim an archive produced after cancellation. |
 | [RemindersSettingsModel](../../Where/WhereUI/Sources/Settings/RemindersSettingsModel.swift) persists values before starting independent tasks. [WhereSession](../../Where/WhereUI/Sources/Model/WhereSession.swift) applies the same families at launch and foreground entry. | The saved choice is authoritative across presentations. Keep accepted scheduling work independent of the view and verify ordering with a held operation. |
 | [YearReportModel](../../Where/WhereUI/Sources/Model/YearReportModel.swift) creates Elsewhere. The tab, detail, and gallery use its shared projection. | Keep the cache shared. The narrower lifetime would trade that reuse for unmeasured allocation savings. |
 | [PlannedStaysModel](../../Where/WhereUI/Sources/Forecasting/PlannedStaysModel.swift) loads Home picker data for the planner and stores a model as its sheet item. [PlannedStayEditor](../../Where/WhereUI/Sources/Forecasting/PlannedStayEditor.swift) also reads tracked regions outside its picker. [PrivacyDiagnosticsSettingsView](../../Where/WhereUI/Sources/Settings/PrivacyDiagnosticsSettingsView.swift) binds its confirmation to the process reporting model. | Scope the Home instance separately, retain editor-owned tracked-region data, and separate confirmation UI from process policy. |

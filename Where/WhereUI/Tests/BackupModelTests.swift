@@ -66,7 +66,7 @@ struct BackupModelTests {
         #expect(!backup.isShowingBackupError)
     }
 
-    @Test func canceledPresentationDetachesBeforeTheAcceptedExportFinishes() async throws {
+    @Test func reopeningCanExportBeforeTheCanceledReadReturns() async throws {
         let store = try TestStore()
         let services = WhereServices(store: store, locationSource: ScriptedLocationSource())
         let gate = TestStore.OperationGate()
@@ -76,25 +76,35 @@ struct BackupModelTests {
         await gate.waitUntilReached()
         dismissed.cancel()
 
+        let reopened = BackupModel(services: services)
+        var retryFinished = false
+        let retry = Task {
+            let url = await reopened.exportBackup()
+            retryFinished = true
+            return url
+        }
         do {
-            try await waitForAsync { first.backupState == .idle }
+            try await waitForAsync { retryFinished }
         } catch {
+            retry.cancel()
             await gate.release()
+            _ = await dismissed.value
+            _ = await retry.value
+            await services.backup.discardExport()
             throw error
         }
-        #expect(await dismissed.value == nil)
-        #expect(first.backupError == nil)
-
-        let reopened = BackupModel(services: services)
-        let queued = Task { await reopened.exportBackup() }
         await gate.release()
-        let url = try #require(await queued.value)
+        let url = try #require(await retry.value)
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+        #expect(await dismissed.value == nil)
+        #expect(first.backupState == .idle)
+        #expect(first.backupError == nil)
         _ = try BackupService().readArchive(at: url)
-        #expect(await store.exportSampleReadCount == 2)
+        await services.backup.discardExport()
+        #expect(!FileManager.default.fileExists(atPath: url.path))
     }
 
-    @Test func leavingDataKeepsALateArchiveFromPresentingOnAlerts() async throws {
+    @Test func leavingDataAllowsExportAfterReopening() async throws {
         let store = try TestStore()
         let services = WhereServices(store: store, locationSource: ScriptedLocationSource())
         let preferences = WherePreferences(store: InMemoryKeyValueStore())
@@ -123,18 +133,18 @@ struct BackupModelTests {
                     HostedAccessibility.objects(in: controller.view)
                         .contains { $0.accessibilityLabel == reminder }
                 }
-                await gate.release()
-                // The second coordinator request joins the previous archive before it starts.
-                let archive = try await services.backup.exportBackup()
-                defer {
-                    try? FileManager.default.removeItem(at: archive.deletingLastPathComponent())
-                }
                 #expect(controller.presentedViewController == nil)
+                await gate.release()
 
                 navigation.selectedRoute = SettingsRoute(.data)
                 try await activateExport(in: controller.view)
-                try await waitForAsync { controller.presentedViewController != nil }
-                controller.dismiss(animated: false)
+                try await waitForAsync {
+                    guard let sheet = controller.presentedViewController else { return false }
+                    return sheet.viewIfLoaded?.window != nil && !sheet.isBeingPresented
+                }
+                await withCheckedContinuation { (dismissed: CheckedContinuation<Void, Never>) in
+                    controller.dismiss(animated: false) { dismissed.resume() }
+                }
                 await services.backup.discardExport()
             }
         } catch {
@@ -142,28 +152,6 @@ struct BackupModelTests {
             await services.backup.discardExport()
             throw error
         }
-    }
-
-    @Test func theNextExportReclaimsTheFirstAndSkipsACanceledRequest() async throws {
-        let store = try TestStore()
-        let services = WhereServices(store: store, locationSource: ScriptedLocationSource())
-        let coordinator = services.backup
-        let gate = TestStore.OperationGate()
-        await store.gateNextExportRead(with: gate)
-        let first = await coordinator.startExportInTest()
-        await gate.waitUntilReached()
-        let canceled = await coordinator.startExportInTest()
-        canceled.cancel()
-        let next = await coordinator.startExportInTest()
-        await gate.release()
-
-        let firstURL = try await first.value
-        let nextURL = try await next.value
-        defer { try? FileManager.default.removeItem(at: nextURL.deletingLastPathComponent()) }
-        await #expect(throws: CancellationError.self) { try await canceled.value }
-        #expect(!FileManager.default.fileExists(atPath: firstURL.path))
-        _ = try BackupService().readArchive(at: nextURL)
-        #expect(await store.exportSampleReadCount == 2)
     }
 
     private func activateExport(in view: UIView) async throws {
@@ -180,10 +168,3 @@ struct BackupModelTests {
 }
 
 private struct CleanupFailure: Error {}
-
-extension BackupCoordinator {
-    /// Enter the coordinator before handing the test the task to cancel.
-    fileprivate func startExportInTest() -> Task<URL, any Error> {
-        Task.immediate { try await exportBackup() }
-    }
-}

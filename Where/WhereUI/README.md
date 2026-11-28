@@ -279,7 +279,7 @@ The reusable panes also support iPad layouts. There is no HomeView target.
 
 `DataSettingsView` owns the backup share sheet and error alert outside its `Form` sections.
 `BackupSettingsSection` shows export progress and forwards the export action to that screen.
-The backup coordinator serializes accepted exports for the scope, including requests after navigation.
+Leaving Data Settings cancels its export request. Reopening Data lets the user export again.
 The session applies saved notification choices in order per notification family, independently of the Alerts destination.
 The Home picker owns its search and selection state. A stay editor owns its draft for one sheet,
 including nested navigation and layout changes. Privacy & Diagnostics owns its personal-data
