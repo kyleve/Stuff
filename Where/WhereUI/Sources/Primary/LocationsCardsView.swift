@@ -173,7 +173,7 @@ struct LocationsCardsView: View {
 
     private func estimatedDays(for region: Region) -> DayBounds? {
         guard report.showsEstimatedTimeAndPlanning else { return nil }
-        return report.forecasts.forecast(for: region, report: report.report)?.estimatedTotalDays
+        return report.primaryRegionForecast(for: region)?.estimatedTotalDays
     }
 }
 

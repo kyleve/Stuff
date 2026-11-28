@@ -143,7 +143,7 @@ private struct EstimatedTimeFeaturesContent: View {
     }
 
     private var forecasts: [LocationForecast] {
-        report.forecasts.leadingForecasts(report: report.report)
+        report.primaryRegionForecasts
     }
 
     private func explanation(

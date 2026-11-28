@@ -32,6 +32,42 @@ struct YearReportModelTests {
         #expect(model.hasElsewhere)
     }
 
+    @Test func estimateRowsFollowSavedRegionsWhileEveryStayCountsTowardTimeAway() async throws {
+        let model = try PlanningTestSupport.report(store: SwiftDataStore.inMemory())
+        let today = PlanningTestSupport.today
+        let home = PrimaryRegion(region: .california, appearance: nil, order: 0)
+        try await model.services.setPrimaryRegions([home])
+        try await model.forecasts.setHomeRegion(.california)
+        try await model.services.journal.addManualDay(
+            date: PlanningTestSupport.now,
+            regions: [.newYork],
+            audit: nil,
+        )
+        let stay = try PlanningTestSupport.stay(
+            region: .ontario,
+            from: today.adding(days: 1),
+            through: today.adding(days: 3),
+        )
+        try await model.forecasts.create(stay: stay)
+        await model.refresh()
+        await model.forecasts.refresh()
+
+        let daysAtHome = today.adding(days: 4).days(through: .lastDay(ofYear: today.year)).count
+        let forecasts = model.primaryRegionForecasts
+        #expect(forecasts.map(\.region) == [.california])
+        #expect(forecasts.first?.estimatedTotalDays == DayBounds(exact: daysAtHome))
+        #expect(model.primaryRegionForecast(for: .ontario) == nil)
+
+        try await model.services.setPrimaryRegions([
+            home,
+            PrimaryRegion(region: .ontario, appearance: nil, order: 1),
+        ])
+        await model.refresh()
+        let updated = model.primaryRegionForecasts
+        #expect(updated.map(\.region) == [.california, .ontario])
+        #expect(updated.last?.estimatedTotalDays == DayBounds(exact: 3))
+    }
+
     @Test func olderSameYearReadCannotUndoNewCoordinates() async throws {
         let store = try TestStore()
         let services = PlanningModelTestSupport.services(store: store)
@@ -223,7 +259,7 @@ struct YearReportModelTests {
         #expect(model.selectableYears == Array((2021 ... 2028).reversed()))
 
         await model.select(year: 2028)
-        #expect(model.forecasts.leadingForecasts(report: model.report).isEmpty)
+        #expect(model.primaryRegionForecasts.isEmpty)
         #expect(model.forecasts.plannedIntervals(intersecting: 2028).count == 1)
         try await model.setEstimatedTimeAndPlanningEnabled(false)
         #expect(model.selectableYears.contains(2028))

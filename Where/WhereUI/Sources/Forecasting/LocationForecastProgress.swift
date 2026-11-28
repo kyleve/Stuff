@@ -83,7 +83,7 @@ struct LocationForecastProgress: View {
 #if DEBUG
     #Preview {
         let report = PreviewSupport.loadedYearReportModel()
-        if let forecast = report.forecasts.leadingForecasts(report: report.report).first {
+        if let forecast = report.primaryRegionForecasts.first {
             LocationForecastProgress(forecast: forecast, tint: .orange)
                 .padding()
                 .whereBroadwayRoot()

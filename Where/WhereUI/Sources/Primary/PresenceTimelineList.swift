@@ -82,7 +82,7 @@ struct PresenceTimelineList: View {
             )
             : []
         let forecasts = presentation == .full && report.showsEstimatedTimeAndPlanning
-            ? report.forecasts.leadingForecasts(report: yearReport) : []
+            ? report.primaryRegionForecasts : []
         let items = PresenceTimelineRows.Item.ordered(
             recorded: recordedItems,
             planned: plannedItems,
