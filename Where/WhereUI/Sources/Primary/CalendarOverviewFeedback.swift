@@ -1,9 +1,10 @@
+import BroadwayCore
 import SwiftUI
 
 /// Rejected month activation stays actionable so touch and VoiceOver receive feedback.
 struct CalendarOverviewFeedback: ViewModifier {
     let rejected: Bool
-    let trigger: Int
+    let trigger: EventTrigger
     @Environment(\.stylesheet) private var stylesheet
 
     func body(content: Content) -> some View {

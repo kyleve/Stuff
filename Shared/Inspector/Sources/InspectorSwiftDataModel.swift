@@ -1,3 +1,4 @@
+import BroadwayCore
 import Foundation
 import Observation
 import SwiftData
@@ -12,7 +13,7 @@ final class InspectorSwiftDataModel {
     /// The store's entities, populated by `loadEntities()`. Empty until then.
     private(set) var entities: [InspectorEntity] = []
     private(set) var operationError: String?
-    private(set) var mutationGeneration = 0
+    private(set) var mutationTrigger = EventTrigger()
     let canEraseStore: Bool
 
     private let displayTitle: String
@@ -98,7 +99,7 @@ final class InspectorSwiftDataModel {
         do {
             try await reader.deleteRow(id: rowID, entityType: entity.type)
             operationError = nil
-            mutationGeneration += 1
+            mutationTrigger.fire()
             await loadEntities()
             return true
         } catch is CancellationError {
@@ -113,7 +114,7 @@ final class InspectorSwiftDataModel {
         do {
             try await reader.deleteAllRows(of: entity.type)
             operationError = nil
-            mutationGeneration += 1
+            mutationTrigger.fire()
             await loadEntities()
             return true
         } catch is CancellationError {
@@ -128,7 +129,7 @@ final class InspectorSwiftDataModel {
         do {
             _ = try await reader.eraseAndReopen()
             operationError = nil
-            mutationGeneration += 1
+            mutationTrigger.fire()
             await loadEntities()
             return true
         } catch is CancellationError {

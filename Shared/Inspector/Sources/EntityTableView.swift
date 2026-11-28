@@ -55,7 +55,7 @@ struct EntityTableView: View {
             }
         }
         .refreshable { await load() }
-        .onChange(of: model.mutationGeneration) {
+        .onChange(of: model.mutationTrigger) {
             Task { await load() }
         }
         .navigationDestination(item: $selectedRow) { row in

@@ -1,3 +1,4 @@
+import BroadwayCore
 import Foundation
 
 /// Tracks the latest nonempty set of canvas previews whose real content must
@@ -7,7 +8,7 @@ final class FlyoverPreviewReadiness<ScreenID: Hashable> {
     struct LoadKey: Hashable {
         let screenID: ScreenID
         let variantID: FlyoverVariantID
-        let generation: Int
+        let resetTrigger: EventTrigger
     }
 
     private(set) var expectedKeys: Set<LoadKey>?

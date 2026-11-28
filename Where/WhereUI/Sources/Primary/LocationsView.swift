@@ -1,3 +1,4 @@
+import BroadwayCore
 import BroadwayUI
 import Observation
 import PeriscopeCore
@@ -40,11 +41,7 @@ struct LocationsView: View {
 
     /// Each opening has a distinct ID because an earlier opening may still be animating.
     struct CalendarSelection: Identifiable, Hashable {
-        struct ID: Hashable {
-            private let value = UUID()
-        }
-
-        let id = ID()
+        let id: PresentationID<CalendarSelection>
         let region: Region
     }
 
@@ -55,7 +52,7 @@ struct LocationsView: View {
         private var presentations: [CalendarSelection.ID: CalendarPresentationState] = [:]
 
         func select(region: Region, presentation: CalendarPresentationState) {
-            let selection = CalendarSelection(region: region)
+            let selection = CalendarSelection(id: PresentationID(), region: region)
             presentations[selection.id] = presentation
             selected = selection
         }

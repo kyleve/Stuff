@@ -1,3 +1,4 @@
+import BroadwayCore
 import BroadwayUI
 import SFSafeSymbols
 import SnapshotKit
@@ -13,7 +14,7 @@ struct AppIconView: View {
     @State private var model: AppIconModel
     @State private var preview: AppIconOption?
     @State private var previewMode: ColorScheme = .light
-    @State private var appearanceToggles = 0
+    @State private var appearanceToggleTrigger = EventTrigger()
     @State private var dragOffset: CGFloat = 0
     // Seeds user-editable preview state at selection time; that state is not a slice input.
     @Environment(\.colorScheme) private var colorScheme
@@ -71,7 +72,7 @@ struct AppIconView: View {
         .sensoryFeedback(trigger: preview) { _, new in
             new == nil ? nil : .impact(weight: .light)
         }
-        .sensoryFeedback(.selection, trigger: appearanceToggles)
+        .sensoryFeedback(.selection, trigger: appearanceToggleTrigger)
         .sensoryFeedback(.success, trigger: model.selectedID)
         .alert(String(localized: .appIconErrorTitle), isPresented: $model.isShowingError) {
             Button(String(localized: .commonOk), role: .cancel) {}
@@ -215,11 +216,14 @@ struct AppIconView: View {
 
     /// The tappable preview icon. Tapping toggles light/dark, which crossfades
     /// the art and background while this plays a quick scale-down-then-bounce.
-    /// Keyed off `appearanceToggles` so the bounce only fires on a real tap, not
+    /// Keyed off `appearanceToggleTrigger` so the bounce only fires on a real tap, not
     /// when the panel first opens.
     private func previewIcon(for option: AppIconOption, size: CGFloat) -> some View {
         AppIconImage(name: option.previewImageName, size: size)
-            .keyframeAnimator(initialValue: 1.0, trigger: appearanceToggles) { content, scale in
+            .keyframeAnimator(
+                initialValue: 1.0,
+                trigger: appearanceToggleTrigger,
+            ) { content, scale in
                 content.scaleEffect(scale)
             } keyframes: { _ in
                 KeyframeTrack {
@@ -261,7 +265,7 @@ struct AppIconView: View {
     }
 
     private func toggleAppearance() {
-        appearanceToggles += 1
+        appearanceToggleTrigger.fire()
         withAnimation(.easeInOut(duration: 0.3)) {
             previewMode = previewMode == .dark ? .light : .dark
         }

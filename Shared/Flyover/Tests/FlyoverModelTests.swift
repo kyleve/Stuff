@@ -32,10 +32,11 @@ struct FlyoverModelTests {
         let state = model.state(for: screen)
         state.variantID = FlyoverVariantID("second")
 
+        let beforeReset = state.resetTrigger
         model.reset(screen)
 
         #expect(state.variantID == FlyoverVariantID("first"))
-        #expect(state.generation == 1)
+        #expect(state.resetTrigger != beforeReset)
         #expect(resetCount == 1)
     }
 

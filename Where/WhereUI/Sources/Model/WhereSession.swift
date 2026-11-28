@@ -1,3 +1,4 @@
+import BroadwayCore
 import Foundation
 import Observation
 import PeriscopeCore
@@ -160,7 +161,7 @@ public final class WhereSession: WhereShutdownable {
     @ObservationIgnored private var notificationConfigurationTasks: [
         NotificationConfiguration: Task<Void, Never>
     ] = [:]
-    private(set) var notificationConfigurationRevision: UInt64 = 0
+    private(set) var notificationConfigurationTrigger = EventTrigger()
 
     /// Whether this session has performed its explicit, idempotent registration operation.
     private var didRegisterRecordingDevice = false
@@ -587,7 +588,7 @@ public final class WhereSession: WhereShutdownable {
                 case .issueAlert: await reconcileIssueAlertConfiguration()
             }
             guard !isRetiring else { return }
-            notificationConfigurationRevision &+= 1
+            notificationConfigurationTrigger.fire()
         }
         notificationConfigurationTasks[configuration] = task
         return task

@@ -1,4 +1,5 @@
 #if DEBUG
+    import BroadwayCore
     import Observation
 
     /// View-owned controls. Changing a layout keeps the demo world; Reset replaces it.
@@ -9,11 +10,11 @@
 
         struct LoadID: Hashable {
             let model: ObjectIdentifier
-            let request: Int
+            let retryTrigger: EventTrigger
         }
 
         var loadID: LoadID {
-            LoadID(model: ObjectIdentifier(model), request: model.request)
+            LoadID(model: ObjectIdentifier(model), retryTrigger: model.retryTrigger)
         }
 
         init(

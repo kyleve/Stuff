@@ -25,6 +25,7 @@ struct LocationCardsReconciliationModifier: ViewModifier {
     }
 
     func body(content: Content) -> some View {
+        let releasedID = presentation.lastReleasedOvertakeID
         content
             .onChange(of: motion, initial: true) { _, motion in
                 releaseMotion = motion
@@ -53,8 +54,8 @@ struct LocationCardsReconciliationModifier: ViewModifier {
             // Reconciliation IDs change when a newer report restarts the
             // 500 ms gate. Keep completion on the released event's own key so
             // that cancellation cannot strand or replace its active frames.
-            .task(id: presentation.overtakeTrigger) {
-                await finishReleasedOvertake(trigger: presentation.overtakeTrigger)
+            .task(id: releasedID) {
+                await finishReleasedOvertake(id: releasedID)
             }
             .sensoryFeedback(
                 .impact(weight: .light),
@@ -71,14 +72,14 @@ struct LocationCardsReconciliationModifier: ViewModifier {
             overtakeMotion: overtakeMotion,
         )
         if let event, overtakeMotion.usesSpatialMotion == false {
-            finishOvertake(sequence: event.sequence)
+            finishOvertake(id: event.id)
         }
     }
 
-    private func finishReleasedOvertake(trigger: Int) async {
-        guard trigger > 0,
+    private func finishReleasedOvertake(id: LocationCardsPresentationModel.OvertakeID?) async {
+        guard let id,
               let movement = presentation.overtakeMovement,
-              movement.sequence == trigger,
+              movement.id == id,
               let releasedMotion = movement.releasedMotion
         else { return }
         do {
@@ -92,7 +93,7 @@ struct LocationCardsReconciliationModifier: ViewModifier {
             assertionFailure("Unexpected Location-card overtake wait failure: \(error)")
             return
         }
-        finishOvertake(sequence: trigger)
+        finishOvertake(id: id)
     }
 
     func waitForReleasedOvertakeToFinish() async throws {
@@ -109,11 +110,11 @@ struct LocationCardsReconciliationModifier: ViewModifier {
         try Task.checkCancellation()
     }
 
-    private func finishOvertake(sequence: Int) {
+    private func finishOvertake(id: LocationCardsPresentationModel.OvertakeID) {
         var transaction = Transaction(animation: nil)
         transaction.disablesAnimations = true
         withTransaction(transaction) {
-            presentation.finishOvertakeMovement(sequence: sequence)
+            presentation.finishOvertakeMovement(id: id)
         }
     }
 }

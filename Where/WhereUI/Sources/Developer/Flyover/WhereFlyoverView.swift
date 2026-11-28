@@ -25,7 +25,7 @@ import SFSafeSymbols
                         }
                 }
             }
-            .task(id: loader.request) {
+            .task(id: loader.retryTrigger) {
                 await loader.load()
             }
         }

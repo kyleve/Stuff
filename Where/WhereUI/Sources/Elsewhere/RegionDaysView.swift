@@ -1,3 +1,4 @@
+import BroadwayCore
 import RegionKit
 import SFSafeSymbols
 import SnapshotKit
@@ -10,11 +11,11 @@ struct RegionDaysView: View {
     let region: Region
     let report: YearReportModel
     let model: ElsewhereModel
-    @State private var retrySequence = 0
+    @State private var retryTrigger = EventTrigger()
 
     private struct Request: Hashable {
         let input: ElsewhereInput?
-        let retrySequence: Int
+        let retryTrigger: EventTrigger
     }
 
     init(region: Region, report: YearReportModel, model: ElsewhereModel? = nil) {
@@ -48,7 +49,7 @@ struct RegionDaysView: View {
         content
             .navigationTitle(region.localizedName)
             .navigationBarTitleDisplayMode(.inline)
-            .task(id: Request(input: report.elsewhereInput, retrySequence: retrySequence)) {
+            .task(id: Request(input: report.elsewhereInput, retryTrigger: retryTrigger)) {
                 if case .failed = report.loadState {
                     await report.refresh()
                 }
@@ -118,7 +119,7 @@ struct RegionDaysView: View {
     }
 
     private var retryButton: some View {
-        Button(String(localized: .commonRetry)) { retrySequence += 1 }
+        Button(String(localized: .commonRetry)) { retryTrigger.fire() }
     }
 }
 

@@ -1,3 +1,4 @@
+import BroadwayCore
 import Foundation
 import Observation
 import WhereCore
@@ -148,15 +149,15 @@ public final class RemindersSettingsModel {
         issueAlertsEnabledStorage = preferences.issueAlertsEnabled
     }
 
-    var authorizationRefreshID: UInt64 {
-        session.notificationConfigurationRevision
+    var authorizationRefreshTrigger: EventTrigger {
+        session.notificationConfigurationTrigger
     }
 
     /// Refresh upon entry and when the session finishes applying a choice.
     public func refreshNotificationAuthorization() async {
-        let requestedRevision = authorizationRefreshID
+        let requestedRevision = authorizationRefreshTrigger
         let authorized = await session.services.reminders.isAuthorized()
-        guard !Task.isCancelled, requestedRevision == authorizationRefreshID else { return }
+        guard !Task.isCancelled, requestedRevision == authorizationRefreshTrigger else { return }
         notificationsAuthorized = authorized
     }
 }

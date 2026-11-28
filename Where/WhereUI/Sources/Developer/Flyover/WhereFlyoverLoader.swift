@@ -1,4 +1,5 @@
 #if DEBUG
+    import BroadwayCore
     import Flyover
     import Observation
 
@@ -14,7 +15,7 @@
         }
 
         private(set) var state = LoadState.idle
-        private(set) var request = 0
+        private(set) var retryTrigger = EventTrigger()
 
         func load() async {
             guard case .idle = state else {
@@ -33,7 +34,7 @@
 
         func retry() {
             state = .idle
-            request += 1
+            retryTrigger.fire()
         }
     }
 #endif
