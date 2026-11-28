@@ -32,7 +32,7 @@ struct ShareEvidenceView: View {
                         ProgressView(String(localized: .shareLoading))
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                     case .composing, .saving, .failed:
-                        form
+                        ShareEvidenceForm(model: model)
                 }
             }
             .animation(.default, value: model.phase)
@@ -43,14 +43,7 @@ struct ShareEvidenceView: View {
                     Button(.shareCancel) { onCancel() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(.shareSave) {
-                        Task {
-                            if await model.save() {
-                                onSave()
-                            }
-                        }
-                    }
-                    .disabled(model.isSaving || model.phase == .loading)
+                    ShareEvidenceSaveButton(model: model, onSave: onSave)
                 }
             }
             .alert(
@@ -65,65 +58,122 @@ struct ShareEvidenceView: View {
         }
         .task { await model.loadAttachments() }
     }
+}
 
-    private var form: some View {
-        @Bindable var model = model
+private struct ShareEvidenceSaveButton: View {
+    let model: ShareEvidenceModel
+    let onSave: () -> Void
 
-        return Form {
-            attachmentSection
-            Section {
-                Picker(String(localized: .shareFormKind), selection: $model.kind) {
-                    ForEach(EvidenceKind.knownCases, id: \.self) { kind in
-                        Label(kind.displayName, systemSymbol: kind.symbol).tag(kind)
-                    }
+    var body: some View {
+        Button(.shareSave) {
+            Task {
+                if await model.save() {
+                    onSave()
                 }
-                if case .other = model.kind {
-                    TextField(String(localized: .shareFormOtherLabel), text: $model.otherLabel)
-                }
-                DatePicker(String(localized: .shareFormDate), selection: $model.capturedAt)
-            }
-            Section {
-                TextField(
-                    String(localized: .shareFormNotePlaceholder),
-                    text: $model.note,
-                    axis: .vertical,
-                )
-                .lineLimit(3, reservesSpace: true)
-            } header: {
-                Text(.shareFormNoteHeader)
             }
         }
+        .disabled(model.isSaving || model.phase == .loading)
     }
+}
 
-    private var attachmentSection: some View {
+private struct ShareEvidenceForm: View {
+    @Bindable var model: ShareEvidenceModel
+
+    var body: some View {
+        Form {
+            ShareAttachmentSection(attachments: model.attachments)
+            ShareEvidenceDetailsSection(model: model)
+            ShareEvidenceNoteSection(note: $model.note)
+        }
+    }
+}
+
+private struct ShareAttachmentSection: View {
+    let attachments: [SharedAttachment]
+
+    var body: some View {
         Section {
-            if model.attachments.isEmpty {
+            if attachments.isEmpty {
                 Text(.shareAttachmentNone)
                     .foregroundStyle(.secondary)
             } else {
-                ForEach(Array(model.attachments.enumerated()), id: \.offset) { _, attachment in
-                    attachmentRow(attachment)
+                ForEach(Array(attachments.enumerated()), id: \.offset) { _, attachment in
+                    ShareAttachmentRow(attachment: attachment)
                 }
             }
         } header: {
-            Text(model.attachments
-                .count > 1 ? .shareAttachmentHeaderPlural : .shareAttachmentHeader)
+            Text(attachments.count > 1 ? .shareAttachmentHeaderPlural : .shareAttachmentHeader)
         }
     }
+}
 
-    private func attachmentRow(_ attachment: SharedAttachment) -> some View {
+private struct ShareAttachmentRow: View {
+    let attachment: SharedAttachment
+
+    var body: some View {
         HStack {
-            Label(
-                attachment.filename ?? String(localized: .shareAttachmentFallbackName),
-                systemSymbol: .paperclip,
-            )
-            .lineLimit(1)
-            .truncationMode(.middle)
+            ShareAttachmentName(filename: attachment.filename)
             Spacer(minLength: 12)
             Text(attachment.data.count.formatted(.byteCount(style: .file)))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
+        }
+    }
+}
+
+private struct ShareAttachmentName: View {
+    let filename: String?
+
+    var body: some View {
+        Label(
+            filename ?? String(localized: .shareAttachmentFallbackName),
+            systemSymbol: .paperclip,
+        )
+        .lineLimit(1)
+        .truncationMode(.middle)
+    }
+}
+
+private struct ShareEvidenceDetailsSection: View {
+    @Bindable var model: ShareEvidenceModel
+
+    var body: some View {
+        Section {
+            ShareEvidenceKindPicker(kind: $model.kind)
+            if case .other = model.kind {
+                TextField(String(localized: .shareFormOtherLabel), text: $model.otherLabel)
+            }
+            DatePicker(String(localized: .shareFormDate), selection: $model.capturedAt)
+        }
+    }
+}
+
+private struct ShareEvidenceKindPicker: View {
+    @Binding var kind: EvidenceKind
+
+    var body: some View {
+        Picker(String(localized: .shareFormKind), selection: $kind) {
+            ForEach(EvidenceKind.knownCases, id: \.self) { kind in
+                Label(kind.displayName, systemSymbol: kind.symbol).tag(kind)
+            }
+        }
+    }
+}
+
+private struct ShareEvidenceNoteSection: View {
+    @Binding var note: String
+
+    var body: some View {
+        Section {
+            TextField(
+                String(localized: .shareFormNotePlaceholder),
+                text: $note,
+                axis: .vertical,
+            )
+            .lineLimit(3, reservesSpace: true)
+        } header: {
+            Text(.shareFormNoteHeader)
         }
     }
 }
