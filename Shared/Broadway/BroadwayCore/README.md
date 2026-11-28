@@ -41,3 +41,9 @@ The cache is `@EquatableIgnored`, so two contexts compare equal on their inputs,
 Local SPM library declared in the root [`Package.swift`](../../../Package.swift).
 Depend on it with `.package(product: "BroadwayCore")`.
 Run tests with `./test BroadwayCoreTests`.
+
+## Presentation identity and repeatable actions
+
+Create a stored `PresentationID<Owner>()` when opening an editor or starting an animation. Keep that ID through updates and pass it to callbacks that finish the run. Reopening the same item gets a fresh ID.
+
+Store an `EventTrigger` when repeating an action should change a SwiftUI feedback, animation, or task key. Call `fire()` at the action and pass the value to the consumer. Observers can coalesce changes between view updates. Use a stream or queue when each occurrence requires delivery.
