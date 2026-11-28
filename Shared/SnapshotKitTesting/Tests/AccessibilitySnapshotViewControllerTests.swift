@@ -170,17 +170,23 @@ private struct CenteredAccessibilityFixture: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                Button {} label: {
-                    Color.black.frame(width: 300, height: 120)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Centered card")
-                .padding(16)
-                .frame(maxWidth: .infinity)
+                CenteredAccessibilityButton()
             }
             .defaultScrollAnchor(.center, for: .alignment)
             .background(.white)
             .navigationBarTitleDisplayMode(.inline)
         }
+    }
+}
+
+private struct CenteredAccessibilityButton: View {
+    var body: some View {
+        Button {} label: {
+            Color.black.frame(width: 300, height: 120)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Centered card")
+        .padding(16)
+        .frame(maxWidth: .infinity)
     }
 }

@@ -52,12 +52,7 @@ struct LargeViewCaptureTests {
     /// — full content height, both colors present at the extremes.
     @Test func capturesAScrollViewsFullContentUnderContentMeasuredSizing() async throws {
         try waitFor { hostKeyWindow() != nil }
-        let scroll = ScrollView {
-            VStack(spacing: 0) {
-                Color.red.frame(height: 1500)
-                Color.blue.frame(height: 1500)
-            }
-        }
+        let scroll = TwoToneScrollFixture(redHeight: 1500, blueHeight: 1500)
         let host = UIHostingController(rootView: scroll)
         host.view.frame = CGRect(x: 0, y: 0, width: 402, height: 1)
         let image = try await renderSnapshotImage(
@@ -78,18 +73,7 @@ struct LargeViewCaptureTests {
 
     @Test func capturesAFormsFullContentUnderContentMeasuredSizing() async throws {
         try waitFor { hostKeyWindow() != nil }
-        let form = Form {
-            Section {
-                ForEach(0 ..< 20, id: \.self) { _ in
-                    Color.red
-                        .frame(height: 80)
-                        .listRowInsets(EdgeInsets())
-                }
-                Color.blue
-                    .frame(height: 500)
-                    .listRowInsets(EdgeInsets())
-            }
-        }
+        let form = FullContentFormFixture()
         let host = UIHostingController(rootView: form)
         host.view.frame = CGRect(x: 0, y: 0, width: 402, height: 1)
         let image = try await renderSnapshotImage(
@@ -110,13 +94,8 @@ struct LargeViewCaptureTests {
 
     @Test func keepsAShortBoundedScrollViewAtItsIntrinsicHeight() async throws {
         try waitFor { hostKeyWindow() != nil }
-        let scroll = ScrollView {
-            VStack(spacing: 0) {
-                Color.red.frame(height: 100)
-                Color.blue.frame(height: 140)
-            }
-        }
-        .frame(height: 240)
+        let scroll = TwoToneScrollFixture(redHeight: 100, blueHeight: 140)
+            .frame(height: 240)
         let host = UIHostingController(rootView: scroll)
         let image = try await renderSnapshotImage(
             of: host,
@@ -133,12 +112,10 @@ struct LargeViewCaptureTests {
     @Test(arguments: [false, true])
     func restoredScrollOffsetsApplyOnlyToViewportCaptures(fullContent: Bool) async throws {
         try waitFor { hostKeyWindow() != nil }
-        let host = UIHostingController(rootView: ScrollView {
-            VStack(spacing: 0) {
-                Color.red.frame(height: 100)
-                Color.blue.frame(height: 2900)
-            }
-        })
+        let host = UIHostingController(rootView: TwoToneScrollFixture(
+            redHeight: 100,
+            blueHeight: 2900,
+        ))
         host.view.frame = CGRect(x: 0, y: 0, width: 402, height: 874)
         let image = try await renderSnapshotImage(
             of: host,
@@ -196,19 +173,7 @@ struct LargeViewCaptureTests {
 
     @Test func capturesASpatialScrollViewsFullContentAlongBothAxes() async throws {
         try waitFor { hostKeyWindow() != nil }
-        let canvas = ScrollView([.horizontal, .vertical]) {
-            Grid(horizontalSpacing: 0, verticalSpacing: 0) {
-                GridRow {
-                    Color.red
-                    Color.green
-                }
-                GridRow {
-                    Color.blue
-                    Color.yellow
-                }
-            }
-            .frame(width: 2400, height: 2200)
-        }
+        let canvas = SpatialScrollFixture()
         let host = UIHostingController(rootView: canvas)
         host.view.frame = CGRect(x: 0, y: 0, width: 834, height: 1194)
         let image = try await renderSnapshotImage(
@@ -267,27 +232,7 @@ struct LargeViewCaptureTests {
 
     @Test func preservesChromeAroundFullContentScrollingContent() async throws {
         try waitFor { hostKeyWindow() != nil }
-        let screen = NavigationStack {
-            ScrollView {
-                VStack(spacing: 0) {
-                    Color.red.frame(height: 1500)
-                    Color.blue.frame(height: 1500)
-                }
-            }
-            .safeAreaInset(edge: .bottom) {
-                Color.green
-                    .frame(height: 50)
-                    .accessibilityLabel("Bottom toolbar")
-            }
-            .navigationTitle("Full Content")
-            .toolbarBackground(Color.yellow, for: .navigationBar)
-            .toolbarBackground(.visible, for: .navigationBar)
-            .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    Button("Add", systemSymbol: .plus, action: {})
-                }
-            }
-        }
+        let screen = FullContentNavigationFixture()
         let host = UIHostingController(rootView: screen)
         host.view.frame = CGRect(x: 0, y: 0, width: 402, height: 1)
         let image = try await renderSnapshotImage(
@@ -353,13 +298,7 @@ struct LargeViewCaptureTests {
 
     @Test func rejectsNonConvergingBoundedScrollMeasurement() async throws {
         try waitFor { hostKeyWindow() != nil }
-        let screen = VStack(spacing: 0) {
-            Color.red.frame(height: 100)
-            List(0 ..< 20, id: \.self) { index in
-                Text("Bounded row \(index)")
-            }
-            .frame(height: 200)
-        }
+        let screen = NonConvergingListFixture()
         let host = UIHostingController(rootView: screen)
         host.view.frame = CGRect(x: 0, y: 0, width: 402, height: 1)
 
@@ -386,16 +325,7 @@ struct LargeViewCaptureTests {
 
     @Test func searchableFullContentUsesTheCaptureWindowAndRetainsEveryRow() async throws {
         try waitFor { hostKeyWindow() != nil }
-        let screen = NavigationStack {
-            List {
-                ForEach(0 ..< 20, id: \.self) { _ in
-                    Color.red.frame(height: 100).listRowInsets(EdgeInsets())
-                }
-                Color.blue.frame(height: 500).listRowInsets(EdgeInsets())
-            }
-            .searchable(text: .constant(""))
-            .navigationTitle("Searchable history")
-        }
+        let screen = SearchableHistoryFixture()
         let host = UIHostingController(rootView: screen)
         host.traitOverrides.horizontalSizeClass = .compact
         host.traitOverrides.verticalSizeClass = .regular
@@ -444,14 +374,7 @@ struct LargeViewCaptureTests {
 
     @Test func annotatesTallFullContentAccessibilitySnapshots() async throws {
         try waitFor { hostKeyWindow() != nil }
-        let screen = ScrollView {
-            VStack {
-                ForEach(0 ..< 30, id: \.self) { index in
-                    Text("Accessible row \(index)")
-                        .frame(maxWidth: .infinity, minHeight: 100)
-                }
-            }
-        }
+        let screen = TallAccessibilityFixture()
         let host = UIHostingController(rootView: screen)
         host.view.frame = CGRect(x: 0, y: 0, width: 402, height: 1)
         let image = try await renderSnapshotImage(
@@ -485,6 +408,116 @@ struct LargeViewCaptureTests {
             bottom: image.probePixel(atUnitPoint: CGPoint(x: 0.5, y: 0.9)),
             size: image.size,
         )
+    }
+}
+
+private struct TwoToneScrollFixture: View {
+    let redHeight: CGFloat
+    let blueHeight: CGFloat
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 0) {
+                Color.red.frame(height: redHeight)
+                Color.blue.frame(height: blueHeight)
+            }
+        }
+    }
+}
+
+private struct FullContentFormFixture: View {
+    var body: some View {
+        Form {
+            Section {
+                ForEach(0 ..< 20, id: \.self) { _ in
+                    Color.red
+                        .frame(height: 80)
+                        .listRowInsets(EdgeInsets())
+                }
+                Color.blue
+                    .frame(height: 500)
+                    .listRowInsets(EdgeInsets())
+            }
+        }
+    }
+}
+
+private struct SpatialScrollFixture: View {
+    var body: some View {
+        ScrollView([.horizontal, .vertical]) {
+            Grid(horizontalSpacing: 0, verticalSpacing: 0) {
+                GridRow {
+                    Color.red
+                    Color.green
+                }
+                GridRow {
+                    Color.blue
+                    Color.yellow
+                }
+            }
+            .frame(width: 2400, height: 2200)
+        }
+    }
+}
+
+private struct FullContentNavigationFixture: View {
+    var body: some View {
+        NavigationStack {
+            TwoToneScrollFixture(redHeight: 1500, blueHeight: 1500)
+                .safeAreaInset(edge: .bottom) {
+                    Color.green
+                        .frame(height: 50)
+                        .accessibilityLabel("Bottom toolbar")
+                }
+                .navigationTitle("Full Content")
+                .toolbarBackground(Color.yellow, for: .navigationBar)
+                .toolbarBackground(.visible, for: .navigationBar)
+                .toolbar {
+                    ToolbarItem(placement: .primaryAction) {
+                        Button("Add", systemSymbol: .plus, action: {})
+                    }
+                }
+        }
+    }
+}
+
+private struct NonConvergingListFixture: View {
+    var body: some View {
+        VStack(spacing: 0) {
+            Color.red.frame(height: 100)
+            List(0 ..< 20, id: \.self) { index in
+                Text("Bounded row \(index)")
+            }
+            .frame(height: 200)
+        }
+    }
+}
+
+private struct SearchableHistoryFixture: View {
+    var body: some View {
+        NavigationStack {
+            List {
+                ForEach(0 ..< 20, id: \.self) { _ in
+                    Color.red.frame(height: 100).listRowInsets(EdgeInsets())
+                }
+                Color.blue.frame(height: 500).listRowInsets(EdgeInsets())
+            }
+            .searchable(text: .constant(""))
+            .navigationTitle("Searchable history")
+        }
+    }
+}
+
+private struct TallAccessibilityFixture: View {
+    var body: some View {
+        ScrollView {
+            VStack {
+                ForEach(0 ..< 30, id: \.self) { index in
+                    Text("Accessible row \(index)")
+                        .frame(maxWidth: .infinity, minHeight: 100)
+                }
+            }
+        }
     }
 }
 
