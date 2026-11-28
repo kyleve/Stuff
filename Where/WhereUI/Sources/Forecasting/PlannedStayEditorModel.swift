@@ -134,7 +134,9 @@ final class PlannedStayEditorModel {
     }
 
     var isSaving: Bool {
-        if case .saving = saveState { return true }
+        if case .saving = saveState {
+            return true
+        }
         return false
     }
 
@@ -193,7 +195,9 @@ final class PlannedStayEditorModel {
     }
 
     func load() async {
-        if !report.forecasts.hasLoaded { await report.forecasts.refresh() }
+        if !report.forecasts.hasLoaded {
+            await report.forecasts.refresh()
+        }
         await regionSelection.load()
     }
 

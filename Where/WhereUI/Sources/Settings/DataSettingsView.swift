@@ -70,7 +70,9 @@ struct DataSettingsView: View {
             guard let request = exportRequest else { return }
             let archive = await backup.exportBackup()
             guard !Task.isCancelled, exportRequest == request else { return }
-            if let archive { presentedShareItem = BackupShareSheet.Item(url: archive) }
+            if let archive {
+                presentedShareItem = BackupShareSheet.Item(url: archive)
+            }
             exportRequest = nil
         }
         .onDisappear { exportRequest = nil }

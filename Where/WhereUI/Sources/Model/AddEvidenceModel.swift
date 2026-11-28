@@ -74,7 +74,9 @@ public final class AddEvidenceModel {
     /// The save error message, if the last save failed. Backing for the alert
     /// binding below.
     public var saveErrorMessage: String? {
-        if case let .failed(message) = saveState { return message }
+        if case let .failed(message) = saveState {
+            return message
+        }
         return nil
     }
 
@@ -83,14 +85,22 @@ public final class AddEvidenceModel {
     /// single source of truth (no closure-based `Binding`).
     public var isShowingSaveError: Bool {
         get { saveErrorMessage != nil }
-        set { if !newValue { saveState = .idle } }
+        set {
+            if !newValue {
+                saveState = .idle
+            }
+        }
     }
 
     /// Derived binding for the attachment-failure alert (see
     /// `isShowingSaveError`).
     public var isShowingAttachmentError: Bool {
         get { attachmentError != nil }
-        set { if !newValue { attachmentError = nil } }
+        set {
+            if !newValue {
+                attachmentError = nil
+            }
+        }
     }
 
     public func setAttachment(_ attachment: PickedAttachment) {

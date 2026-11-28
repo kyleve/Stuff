@@ -42,7 +42,9 @@ extension RegionAttributing {
     }
 
     public func distance(to region: Region, from coordinate: Coordinate) -> Double? {
-        if self.region(at: coordinate) == region { return 0 }
+        if self.region(at: coordinate) == region {
+            return 0
+        }
         guard region != .other else { return nil }
         return distanceToBoundary(of: region, from: coordinate)
     }
@@ -118,7 +120,9 @@ public struct RegionAttributor: RegionAttributing {
     }
 
     public func distance(to region: Region, from coordinate: Coordinate) -> Double? {
-        if region == .other { return self.region(at: coordinate) == .other ? 0 : nil }
+        if region == .other {
+            return self.region(at: coordinate) == .other ? 0 : nil
+        }
         guard let entry = loadedRegionPolygons.first(where: { $0.region == region })
         else { return nil }
         return entry.contains(coordinate) ? 0 : entry.distanceToBoundary(from: coordinate)

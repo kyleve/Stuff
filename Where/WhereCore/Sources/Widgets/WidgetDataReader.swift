@@ -104,7 +104,9 @@ public struct WidgetDataReader: Sendable {
                 .regions ?? []
             var appearances: [Region: RegionAppearance] = [:]
             for primary in try await store.primaryRegions() {
-                if let appearance = primary.appearance { appearances[primary.region] = appearance }
+                if let appearance = primary.appearance {
+                    appearances[primary.region] = appearance
+                }
             }
             return WidgetSnapshot(
                 day: startOfDay,

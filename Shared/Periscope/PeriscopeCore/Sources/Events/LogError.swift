@@ -200,7 +200,9 @@ public struct LogError: Codable, Equatable, LogExportable {
             }
             let bridged = cause as NSError
             if path.contains(where: { $0 === bridged }) {
-                if !omissions.contains(.cycle) { omissions.append(.cycle) }
+                if !omissions.contains(.cycle) {
+                    omissions.append(.cycle)
+                }
                 // Budget attempted nodes too, but do not discard unrelated siblings.
                 remainingNodes -= 1
                 continue

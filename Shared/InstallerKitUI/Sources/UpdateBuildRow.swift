@@ -26,11 +26,15 @@ struct UpdateBuildRow: View {
                                 .font(style.titleFont)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
-                        if installed { badge(.installerInstalledChannel) }
+                        if installed {
+                            badge(.installerInstalledChannel)
+                        }
                         version.font(style.metadataFont)
                     case let .release(installed):
                         version.font(style.titleFont)
-                        if installed { badge(.installerInstalled) }
+                        if installed {
+                            badge(.installerInstalled)
+                        }
                 }
                 Text(.installerBuildNumber("\(release.id.run).\(release.id.attempt)"))
                     .font(style.metadataFont)

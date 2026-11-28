@@ -328,7 +328,9 @@ private actor ApplyAttempts {
 
     func apply(_: RemoteLoggingConfiguration) throws {
         count += 1
-        if count == 1 { throw Failure.firstAttempt }
+        if count == 1 {
+            throw Failure.firstAttempt
+        }
     }
 }
 

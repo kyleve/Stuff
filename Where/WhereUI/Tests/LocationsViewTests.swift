@@ -44,8 +44,11 @@ struct LocationsViewTestsDuo {
                 $0.accessibilityLabel?.hasPrefix("California:") == true
                     && $0.accessibilityTraits.contains(.button)
             })
-            if let control = card as? UIControl { control.sendActions(for: .touchUpInside) }
-            else { try #require(card.accessibilityActivate()) }
+            if let control = card as? UIControl {
+                control.sendActions(for: .touchUpInside)
+            } else {
+                try #require(card.accessibilityActivate())
+            }
 
             let calendarTitle = WhereFormat.calendarRegionTitle(
                 region: .california,
@@ -103,7 +106,9 @@ struct LocationsViewTestsDuo {
                 guard let target = calendar.binding?.wrappedValue
                     .viewID(type: CalendarPresentationState.Target.self)
                 else { return false }
-                if case .estimate = target { return true }
+                if case .estimate = target {
+                    return true
+                }
                 return false
             }
             let estimate = try #require(calendar.binding?.wrappedValue
@@ -122,7 +127,9 @@ struct LocationsViewTestsDuo {
                 guard let target = calendar.binding?.wrappedValue
                     .viewID(type: CalendarPresentationState.Target.self)
                 else { return false }
-                if case .month = target { return true }
+                if case .month = target {
+                    return true
+                }
                 return false
             }
             let position = try #require(browse.binding)
@@ -342,8 +349,11 @@ struct LocationsViewTestsDuo {
                 .first {
                     $0.accessibilityHint == String(localized: .flightStatusOpenReview)
                 })
-            if let control = banner as? UIControl { control.sendActions(for: .touchUpInside) }
-            else { try #require(banner.accessibilityActivate()) }
+            if let control = banner as? UIControl {
+                control.sendActions(for: .touchUpInside)
+            } else {
+                try #require(banner.accessibilityActivate())
+            }
             try await waitForStage("flight review sheet") {
                 controller.presentedViewController != nil
             }
@@ -358,8 +368,11 @@ struct LocationsViewTestsDuo {
             }
             let done = try #require(HostedAccessibility.objects(in: sheet.view)
                 .first { $0.accessibilityLabel == "Done" })
-            if let control = done as? UIControl { control.sendActions(for: .touchUpInside) }
-            else { try #require(done.accessibilityActivate()) }
+            if let control = done as? UIControl {
+                control.sendActions(for: .touchUpInside)
+            } else {
+                try #require(done.accessibilityActivate())
+            }
             try await waitForStage("return from flight review") {
                 controller.presentedViewController == nil
             }

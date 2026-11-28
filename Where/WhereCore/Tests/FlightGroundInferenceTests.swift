@@ -38,7 +38,9 @@ struct FlightGroundInferenceTests {
         }
         let episodes = FlightGroundInference.episodes(anchors: samples, observations: samples)
         #expect(episodes.isEmpty == (hasSpeed == false))
-        if hasSpeed { #expect(episodes.first?.confirmation == 4) }
+        if hasSpeed {
+            #expect(episodes.first?.confirmation == 4)
+        }
     }
 
     @Test func aDenseContradictionVetoesSparseDwell() {

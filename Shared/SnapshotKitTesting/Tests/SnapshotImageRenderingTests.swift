@@ -210,8 +210,11 @@ struct SnapshotImageRenderingTests {
         host.view.frame = contentFrame
         let requestedInsets = UIEdgeInsets(top: 13, left: 0, bottom: 17, right: 0)
         let verifyHost: @MainActor @Sendable () -> Void = {
-            if expectsScene { #expect(window.windowScene === scene) }
-            else { #expect(window.windowScene == nil) }
+            if expectsScene {
+                #expect(window.windowScene === scene)
+            } else {
+                #expect(window.windowScene == nil)
+            }
             #expect(host.view.window === window)
             #expect(host.traitCollection
                 .userInterfaceIdiom == (layout == .retainedTabletViewport ? .pad : .phone))
@@ -223,9 +226,13 @@ struct SnapshotImageRenderingTests {
         let readiness: (@MainActor @Sendable () async throws -> Void)? = if intrinsic || fails {
             {
                 verifyHost()
-                if fails { throw WindowRestorationFailure.readiness }
+                if fails {
+                    throw WindowRestorationFailure.readiness
+                }
             }
-        } else { nil }
+        } else {
+            nil
+        }
 
         do {
             _ = try await renderSnapshotImage(
@@ -261,7 +268,9 @@ struct SnapshotImageRenderingTests {
         #expect(root.view.frame == rootFrame)
         #expect(root.additionalSafeAreaInsets == rootInsets)
         #expect(window.isKeyWindow == wasKey)
-        if anotherWindowIsKey { #expect(otherWindow.isKeyWindow) }
+        if anotherWindowIsKey {
+            #expect(otherWindow.isKeyWindow)
+        }
         #expect(window.isHidden == wasHidden)
         #expect(UIView.areAnimationsEnabled == animationsWereEnabled)
         #expect(host.view.frame == contentFrame)
@@ -286,7 +295,9 @@ private final class NativeBarGeometryProbe {
     func record(_ measurement: Measurement) {
         guard measurement.size.width > 0, measurement.size.height > 0 else { return }
         latest = measurement
-        if isRecording { measurements.append(measurement) }
+        if isRecording {
+            measurements.append(measurement)
+        }
     }
 
     func begin() {

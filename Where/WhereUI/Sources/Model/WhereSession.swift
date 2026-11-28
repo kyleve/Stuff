@@ -73,7 +73,11 @@ public final class WhereSession: WhereShutdownable {
     }
 
     public var isCurrentDeviceRemoved: Bool {
-        if case .removed = recordingRuntimeState { true } else { false }
+        if case .removed = recordingRuntimeState {
+            true
+        } else {
+            false
+        }
     }
 
     /// Stable installation identity used by the Devices settings screen to mark

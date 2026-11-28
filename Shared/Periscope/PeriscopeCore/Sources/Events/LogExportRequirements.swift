@@ -22,7 +22,9 @@ public enum LogExportRequirements: Equatable, Sendable {
 
     /// Conservative defaults for the existing declaration and emission classifications.
     public static func classified(exposure: LogFieldExposure, kind: LogFieldKind) -> Self {
-        if exposure == .shareable { return .baseline(requiring: []) }
+        if exposure == .shareable {
+            return .baseline(requiring: [])
+        }
         switch kind {
             case .identifier: return .diagnostic(requiring: [.identifiers])
             case .location: return .diagnostic(requiring: [.location])

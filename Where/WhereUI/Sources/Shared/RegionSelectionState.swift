@@ -102,6 +102,10 @@ final class SaveErrorAlertState {
 
     var isPresented: Bool {
         get { message != nil }
-        set { if !newValue { message = nil } }
+        set {
+            if !newValue {
+                message = nil
+            }
+        }
     }
 }

@@ -77,22 +77,22 @@ enum FlightGroundInference {
                 var end = start + 1
                 while end < anchors.count,
                       anchors[end].timestamp.timeIntervalSince(anchors[start].timestamp) <= mode
-                      .window,
+                          .window,
                       anchors[end].timestamp.timeIntervalSince(anchors[end - 1].timestamp) <= mode
-                      .gap,
+                          .gap,
                       upperSpeed(anchors[end - 1], anchors[end]) <= Trajectory
-                      .maximumGroundSpeedKMH,
+                          .maximumGroundSpeedKMH,
                       mode.accepts(anchors[end], origin: anchors[start]),
                       byLeg[end - 1].allSatisfy({ mode.accepts($0, origin: anchors[start]) }),
                       zip(byLeg[end - 1], byLeg[end - 1].dropFirst())
-                      .allSatisfy({ plausibleGroundPair(
-                          $0,
-                          $1,
-                      ) })
+                          .allSatisfy({ plausibleGroundPair(
+                              $0,
+                              $1,
+                          ) })
                 {
                     if end - start >= 2,
                        anchors[end].timestamp.timeIntervalSince(anchors[start].timestamp) >= mode
-                       .duration
+                           .duration
                     {
                         confirmation = min(confirmation ?? end, end)
                         break
@@ -120,7 +120,9 @@ enum FlightGroundInference {
                 - before.horizontalAccuracy - after.horizontalAccuracy,
         )
         let seconds = after.timestamp.timeIntervalSince(before.timestamp)
-        if seconds < Trajectory.sameObservationInterval { return distance == 0 }
+        if seconds < Trajectory.sameObservationInterval {
+            return distance == 0
+        }
         return distance / seconds * 3.6 <= Trajectory.maximumGroundSpeedKMH
     }
 }

@@ -473,7 +473,9 @@ public final class YearReportModel {
         do {
             let keys = try await services.evidence.dayKeys(for: requestedYear)
             guard requestedYear == selectedYear else { return }
-            if evidenceDayKeys != keys { evidenceDayKeys = keys }
+            if evidenceDayKeys != keys {
+                evidenceDayKeys = keys
+            }
         } catch {
             Self.logger.evidenceDayKeysLoadFailed(
                 year: .restricted(.domainValue, requestedYear),
@@ -580,7 +582,9 @@ public final class YearReportModel {
         // initial load or a year switch (which nils `report` first). A background
         // refresh keeps the current report visible (no spinner flicker), and the
         // equality guards below make an unrelated commit a no-op.
-        if report == nil { loadState = .loading }
+        if report == nil {
+            loadState = .loading
+        }
         do {
             let details = try await services.reports.yearReportDetails(
                 for: requestedYear,
@@ -589,8 +593,12 @@ public final class YearReportModel {
                   requestedYear == selectedYear, requestedLifecycle == lifecycleRevision,
                   !Task.isCancelled else { return }
             let changed = loadedYear?.details != details
-            if changed { loadedYear = LoadedYear(details: details, previous: loadedYear) }
-            if loadState != .loaded { loadState = .loaded }
+            if changed {
+                loadedYear = LoadedYear(details: details, previous: loadedYear)
+            }
+            if loadState != .loaded {
+                loadState = .loaded
+            }
             if changed {
                 Self.logger.reportLoaded(
                     year: .restricted(.domainValue, requestedYear),

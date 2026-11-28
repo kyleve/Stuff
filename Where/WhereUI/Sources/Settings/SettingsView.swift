@@ -1,14 +1,14 @@
-import Observation
-#if DEBUG
-    @_spi(Testing) import InstallerKitUI
-#endif
 import BroadwayUI
 import InstallerKit
+import Observation
 import RegionKit
 import SFSafeSymbols
 import SnapshotKit
 import SwiftUI
 import WhereCore
+#if DEBUG
+    @_spi(Testing) import InstallerKitUI
+#endif
 
 /// Settings tab: an iOS-Settings-style top-level list of icon rows that drill
 /// into grouped sub-screens — App Updates for eligible builds, then Data (attachments, logged days,
@@ -34,7 +34,9 @@ struct SettingsView: View {
                 guard route != newValue else { return }
                 route = newValue
                 path = NavigationPath()
-                if newValue != nil { compactColumn = .detail }
+                if newValue != nil {
+                    compactColumn = .detail
+                }
             }
         }
 
@@ -55,7 +57,9 @@ struct SettingsView: View {
         initialRoute: SettingsRoute? = nil,
     ) {
         let navigation = navigation ?? SettingsView.Navigation()
-        if let initialRoute { navigation.selectedRoute = initialRoute }
+        if let initialRoute {
+            navigation.selectedRoute = initialRoute
+        }
         _navigation = State(initialValue: navigation)
         self.report = report
         self.recordingWarning = recordingWarning ?? RecordingConfigurationWarningModel(

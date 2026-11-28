@@ -46,7 +46,9 @@ struct RemoteDataChangeReconcilerTests {
     ) async throws {
         let deadline = ContinuousClock.now.advanced(by: timeout)
         while ContinuousClock.now < deadline {
-            if await condition() { return }
+            if await condition() {
+                return
+            }
             await Task.yield()
         }
         Issue.record("waitUntil timed out")

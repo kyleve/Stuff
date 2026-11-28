@@ -75,7 +75,11 @@ final class AppIconModel {
     /// closure `Binding`).
     var isShowingError: Bool {
         get { applyError != nil }
-        set { if !newValue { applyError = nil } }
+        set {
+            if !newValue {
+                applyError = nil
+            }
+        }
     }
 
     /// Match the live `alternateIconName` to a manifest option, falling back to

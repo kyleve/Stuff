@@ -52,7 +52,10 @@ struct FlightStatusBanner: View {
                 case .awaitingArrival: return String(localized: .flightStatusWaitingTitle)
                 case let .completed(arrival):
                     if arrival
-                        .isTimingUncertain { return String(localized: .flightStatusUncertainTitle) }
+                        .isTimingUncertain
+                    {
+                        return String(localized: .flightStatusUncertainTitle)
+                    }
             }
         }
         return switch review.state {

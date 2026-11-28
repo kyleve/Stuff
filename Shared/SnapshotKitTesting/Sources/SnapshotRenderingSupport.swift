@@ -249,12 +249,16 @@ func settleForCapture(
         var quiescenceSaysStable = false
         if mechanism != .pixel {
             if isQuiescent == true {
-                if quiescentSince == nil { quiescentSince = now }
+                if quiescentSince == nil {
+                    quiescentSince = now
+                }
                 quiescentPasses += 1
             } else {
                 // Falling out of quiescence after having reached it is this
                 // mechanism's equivalent of the pixels changing.
-                if quiescentSince != nil { quiescenceObservedChange = true }
+                if quiescentSince != nil {
+                    quiescenceObservedChange = true
+                }
                 quiescentSince = nil
                 quiescentPasses = 0
             }
@@ -294,6 +298,7 @@ func settleForCapture(
     }
 }
 
+@MainActor
 extension UIView {
     /// A cheap content sample, rendered at 0.25 pixels per point. The stability
     /// proof normalizes and compares every channel, **never** using
@@ -301,7 +306,6 @@ extension UIView {
     /// bytes, so a text reveal below static top chrome would read "stable"
     /// mid-animation. `afterScreenUpdates: true` so each pass renders the
     /// current model state, not the last committed frame.
-    @MainActor
     fileprivate func renderedContentSample() -> UIImage? {
         guard bounds.width >= 1, bounds.height >= 1 else { return nil }
         let format = UIGraphicsImageRendererFormat()
@@ -336,6 +340,7 @@ extension UIView {
     CATransaction.flush()
 }
 
+@MainActor
 extension UIView {
     /// Clears the tint color of every text input in the tree so the blinking caret
     /// doesn't flake captures. Not restored — capture hosts are transient.
@@ -345,13 +350,11 @@ extension UIView {
     /// tint would also blank every control that draws with the accent tint —
     /// buttons, links, toggles, `Label` glyphs — silently changing the captured
     /// image. Only the text inputs (whose caret *is* the tint) may be cleared.
-    @MainActor
     func hideTextInputCursors() {
         recursiveForEach(UITextField.self) { $0.tintColor = .clear }
         recursiveForEach(UITextView.self) { $0.tintColor = .clear }
     }
 
-    @MainActor
     private func recursiveForEach<V: UIView>(_ type: V.Type, _ body: (V) -> Void) {
         if let matched = self as? V {
             body(matched)

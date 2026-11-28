@@ -77,7 +77,7 @@ struct FlightAssessmentTests {
             CalendarDay(year: 2026, month: 1, day: 1),
             CalendarDay(year: 2026, month: 1, day: 2),
         ])
-        calendar.timeZone = TimeZone(secondsFromGMT: -8 * 3600)!
+        calendar.timeZone = try #require(TimeZone(secondsFromGMT: -8 * 3600))
         #expect(completed.completedDays(in: calendar).count == 2)
         #expect(flight(.awaitingArrival).completedDays(in: calendar).isEmpty)
         #expect(flight(.flightLikely).completedDays(in: calendar).isEmpty)

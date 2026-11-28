@@ -64,7 +64,10 @@ struct FlightPointCorrectionAssessment {
             .map(FlightAssessment.RecordingSource.device) ?? .legacy
         guard sample.source.isGPS, source == flight.id.recordingSource else { return false }
         if action == .includeInFlight, flight.progress.arrival?.isTimingUncertain == true,
-           !flight.airborneSampleIDs.contains(sample.id) { return false }
+           !flight.airborneSampleIDs.contains(sample.id)
+        {
+            return false
+        }
         let end: Date = switch flight.progress {
             case let .completed(arrival): action == .includeInFlight && arrival
             .isTimingUncertain ? flight

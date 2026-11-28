@@ -32,7 +32,9 @@ public indirect enum LogExportSchema: Equatable, Sendable {
         switch self {
             case .value: return value
             case let .category(allowedValues, allowsNil):
-                if value == .null, allowsNil { return value }
+                if value == .null, allowsNil {
+                    return value
+                }
                 guard case let .string(rawValue) = value, allowedValues.contains(rawValue) else {
                     throw Failure.shapeMismatch
                 }

@@ -162,8 +162,11 @@ struct BackupModelTests {
         let export = try #require(HostedAccessibility.objects(in: view).first {
             $0.accessibilityLabel == title
         })
-        if let control = export as? UIControl { control.sendActions(for: .touchUpInside) }
-        else { try #require(export.accessibilityActivate()) }
+        if let control = export as? UIControl {
+            control.sendActions(for: .touchUpInside)
+        } else {
+            try #require(export.accessibilityActivate())
+        }
     }
 }
 

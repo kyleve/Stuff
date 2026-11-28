@@ -17,7 +17,9 @@ final class UpdateModelClient: UpdateFetching {
 
     func fetch(from _: URL) async throws -> UpdateCatalog {
         fetchCount += 1
-        if !held { return try result.get() }
+        if !held {
+            return try result.get()
+        }
         return try await withCheckedThrowingContinuation { continuation in
             continuations.append(continuation)
             if continuations.count >= expectedRequests {

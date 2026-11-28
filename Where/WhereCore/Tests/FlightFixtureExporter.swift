@@ -67,7 +67,9 @@ struct FlightFixtureExporter {
         let selected = input
             .filter { $0.source.isGPS && $0.timestamp >= from && $0.timestamp < until }
         guard let anchor = selected.min(by: {
-            if $0.timestamp != $1.timestamp { return $0.timestamp < $1.timestamp }
+            if $0.timestamp != $1.timestamp {
+                return $0.timestamp < $1.timestamp
+            }
             return $0.id.uuidString < $1.id.uuidString
         }) else { throw ExportError.noSamples }
         guard selected.allSatisfy({ Self.isValid($0.coordinate) })

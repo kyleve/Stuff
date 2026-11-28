@@ -55,12 +55,16 @@ actor TestStore: WhereStore {
             hasArrived = true
             arrival?.resume()
             arrival = nil
-            if case .released = state { return }
+            if case .released = state {
+                return
+            }
             await withCheckedContinuation { state = .suspended($0) }
         }
 
         func release() {
-            if case let .suspended(continuation) = state { continuation.resume() }
+            if case let .suspended(continuation) = state {
+                continuation.resume()
+            }
             state = .released
         }
     }
@@ -223,7 +227,9 @@ actor TestStore: WhereStore {
 
     func samples(in interval: DateInterval) async throws -> [LocationSample] {
         sampleReadCount += 1
-        if shouldFailSamples { throw SampleReadFailure() }
+        if shouldFailSamples {
+            throw SampleReadFailure()
+        }
         if gateFirstSamplesCall, !firstSamplesSeen {
             firstSamplesSeen = true
             let samples = try await backing.samples(in: interval)
@@ -238,7 +244,9 @@ actor TestStore: WhereStore {
     func allSamples() async throws -> [LocationSample] {
         let gate = nextExportReadGate
         nextExportReadGate = nil
-        if let gate { await gate.suspend() }
+        if let gate {
+            await gate.suspend()
+        }
         return try await backing.allSamples()
     }
 
@@ -327,7 +335,9 @@ actor TestStore: WhereStore {
     }
 
     func setManualDay(_ day: DayPresence) async throws {
-        if shouldFailManualDay { throw ManualSaveFailure() }
+        if shouldFailManualDay {
+            throw ManualSaveFailure()
+        }
         try await backing.setManualDay(day)
     }
 
@@ -371,12 +381,16 @@ actor TestStore: WhereStore {
         nextPlanningOperationGate = nil
         let result: Result<[PlannedStayRecord], Error>
         do {
-            if shouldFailPlanningRead { throw PlannedStaySaveFailure() }
+            if shouldFailPlanningRead {
+                throw PlannedStaySaveFailure()
+            }
             result = try await .success(backing.plannedStayRecords())
         } catch {
             result = .failure(error)
         }
-        if let gate { await gate.suspend() }
+        if let gate {
+            await gate.suspend()
+        }
         return try result.get()
     }
 
@@ -385,7 +399,9 @@ actor TestStore: WhereStore {
     }
 
     func replaceHomeRegionRecord(with record: HomeRegionRecord) async throws {
-        if shouldFailPlannedStay { throw PlannedStaySaveFailure() }
+        if shouldFailPlannedStay {
+            throw PlannedStaySaveFailure()
+        }
         try await backing.replaceHomeRegionRecord(with: record)
     }
 
@@ -397,8 +413,12 @@ actor TestStore: WhereStore {
         plannedStayWriteCount += 1
         let gate = nextPlannedStayWriteGate
         nextPlannedStayWriteGate = nil
-        if let gate { await gate.suspend() }
-        if shouldFailPlannedStay { throw PlannedStaySaveFailure() }
+        if let gate {
+            await gate.suspend()
+        }
+        if shouldFailPlannedStay {
+            throw PlannedStaySaveFailure()
+        }
         try await backing.replacePlannedStayRecord(with: record)
     }
 

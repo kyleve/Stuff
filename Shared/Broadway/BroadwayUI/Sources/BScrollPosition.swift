@@ -47,7 +47,10 @@ public struct BScrollPosition<
             context: Context,
         ) -> Attachment {
             if self.store === store, self.key == key, self.context == context,
-               let attachment { return attachment }
+               let attachment
+            {
+                return attachment
+            }
             let attachment = Attachment(entry: store.entry(
                 for: key,
                 context: AnyHashable(context),

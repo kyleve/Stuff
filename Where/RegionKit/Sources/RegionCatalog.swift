@@ -187,7 +187,9 @@ public struct RegionCatalog: Sendable {
     }
 
     public func localizedName(for region: Region) -> String {
-        if region == .other { return String(localized: "region.other", bundle: .module) }
+        if region == .other {
+            return String(localized: "region.other", bundle: .module)
+        }
         return node(for: region)?.localizedName ?? region.rawValue
     }
 

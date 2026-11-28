@@ -47,7 +47,9 @@ public final class PrimaryRegionDraft {
         selectedRegions = existing.map(\.region).filter { offered.contains($0) }
         var drafts: [Region: RegionAppearance] = [:]
         for entry in existing {
-            if let appearance = entry.appearance { drafts[entry.region] = appearance }
+            if let appearance = entry.appearance {
+                drafts[entry.region] = appearance
+            }
         }
         self.drafts = drafts
     }

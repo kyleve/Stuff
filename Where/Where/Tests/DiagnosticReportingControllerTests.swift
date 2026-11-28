@@ -736,7 +736,9 @@ private final class FakeBitdriftClient: BitdriftReportingClientProtocol {
     }
 
     func start(configuration: BitdriftLaunchConfiguration) throws {
-        if let startError { throw startError }
+        if let startError {
+            throw startError
+        }
         guard allowsStart else { return }
         hasStarted = true
         startConfiguration = configuration

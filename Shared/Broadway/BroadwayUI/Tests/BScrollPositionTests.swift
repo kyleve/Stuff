@@ -229,7 +229,9 @@ private struct ScrollProbe: View {
         Color.clear.frame(height: 10)
             .onChange(of: context, initial: true) {
                 captureBinding()
-                if role == .first { fixture.observedContext = context }
+                if role == .first {
+                    fixture.observedContext = context
+                }
             }
             .onChange(of: role) { captureBinding() }
             .onChange(of: redraw, initial: true) { fixture.observedRedraw = redraw }
@@ -257,7 +259,9 @@ private final class NativeScrollFixture {
 private struct NativeScrollHarness: View {
     let fixture: NativeScrollFixture
     var body: some View {
-        if fixture.mounted { NativeScrollProbe(fixture: fixture) }
+        if fixture.mounted {
+            NativeScrollProbe(fixture: fixture)
+        }
     }
 }
 
@@ -301,10 +305,12 @@ private struct NativeScrollProbe: View {
     }
 
     private func initialize() {
-        if let initial = fixture.initial { _position.initialize(
-            id: initial,
-            anchor: .top,
-        ) }
+        if let initial = fixture.initial {
+            _position.initialize(
+                id: initial,
+                anchor: .top,
+            )
+        }
         fixture.observedInitial = fixture.initial
     }
 }

@@ -363,7 +363,9 @@ struct DataIssueScannerTests {
         var startedScans = 0
         for await _ in scanStarted {
             startedScans += 1
-            if startedScans == 2 { break }
+            if startedScans == 2 {
+                break
+            }
         }
         releaseContinuation.yield()
         releaseContinuation.finish()
@@ -1017,7 +1019,9 @@ private func waitUntil(
 ) async throws {
     let deadline = ContinuousClock.now.advanced(by: timeout)
     while ContinuousClock.now < deadline {
-        if try await condition() { return }
+        if try await condition() {
+            return
+        }
         try await Task.sleep(for: .milliseconds(10))
     }
     Issue.record("waitUntil timed out")

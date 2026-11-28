@@ -22,11 +22,15 @@ public struct PlanningDayPresence: Hashable, Sendable {
     /// plan is the only possible explicit presence, Home still covers the day
     /// in every scenario. Raw fields retain the separate sources of that coverage.
     public func membership(in region: Region) -> Membership? {
-        if certainRegions.contains(region) { return .planned(.certain) }
+        if certainRegions.contains(region) {
+            return .planned(.certain)
+        }
         if homeAssumption?.region == region, possibleRegions == [region] {
             return .homeAssumed(.certain)
         }
-        if possibleRegions.contains(region) { return .planned(.possible) }
+        if possibleRegions.contains(region) {
+            return .planned(.possible)
+        }
         guard let homeAssumption, homeAssumption.region == region else { return nil }
         return .homeAssumed(homeAssumption.certainty)
     }

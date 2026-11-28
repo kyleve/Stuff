@@ -63,7 +63,7 @@ enum SwiftDataReflection {
             let sourceEntity = schema.entities.first(where: { $0.name == sourceName }),
             let relationship = sourceEntity.relationshipsByName[name],
             let destinationEntity = schema.entities
-            .first(where: { $0.name == relationship.destination })
+                .first(where: { $0.name == relationship.destination })
         else {
             return nil
         }
@@ -96,8 +96,9 @@ enum SwiftDataReflection {
             )
             for property in T.schemaMetadata {
                 let mirror = Mirror(reflecting: property)
-                guard mirror.descendant("name") as? String == name else { continue }
-                guard let keyPath = mirror.descendant("keypath") as? PartialKeyPath<T> else {
+                guard mirror.descendant("name") as? String == name,
+                      let keyPath = mirror.descendant("keypath") as? PartialKeyPath<T>
+                else {
                     continue
                 }
                 return classify(

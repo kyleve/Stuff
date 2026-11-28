@@ -97,7 +97,9 @@ private struct RegionPickerContent: View {
     private var rows: [Row] {
         var rows: [Row] = [.message(.selection)]
         rows += model.selectedNewestFirst.map { .region($0, includesCountryCode: true) }
-        if model.draft.isAtCapacity { rows.append(.message(.atCapacity)) }
+        if model.draft.isAtCapacity {
+            rows.append(.message(.atCapacity))
+        }
 
         if model.isSearching {
             switch model.searchResults {
@@ -256,7 +258,11 @@ extension Set<RegionCatalog.Node.ID?> {
     fileprivate subscript(includes id: Element) -> Bool {
         get { contains(id) }
         set {
-            if newValue { insert(id) } else { remove(id) }
+            if newValue {
+                insert(id)
+            } else {
+                remove(id)
+            }
         }
     }
 }

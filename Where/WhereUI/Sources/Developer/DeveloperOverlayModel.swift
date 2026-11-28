@@ -42,7 +42,11 @@
             }
 
             var isFullScreen: Bool {
-                if case .fullScreen = self { true } else { false }
+                if case .fullScreen = self {
+                    true
+                } else {
+                    false
+                }
             }
 
             /// Menu interaction is modal despite its clear backdrop; the

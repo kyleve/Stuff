@@ -88,12 +88,16 @@ struct LocationIngestorTests {
         }
 
         func save(_ entries: [LocationOutboxEntry]) async throws {
-            if failsToSave { throw OutboxFailure.save }
+            if failsToSave {
+                throw OutboxFailure.save
+            }
             self.entries = entries
         }
 
         func clear() async throws {
-            if failsToClear { throw OutboxFailure.clear }
+            if failsToClear {
+                throw OutboxFailure.clear
+            }
             entries = []
         }
 
@@ -851,7 +855,9 @@ struct LocationIngestorTests {
     ) async throws {
         let deadline = ContinuousClock.now.advanced(by: timeout)
         while await !predicate() {
-            if ContinuousClock.now >= deadline { throw WaitTimeout() }
+            if ContinuousClock.now >= deadline {
+                throw WaitTimeout()
+            }
             try await Task.sleep(for: .milliseconds(2))
         }
     }
@@ -904,7 +910,9 @@ private final class GatedLocationSource: LocationSource, @unchecked Sendable {
                 waiters.append(continuation)
                 return false
             }
-            if openedBeforeRegistration { continuation.resume() }
+            if openedBeforeRegistration {
+                continuation.resume()
+            }
         }
         return .success(fix)
     }
@@ -1079,7 +1087,9 @@ private actor ToggleFailingStore: WhereStore {
     }
 
     func add(sample: LocationSample) async throws {
-        if shouldFail { throw ToggleFailingStoreError() }
+        if shouldFail {
+            throw ToggleFailingStoreError()
+        }
         try await backing.add(sample: sample)
     }
 

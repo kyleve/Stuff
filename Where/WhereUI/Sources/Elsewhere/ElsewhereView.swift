@@ -37,7 +37,9 @@ struct ElsewhereView: View {
     }
 
     private var failureMessage: String? {
-        if case let .failed(error) = report.loadState { return error.message }
+        if case let .failed(error) = report.loadState {
+            return error.message
+        }
         return model.failure(for: report.selectedYear)?.localizedDescription
     }
 
@@ -59,7 +61,9 @@ struct ElsewhereView: View {
         }
         .task(id: request) {
             guard request.isVisible else { return }
-            if case .failed = report.loadState { await report.refresh() }
+            if case .failed = report.loadState {
+                await report.refresh()
+            }
             guard let input = report.elsewhereInput, !Task.isCancelled else { return }
             await model.refresh(input)
         }
@@ -203,7 +207,9 @@ struct ElsewhereView: View {
                 configurations: configurations,
                 theme: theme,
                 onReadyToMeasure: {
-                    if let input = report.elsewhereInput { await model.refresh(input) }
+                    if let input = report.elsewhereInput {
+                        await model.refresh(input)
+                    }
                 },
                 prepareForCapture: {
                     await PreviewSupport.loadCardArtwork(

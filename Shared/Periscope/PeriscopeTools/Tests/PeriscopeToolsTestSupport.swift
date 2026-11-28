@@ -247,7 +247,9 @@ let unreadablePayload = Data([0xFF, 0x00])
 @MainActor
 func waitUntil(_ predicate: () -> Bool) async -> Bool {
     for _ in 0 ..< 2000 {
-        if predicate() { return true }
+        if predicate() {
+            return true
+        }
         try? await Task.sleep(for: .milliseconds(2))
     }
     return predicate()
@@ -258,7 +260,9 @@ func waitUntil(_ predicate: () -> Bool) async -> Bool {
 @MainActor
 func waitUntil(_ predicate: () async -> Bool) async -> Bool {
     for _ in 0 ..< 2000 {
-        if await predicate() { return true }
+        if await predicate() {
+            return true
+        }
         try? await Task.sleep(for: .milliseconds(2))
     }
     return await predicate()

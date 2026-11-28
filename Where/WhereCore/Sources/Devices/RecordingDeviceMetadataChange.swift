@@ -158,8 +158,12 @@ public struct RecordingDeviceMetadataChange: Identifiable, Codable, Sendable, Ha
         if lhs.deviceID != rhs.deviceID {
             return lhs.deviceID.storeURL.absoluteString < rhs.deviceID.storeURL.absoluteString
         }
-        if lhs.revision != rhs.revision { return lhs.revision < rhs.revision }
-        if lhs.changedAt != rhs.changedAt { return lhs.changedAt < rhs.changedAt }
+        if lhs.revision != rhs.revision {
+            return lhs.revision < rhs.revision
+        }
+        if lhs.changedAt != rhs.changedAt {
+            return lhs.changedAt < rhs.changedAt
+        }
         if lhs.changedByDeviceID != rhs.changedByDeviceID {
             return lhs.changedByDeviceID.storeURL.absoluteString
                 < rhs.changedByDeviceID.storeURL.absoluteString

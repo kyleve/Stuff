@@ -53,7 +53,10 @@ struct FlightReviewPresentation {
         self.review = review
         let points = review.points.sorted {
             if $0.sample.timestamp != $1.sample
-                .timestamp { return $0.sample.timestamp < $1.sample.timestamp }
+                .timestamp
+            {
+                return $0.sample.timestamp < $1.sample.timestamp
+            }
             return $0.sample.id.uuidString < $1.sample.id.uuidString
         }
         let mapPoints = points.flatMap(Self.mapPoints)
@@ -62,7 +65,9 @@ struct FlightReviewPresentation {
         for point in points where point.sample.source.isGPS {
             let source = point.sample.recordingDeviceID
                 .map(FlightAssessment.RecordingSource.device) ?? .legacy
-            if tracks[source] == nil { trackOrder.append(source) }
+            if tracks[source] == nil {
+                trackOrder.append(source)
+            }
             tracks[source, default: []].append(point.sample.coordinate)
         }
         map = RecordedMapData(points: mapPoints, routes: trackOrder.map {

@@ -42,7 +42,9 @@ final class PlannedStaysModel {
     }
 
     var isSaving: Bool {
-        if case .saving = saveState { return true }
+        if case .saving = saveState {
+            return true
+        }
         return false
     }
 
@@ -87,6 +89,8 @@ final class PlannedStaysModel {
     }
 
     func load() async {
-        if !report.forecasts.hasLoaded { await report.forecasts.refresh() }
+        if !report.forecasts.hasLoaded {
+            await report.forecasts.refresh()
+        }
     }
 }

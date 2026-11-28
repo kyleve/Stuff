@@ -48,8 +48,12 @@ extension EvidenceKind {
     /// an unknown or absent type) → `.document`.
     public static func suggested(forTypeIdentifier typeIdentifier: String?) -> EvidenceKind {
         guard let typeIdentifier, let type = UTType(typeIdentifier) else { return .document }
-        if type.identifier == "com.apple.pkpass" { return .boardingPass }
-        if type.conforms(to: .image) { return .photo }
+        if type.identifier == "com.apple.pkpass" {
+            return .boardingPass
+        }
+        if type.conforms(to: .image) {
+            return .photo
+        }
         return .document
     }
 }

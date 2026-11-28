@@ -93,8 +93,12 @@ struct RecordingDevicePolicyResolver {
                 )
             }
             .sorted { lhs, rhs in
-                if lhs.isCurrentDevice { return true }
-                if rhs.isCurrentDevice { return false }
+                if lhs.isCurrentDevice {
+                    return true
+                }
+                if rhs.isCurrentDevice {
+                    return false
+                }
                 if lhs.device.lastSeenAt != rhs.device.lastSeenAt {
                     return lhs.device.lastSeenAt > rhs.device.lastSeenAt
                 }

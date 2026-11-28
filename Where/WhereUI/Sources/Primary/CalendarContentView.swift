@@ -356,7 +356,9 @@ struct CalendarContentView: View {
                     zoomTile(target, mode: mode, months: months)
                 }, completion: { id in
                     guard zoom.finish(id) else { return }
-                    if presentation.mode == .detail { focusedTarget = detailTarget }
+                    if presentation.mode == .detail {
+                        focusedTarget = detailTarget
+                    }
                 })
             }
         }
@@ -383,10 +385,16 @@ struct CalendarContentView: View {
         switch presentation.mode {
             case .detail:
                 if magnification <= CalendarPresentationState
-                    .overviewThreshold { presentation.mode = .overview }
+                    .overviewThreshold
+                {
+                    presentation.mode = .overview
+                }
             case .overview:
                 if magnification >= CalendarPresentationState.detailThreshold,
-                   let destination { expand(destination) }
+                   let destination
+                {
+                    expand(destination)
+                }
         }
     }
 

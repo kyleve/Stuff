@@ -27,7 +27,9 @@ public final class CloudKitImportReadiness: NSObject {
     }
 
     public func waitForImport() async -> Bool {
-        if let finishedValue { return finishedValue }
+        if let finishedValue {
+            return finishedValue
+        }
         timeoutTask = Task { [weak self] in
             try? await Task.sleep(for: .seconds(10))
             self?.finish(false)

@@ -31,7 +31,9 @@ final class CalendarPresentationState {
     }
 
     func reconcile(year: Int, availableMonths: [CalendarDay], estimateMonth: CalendarDay?) {
-        if self.year != year { rejectedTarget = nil }
+        if self.year != year {
+            rejectedTarget = nil
+        }
         self.year = year
         self.availableMonths = Set(availableMonths)
         self.estimateMonth = estimateMonth

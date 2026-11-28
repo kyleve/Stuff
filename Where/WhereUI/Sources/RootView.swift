@@ -203,26 +203,26 @@ public struct RootView: View {
         }
         #if DEBUG
         .onPreferenceChange(DeveloperTabBarInsetKey.self) { developerTabBarInset = $0 }
-            .onPreferenceChange(DeveloperOverlayInsetKey.self) { developerOverlayInsets = $0 }
-            .environment(\.periscopeInspector, inspector)
-            .task { configureDeveloperLogging() }
-            .onChange(of: model.logStore.map(ObjectIdentifier.init)) { _, _ in
-                configureDeveloperLogging()
-            }
+        .onPreferenceChange(DeveloperOverlayInsetKey.self) { developerOverlayInsets = $0 }
+        .environment(\.periscopeInspector, inspector)
+        .task { configureDeveloperLogging() }
+        .onChange(of: model.logStore.map(ObjectIdentifier.init)) { _, _ in
+            configureDeveloperLogging()
+        }
         #endif
-            // Seed the app's root logging context so any view that logs freeform via
-            // `\.logContext` emits under the "Where" scope rather than a bare root.
-            .logContext(WhereLog.root)
-            .environment(model)
-            .environment(updates)
-            // The logged-in session appears once the launch's `start-session`
-            // step builds it. Injected as an optional `Observable`, so the
-            // `TabView`'s `@Environment(WhereSession.self)` views resolve it
-            // (they only render at `.ready`, by which point it's present) and
-            // re-inject when a reset rebuilds it. The DEBUG developer overlay
-            // reads it optionally — it can appear before login.
-            .environment(model.session)
-            .environment(\.primaryAppIconName, primaryAppIconName)
+        // Seed the app's root logging context so any view that logs freeform via
+        // `\.logContext` emits under the "Where" scope rather than a bare root.
+        .logContext(WhereLog.root)
+        .environment(model)
+        .environment(updates)
+        // The logged-in session appears once the launch's `start-session`
+        // step builds it. Injected as an optional `Observable`, so the
+        // `TabView`'s `@Environment(WhereSession.self)` views resolve it
+        // (they only render at `.ready`, by which point it's present) and
+        // re-inject when a reset rebuilds it. The DEBUG developer overlay
+        // reads it optionally — it can appear before login.
+        .environment(model.session)
+        .environment(\.primaryAppIconName, primaryAppIconName)
         #if DEBUG
             .environment(developerLaunchController)
             .environment(\.cardDesignerModel, cardDesigner)

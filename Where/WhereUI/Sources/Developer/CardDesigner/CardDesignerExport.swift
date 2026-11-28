@@ -257,7 +257,9 @@
             while formatted.last == "0" {
                 formatted.removeLast()
             }
-            if formatted.last == "." { formatted.removeLast() }
+            if formatted.last == "." {
+                formatted.removeLast()
+            }
             return formatted == "-0" ? "0" : formatted
         }
 

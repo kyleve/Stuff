@@ -45,7 +45,9 @@ struct LocationsView: View {
         self.report = report
         self.openElsewhere = openElsewhere
         let navigation = navigation ?? LocationsView.Navigation()
-        if let initialRegion { navigation.select(region: initialRegion) }
+        if let initialRegion {
+            navigation.select(region: initialRegion)
+        }
         _navigation = State(initialValue: navigation)
         _calendarPresentation = State(initialValue: CalendarPresentationState(mode: CalendarModel(
             report: report,

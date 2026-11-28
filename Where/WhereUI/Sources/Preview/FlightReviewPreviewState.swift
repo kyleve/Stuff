@@ -22,9 +22,15 @@
             calendar.timeZone = TimeZone(identifier: "America/New_York")!
             let days = (13 ... 23).map { day in
                 var regions: Set<Region> = []
-                if day <= 20 { regions.insert(.newYork) }
-                if day == 14 { regions.insert(.other) }
-                if day >= 20 { regions.insert(.california) }
+                if day <= 20 {
+                    regions.insert(.newYork)
+                }
+                if day == 14 {
+                    regions.insert(.other)
+                }
+                if day >= 20 {
+                    regions.insert(.california)
+                }
                 return DayPresence(
                     day: CalendarDay(year: year, month: 9, day: day),
                     regions: regions,
