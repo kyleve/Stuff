@@ -12,28 +12,19 @@ struct PrivacyPassportCardSurface<Content: View>: View {
         let style = stylesheet.privacyPassportCard
         let reflection = style.reflectiveSurface
         let shape = RoundedRectangle(cornerRadius: style.cornerRadius)
+        let printed = content.background { PrivacyPassportPrint(style: style) }
 
         Group {
             switch style.surface {
                 case .reflective:
-                    printedContent
-                        .tiltSheen(
-                            tilt: tilt,
-                            staticRoll: reflection.staticPose.roll,
-                            staticPitch: reflection.staticPose.pitch,
-                            in: shape,
-                            intensity: reflection.intensity,
-                            staticGlintIntensity: reflection.staticGlintIntensity,
-                        )
-                        .clipShape(shape)
-                        .overlay {
-                            shape.strokeBorder(
-                                reflection.accent.opacity(style.outlineOpacity),
-                                lineWidth: style.outlineWidth,
-                            )
-                        }
+                    PrivacyPassportReflectiveSurface(
+                        content: printed,
+                        tilt: tilt,
+                        style: style,
+                        shape: shape,
+                    )
                 case .matte:
-                    printedContent.matteSurface(style.surface, tint: reflection.accent, in: shape)
+                    printed.matteSurface(style.surface, tint: reflection.accent, in: shape)
             }
         }
         .tint(reflection.accent)
@@ -41,42 +32,73 @@ struct PrivacyPassportCardSurface<Content: View>: View {
         .bMode(.dark)
         .contentShape(shape)
     }
+}
 
-    private var printedContent: some View {
-        let style = stylesheet.privacyPassportCard
+private struct PrivacyPassportPrint: View {
+    let style: WhereStylesheet.PrivacyPassportCardStyle
+
+    var body: some View {
         let reflection = style.reflectiveSurface
-        return content
-            .background {
-                ZStack {
-                    if style.surface.usesReflection {
-                        LinearGradient(
-                            colors: [reflection.backgroundTop, reflection.backgroundBottom],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing,
-                        )
-                    }
-                    SecurityPrintRosette(
-                        tint: reflection.accent,
-                        wobble: style.rosette.wobble,
-                        lineWidth: style.rosette.lineWidth,
-                        primaryRingSpacing: style.rosette.primaryRingSpacing,
-                        secondaryRingSpacing: style.rosette.secondaryRingSpacing,
-                        primaryOpacity: style.rosette.primaryOpacity,
-                        secondaryOpacity: style.rosette.secondaryOpacity,
-                    )
-                }
+        ZStack {
+            if style.surface.usesReflection {
+                LinearGradient(
+                    colors: [reflection.backgroundTop, reflection.backgroundBottom],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing,
+                )
+            }
+            SecurityPrintRosette(
+                tint: reflection.accent,
+                wobble: style.rosette.wobble,
+                lineWidth: style.rosette.lineWidth,
+                primaryRingSpacing: style.rosette.primaryRingSpacing,
+                secondaryRingSpacing: style.rosette.secondaryRingSpacing,
+                primaryOpacity: style.rosette.primaryOpacity,
+                secondaryOpacity: style.rosette.secondaryOpacity,
+            )
+        }
+    }
+}
+
+private struct PrivacyPassportReflectiveSurface<Content: View>: View {
+    let content: Content
+    let tilt: TiltProvider
+    let style: WhereStylesheet.PrivacyPassportCardStyle
+    let shape: RoundedRectangle
+
+    var body: some View {
+        let reflection = style.reflectiveSurface
+        content
+            .tiltSheen(
+                tilt: tilt,
+                staticRoll: reflection.staticPose.roll,
+                staticPitch: reflection.staticPose.pitch,
+                in: shape,
+                intensity: reflection.intensity,
+                staticGlintIntensity: reflection.staticGlintIntensity,
+            )
+            .clipShape(shape)
+            .overlay {
+                shape.strokeBorder(
+                    reflection.accent.opacity(style.outlineOpacity),
+                    lineWidth: style.outlineWidth,
+                )
             }
     }
 }
 
 #if DEBUG
-    #Preview {
-        PrivacyPassportCardSurface(tilt: .preview) {
-            Text(LocalizedStringResource.settingsPrivacyTitle)
-                .padding()
-                .frame(maxWidth: .infinity)
+    #Preview { PrivacyPassportCardSurfacePreview() }
+
+    private struct PrivacyPassportCardSurfacePreview: View {
+        var body: some View {
+            PrivacyPassportCardSurface(tilt: .preview) {
+                Text(LocalizedStringResource.settingsPrivacyTitle)
+                    .padding()
+                    .frame(maxWidth: .infinity)
+            }
+            .padding()
+            .whereBroadwayRoot()
         }
-        .padding()
-        .whereBroadwayRoot()
     }
 #endif

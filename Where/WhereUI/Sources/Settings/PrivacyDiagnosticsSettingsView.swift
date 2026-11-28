@@ -9,7 +9,7 @@ struct PrivacyDiagnosticsSettingsView: View {
     @Environment(WhereModel.self) private var model
 
     var body: some View {
-        @Bindable var reporting = model.diagnosticReporting
+        let reporting = model.diagnosticReporting
         SettingsFocusScope(focus: focus) {
             Form {
                 PrivacyPassportCard(presentation: PrivacyPassportPresentation(
@@ -19,73 +19,13 @@ struct PrivacyDiagnosticsSettingsView: View {
                     .listRowSeparator(.hidden)
                     .listRowInsets(EdgeInsets())
 
-                Section {
-                    Toggle(
-                        String(localized: .settingsDiagnosticsCrashReports),
-                        isOn: $reporting.sharesCrashReports,
-                    )
-                    .settingsRow(Item.crashReports)
-                    if reporting.crashReportsPendingNextLaunch {
-                        pendingRow(isEnabled: reporting.effectiveConfiguration.sharesCrashReports)
-                    }
+                DiagnosticCaptureSection(reporting: reporting)
 
-                    Toggle(
-                        String(localized: .settingsDiagnosticsSessionReplay),
-                        isOn: $reporting.sharesSessionReplays,
-                    )
-                    .settingsRow(Item.sessionReplay)
-                    if reporting.sessionReplaysPendingNextLaunch {
-                        pendingRow(isEnabled: reporting.effectiveConfiguration.sharesSessionReplays)
-                    }
-                } footer: {
-                    Text(String(localized: .settingsDiagnosticsRelaunchFooter))
-                }
-
-                Section {
-                    Picker(
-                        String(localized: .settingsDiagnosticsRemoteLogging),
-                        selection: $reporting.selectedRemoteLevel,
-                    ) {
-                        Text(String(localized: .settingsDiagnosticsOff))
-                            .tag(nil as RemoteLogLevel?)
-                        ForEach(RemoteLogLevel.allCases, id: \.self) { level in
-                            Text(level.settingsTitle).tag(level as RemoteLogLevel?)
-                        }
-                    }
-                    .pickerStyle(.navigationLink)
-                    .settingsRow(Item.remoteLogging)
-
-                    switch reporting.applyState {
-                        case .idle:
-                            EmptyView()
-                        case .applying:
-                            LabeledContent(String(localized: .settingsDiagnosticsApplying)) {
-                                ProgressView()
-                            }
-                        case let .failed(message):
-                            VStack(alignment: .leading) {
-                                Text(String(localized: .settingsDiagnosticsApplyFailed))
-                                    .foregroundStyle(.secondary)
-                                Text(message)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                Button(
-                                    String(localized: .settingsDiagnosticsRetry),
-                                    action: reporting.retryRemoteLogging,
-                                )
-                            }
-                    }
-                } footer: {
-                    Text(String(localized: .settingsDiagnosticsRemoteFooter))
-                }
+                DiagnosticRemoteLoggingSection(reporting: reporting)
 
                 #if DEBUG
                     if reporting.selectedRemoteLevel != nil {
-                        ObservableHostingView {
-                            DiagnosticPersonalDataConfirmation(reporting: reporting)
-                        } content: { confirmation in
-                            DiagnosticPersonalDataSection(confirmation: confirmation)
-                        }
+                        DiagnosticPersonalDataControls(reporting: reporting)
                     }
                 #endif
             }
@@ -93,15 +33,6 @@ struct PrivacyDiagnosticsSettingsView: View {
         }
         .navigationTitle(String(localized: .settingsDiagnosticsTitle))
         .navigationBarTitleDisplayMode(.inline)
-    }
-
-    private func pendingRow(isEnabled: Bool) -> some View {
-        LabeledContent(String(localized: .settingsDiagnosticsCurrentState)) {
-            Text(isEnabled ? String(localized: .settingsDiagnosticsOn) :
-                String(localized: .settingsDiagnosticsOff))
-        }
-        .font(.subheadline)
-        .foregroundStyle(.secondary)
     }
 }
 
@@ -145,6 +76,134 @@ extension PrivacyDiagnosticsSettingsView: SettingsSection {
         }
     }
 }
+
+private struct DiagnosticPendingRow: View {
+    let isEnabled: Bool
+
+    var body: some View {
+        LabeledContent(String(localized: .settingsDiagnosticsCurrentState)) {
+            Text(isEnabled ? String(localized: .settingsDiagnosticsOn) :
+                String(localized: .settingsDiagnosticsOff))
+        }
+        .font(.subheadline)
+        .foregroundStyle(.secondary)
+    }
+}
+
+private struct DiagnosticCaptureSection: View {
+    @Bindable var reporting: DiagnosticReportingSettingsModel
+
+    var body: some View {
+        Section {
+            DiagnosticCaptureToggle(item: .crashReports, isOn: $reporting.sharesCrashReports)
+            if reporting.crashReportsPendingNextLaunch {
+                DiagnosticPendingRow(isEnabled: reporting.effectiveConfiguration.sharesCrashReports)
+            }
+
+            DiagnosticCaptureToggle(item: .sessionReplay, isOn: $reporting.sharesSessionReplays)
+            if reporting.sessionReplaysPendingNextLaunch {
+                DiagnosticPendingRow(isEnabled: reporting.effectiveConfiguration
+                    .sharesSessionReplays)
+            }
+        } footer: {
+            Text(String(localized: .settingsDiagnosticsRelaunchFooter))
+        }
+    }
+}
+
+private struct RemoteLogLevelPicker: View {
+    @Binding var selectedLevel: RemoteLogLevel?
+
+    var body: some View {
+        Picker(
+            String(localized: .settingsDiagnosticsRemoteLogging),
+            selection: $selectedLevel,
+        ) {
+            Text(String(localized: .settingsDiagnosticsOff))
+                .tag(nil as RemoteLogLevel?)
+            ForEach(RemoteLogLevel.allCases, id: \.self) { level in
+                Text(level.settingsTitle).tag(level as RemoteLogLevel?)
+            }
+        }
+        .pickerStyle(.navigationLink)
+        .settingsRow(PrivacyDiagnosticsSettingsView.Item.remoteLogging)
+    }
+}
+
+private struct DiagnosticApplyFailure: View {
+    let message: String
+    let retry: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading) {
+            Text(String(localized: .settingsDiagnosticsApplyFailed))
+                .foregroundStyle(.secondary)
+            Text(message)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Button(
+                String(localized: .settingsDiagnosticsRetry),
+                action: retry,
+            )
+        }
+    }
+}
+
+private struct DiagnosticApplyStatus: View {
+    let state: DiagnosticReportingSettingsModel.ApplyState
+    let retry: () -> Void
+
+    var body: some View {
+        switch state {
+            case .idle:
+                EmptyView()
+            case .applying:
+                LabeledContent(String(localized: .settingsDiagnosticsApplying)) {
+                    ProgressView()
+                }
+            case let .failed(message):
+                DiagnosticApplyFailure(message: message, retry: retry)
+        }
+    }
+}
+
+private struct DiagnosticRemoteLoggingSection: View {
+    @Bindable var reporting: DiagnosticReportingSettingsModel
+
+    var body: some View {
+        Section {
+            RemoteLogLevelPicker(selectedLevel: $reporting.selectedRemoteLevel)
+
+            DiagnosticApplyStatus(state: reporting.applyState, retry: reporting.retryRemoteLogging)
+        } footer: {
+            Text(String(localized: .settingsDiagnosticsRemoteFooter))
+        }
+    }
+}
+
+private struct DiagnosticCaptureToggle: View {
+    let item: PrivacyDiagnosticsSettingsView.Item
+    @Binding var isOn: Bool
+
+    var body: some View {
+        Toggle(item.title, isOn: $isOn)
+            .settingsRow(item)
+    }
+}
+
+#if DEBUG
+    private struct DiagnosticPersonalDataControls: View {
+        let reporting: DiagnosticReportingSettingsModel
+
+        var body: some View {
+            ObservableHostingView {
+                DiagnosticPersonalDataConfirmation(reporting: reporting)
+            } content: { confirmation in
+                DiagnosticPersonalDataSection(confirmation: confirmation)
+            }
+        }
+    }
+#endif
 
 extension RemoteLogLevel {
     fileprivate var settingsTitle: String {
@@ -213,14 +272,23 @@ extension RemoteLogLevel {
                 configurations: .fullContentPhoneLightDark,
                 measurementReadiness: .immediate,
             ) {
-                NavigationStack {
-                    PrivacyDiagnosticsSettingsView()
-                }
-                .environment(PreviewSupport.loadedModel(
-                    savedDiagnosticReporting: saved,
-                    effectiveDiagnosticReporting: effective ?? saved,
-                ))
+                PrivacyDiagnosticsSnapshot(saved: saved, effective: effective ?? saved)
             }
+        }
+    }
+
+    private struct PrivacyDiagnosticsSnapshot: View {
+        let saved: DiagnosticReportingConfiguration
+        let effective: DiagnosticReportingConfiguration
+
+        var body: some View {
+            NavigationStack {
+                PrivacyDiagnosticsSettingsView()
+            }
+            .environment(PreviewSupport.loadedModel(
+                savedDiagnosticReporting: saved,
+                effectiveDiagnosticReporting: effective,
+            ))
         }
     }
 
@@ -233,5 +301,33 @@ extension RemoteLogLevel {
             PrivacyDiagnosticsSettingsView.self,
             title: "Privacy & Diagnostics",
         )
+    }
+#endif
+
+#if DEBUG
+    private struct DiagnosticPersonalDataSection: View {
+        let confirmation: DiagnosticPersonalDataConfirmation
+
+        var body: some View {
+            Section {
+                DiagnosticPersonalDataToggle(confirmation: confirmation)
+            } footer: {
+                Text(String(localized: .settingsDiagnosticsFullMetadataWarning))
+                    .foregroundStyle(.red)
+            }
+        }
+    }
+
+    #Preview("Personal data") { DiagnosticPersonalDataPreview() }
+
+    private struct DiagnosticPersonalDataPreview: View {
+        var body: some View {
+            Form {
+                DiagnosticPersonalDataSection(confirmation: .init(
+                    reporting: PreviewSupport.loadedModel().diagnosticReporting,
+                ))
+            }
+            .whereBroadwayRoot()
+        }
     }
 #endif

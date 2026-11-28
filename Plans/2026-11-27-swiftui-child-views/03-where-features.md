@@ -76,3 +76,7 @@ The searchable region picker, nested screen surface and full-content export reta
 ### Planned stays and location forecast
 
 The planned-stay editor owns dates, destination, validation and persistence. PlanningRegionButton encapsulates the selectable row. Forecast state and artwork loading retain their lifetime. The hatched fill and paper surface have named renderers and keep the same geometry, accessibility and display conditions.
+
+### Devices, appearance, alerts and privacy
+
+The 21-line destructive removal control carries its own confirmation. The device form keeps stable rows and bindings to the live device model. The 21-line personal-data toggle owns the confirmation presenter and keeps the destructive action directly in the native dialog. Appearance, alerts and the privacy passport retain their settings IDs, revision, notification decisions and navigation.

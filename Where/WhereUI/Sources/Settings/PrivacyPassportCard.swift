@@ -19,14 +19,11 @@ struct PrivacyPassportCard: View {
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
 
-                VStack(spacing: style.disclosure.rowSpacing) {
-                    ForEach(presentation.disclosures) { disclosure in
-                        PrivacyPassportDisclosureRow(
-                            disclosure: disclosure,
-                            interaction: disclosureInteraction,
-                        )
-                    }
-                }
+                PrivacyPassportDisclosureList(
+                    presentation: presentation,
+                    interaction: disclosureInteraction,
+                    rowSpacing: style.disclosure.rowSpacing,
+                )
             }
             .padding(style.padding)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -35,17 +32,38 @@ struct PrivacyPassportCard: View {
     }
 }
 
-#if DEBUG
-    #Preview {
-        Form {
-            PrivacyPassportCard(presentation: PrivacyPassportPresentation(
-                configuration: .defaults(isDebugBuild: false),
-            ), disclosureInteraction: .linkToSettings)
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
-                .listRowInsets(EdgeInsets())
+private struct PrivacyPassportDisclosureList: View {
+    let presentation: PrivacyPassportPresentation
+    let interaction: PrivacyPassportDisclosureInteraction
+    let rowSpacing: CGFloat
+
+    var body: some View {
+        VStack(spacing: rowSpacing) {
+            ForEach(presentation.disclosures) { disclosure in
+                PrivacyPassportDisclosureRow(
+                    disclosure: disclosure,
+                    interaction: interaction,
+                )
+            }
         }
-        .whereBroadwayRoot()
+    }
+}
+
+#if DEBUG
+    #Preview { PrivacyPassportCardPreview() }
+
+    private struct PrivacyPassportCardPreview: View {
+        var body: some View {
+            Form {
+                PrivacyPassportCard(presentation: PrivacyPassportPresentation(
+                    configuration: .defaults(isDebugBuild: false),
+                ), disclosureInteraction: .linkToSettings)
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                    .listRowInsets(EdgeInsets())
+            }
+            .whereBroadwayRoot()
+        }
     }
 #endif
 
@@ -75,5 +93,91 @@ struct PrivacyPassportCard: View {
 
     #Preview("Themes") {
         PrivacyPassportCard.snapshotPreviews
+    }
+#endif
+
+/// Restacks the privacy seal above its title when accessibility text needs the width.
+private struct PrivacyPassportHeader: View {
+    @Environment(\.stylesheet) private var stylesheet
+
+    var body: some View {
+        let style = stylesheet.privacyPassportCard
+        layout {
+            PassportSeal(systemSymbol: .lockShieldFill, tint: style.reflectiveSurface.accent)
+            Text(LocalizedStringResource.settingsPrivacyTitle)
+                .font(style.titleFont)
+                .bold()
+                .foregroundStyle(.primary)
+        }
+    }
+
+    private var layout: AnyLayout {
+        let style = stylesheet.privacyPassportCard
+        return if style.headerLayout == .stacked {
+            AnyLayout(VStackLayout(alignment: .leading, spacing: style.headerSpacing))
+        } else {
+            AnyLayout(HStackLayout(spacing: style.headerSpacing))
+        }
+    }
+}
+
+#if DEBUG
+    #Preview("Header") { PrivacyPassportHeaderPreview() }
+
+    private struct PrivacyPassportHeaderPreview: View {
+        var body: some View {
+            PrivacyPassportCardSurface(tilt: .preview) {
+                PrivacyPassportHeader()
+                    .padding()
+            }
+            .padding()
+            .whereBroadwayRoot()
+        }
+    }
+#endif
+
+/// Presents one active privacy-reporting disclosure as a self-contained status row.
+private struct PrivacyPassportDisclosureRow: View {
+    let disclosure: PrivacyPassportPresentation.Disclosure
+    let interaction: PrivacyPassportDisclosureInteraction
+
+    @Environment(\.isInDemoMode) private var isInDemoMode
+
+    var body: some View {
+        if interaction == .linkToSettings, !isInDemoMode {
+            NavigationLink(value: SettingsRoute(.privacyDiagnostics)) {
+                PrivacyPassportDisclosureRowLabel(
+                    disclosure: disclosure,
+                    showsSettingsIndicator: true,
+                )
+            }
+            .buttonStyle(.plain)
+            .navigationLinkIndicatorVisibility(.hidden)
+        } else {
+            PrivacyPassportDisclosureRowLabel(
+                disclosure: disclosure,
+                showsSettingsIndicator: false,
+            )
+        }
+    }
+}
+
+#if DEBUG
+    #Preview("Disclosure") { PrivacyPassportDisclosureRowPreview() }
+
+    private struct PrivacyPassportDisclosureRowPreview: View {
+        var body: some View {
+            NavigationStack {
+                PrivacyPassportCardSurface(tilt: .preview) {
+                    PrivacyPassportDisclosureRow(
+                        disclosure: .crashReports,
+                        interaction: .linkToSettings,
+                    )
+                    .padding()
+                }
+                .padding()
+            }
+            .whereBroadwayRoot()
+        }
     }
 #endif
