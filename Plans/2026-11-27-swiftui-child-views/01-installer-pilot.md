@@ -1,6 +1,6 @@
 # 01 — Extract the InstallerKitUI update-page children
 
-**Status** · ready
+**Status** · executing
 
 **Dependency** · none
 
@@ -58,4 +58,12 @@ UpdateAvailabilitySections(
 
 Fix every confirmed placement or extraction issue in the two pilot files. Record the final counts and source paths for the three helpers, the named page and each qualifying inline child. Check that the page calls the named Other Builds control and that the child contains the complete button with its action and modifiers. On the mounted update page, activate Other Builds, dismiss the browser sheet and open it again. Confirm the accessible button name and role. The page snapshots cover its appearance. Verify that section decoration still wraps the same sections, the metric exposes the same combined contents, update states render correctly, and navigation re-entry and refresh cancellation pass their hosted checks. Capture suite counts, observed interaction, revision and implementation PR here. Use the pilot’s final measurements to refine the later batches.
 
-**Progress.** The November 27 source audit and plan review are complete. Implementation awaits a request. Resume with step 1 on the current base. After an interrupted extraction, compare callers, current file placement and recorded checks before moving the next child. Re-run checks for any changed rendering or ownership boundary.
+**Progress.** The November 27 source audit and plan review are complete. The maintainer authorized implementation on November 27. Execution began at `dbc169471` with no outstanding plan PR review comments. After an interrupted extraction, compare callers, current file placement and recorded checks before moving the next child. Re-run checks for any changed rendering or ownership boundary.
+
+## Pilot measurements
+
+At the implementation base, the public screen’s body measured four lines. `UpdatePage` now owns 28 lines in its own file, including the original sheet, refresh, cancellation and check decoration. Its 13-line install action and seven-line Other Builds button share that file. The 31-line `UpdateAvailabilitySections` has its own file and renders the complete sections directly in the page layout. Its five-line notice card serves the retired and unpublished states. In the summary file, the 16-line metric grid contains 12-line named metrics. The three-line shared summary still serves the public update page and the build detail.
+
+The hosted interaction uses `WhereCompatibilityModelTests.updateLockoutCanBrowseAppUpdatesWithoutOpeningHistory` to activate the accessible button on the production page, dismiss the browser, then open and dismiss it again. The pilot source and host test were reviewed against `dbc169471`. No review defects remained.
+
+On an iPhone 17 simulator, the update-page, refresh and compatibility selections passed four behavior tests. Both snapshot suites passed with recording disabled. The combined run used the two InstallerKitUI selections above and the hosted compatibility test. SwiftFormat lint and the architecture checks passed. The next step is to publish this verified pilot and record its PR.

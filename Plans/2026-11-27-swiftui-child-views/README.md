@@ -4,7 +4,7 @@ The audit found **194 child-helper candidates in 88 files**. Their current bodie
 
 ## Planning checkpoint
 
-On November 27, 2026 the maintainer requested an audit and an implementation plan for the rule merged in [PR #576](https://github.com/kyleve/Stuff/pull/576). The November 27 revision covers every confirmed finding and measures buttons as complete controls. The maintainer requested plan review before implementation. Source evidence uses `5b1747d01`. The [InstallerKitUI pilot](01-installer-pilot.md) is ready. The other three deliverables are outlines with refinement triggers. [STU-352](https://linear.app/kve/issue/STU-352) tracks the migration. Next action is review of [PR #593](https://github.com/kyleve/Stuff/pull/593). Implementation awaits a separate request.
+On November 27, 2026 the maintainer requested an audit and an implementation plan for the rule merged in [PR #576](https://github.com/kyleve/Stuff/pull/576). The November 27 revision covers every confirmed finding and measures buttons as complete controls. The maintainer reviewed the plan and authorized execution of the full series on November 27. Source evidence uses `5b1747d01`. The [InstallerKitUI pilot](01-installer-pilot.md) is executing. The other three deliverables are outlines with refinement triggers. [STU-352](https://linear.app/kve/issue/STU-352) tracks the migration. Execution starts on `codex/swiftui-child-installer-pilot` above [PR #593](https://github.com/kyleve/Stuff/pull/593). On this worktree, `pilot_source` owns the pilot’s source and `pilot_interaction` owns the hosted interaction check. The coordinating agent owns validation, plan records and stack publication. Next, verify the update page and build detail.
 
 ## What the audit measured
 
@@ -46,7 +46,7 @@ The [recount recipe](recount.md) reproduces the declaration tallies. The [inline
 
 | Plan | Status | Deliverable |
 | --- | --- | --- |
-| [01 · InstallerKitUI pilot](01-installer-pilot.md) | Ready | Cover two source files with examples on both sides of the threshold. Verify the public update screen and build-detail rendering. |
+| [01 · InstallerKitUI pilot](01-installer-pilot.md) | Executing | Cover two source files with examples on both sides of the threshold. Verify the public update screen and build-detail rendering. |
 | [02 · Shared modules](02-shared-modules.md) | Outline | Finish the shared packages by owning module, including view tools, catalogs and test or preview fixtures. |
 | [03 · WhereUI features](03-where-features.md) | Outline | Work through feature-owned leaves, galleries, editors, Settings, Developer and shared presentation, with their tests and fixtures. |
 | [04 · Where composition and hosts](04-where-composition.md) | Outline | Cover stateful screens, calendar and tab composition, launch, onboarding and app or extension hosts. |
