@@ -103,7 +103,8 @@ On a wide window, Locations shows cards beside the selected region's calendar.
 The detail pane shows an empty state until a region is selected.
 One region-outline background spans both Locations panes and follows the selected year's visits.
 When Locations displays both panes, only browsing shows the estimate card.
-The compact calendar push retains its estimate card in detail and overview.
+In compact layouts, the region calendar carries its own patterned paper through the card zoom.
+It retains its estimate card in detail and overview.
 Planned-day markings and summaries remain in every layout. Other calendars retain their estimate card.
 Your Year uses one navigation stack and the bottom calendar/timeline selector at every window size.
 Its calendar and timeline share the same selected-year background as Locations.

@@ -1,5 +1,6 @@
 import AccessibilitySnapshotParser
 import BroadwayUI
+import CoreImage.CIFilterBuiltins
 import RegionKit
 import SnapshotKit
 import SwiftUI
@@ -18,6 +19,79 @@ struct LocationsViewTests {
 @MainActor
 @Suite(.serialized)
 struct LocationsViewTestsDuo {
+    @Test func compactCalendarZoomDestinationHasOpaquePaper() async throws {
+        let world = try await WhereFlyoverWorld.build()
+        let state = AdaptivePaneHostState()
+        let host = UIHostingController(rootView: AdaptivePaneHostedSurface(state: state) {
+            LocationsView(report: world.report)
+        }.bScrollRestorationScope())
+        host.safeAreaRegions = []
+        try await show(host) { controller in
+            try await AdaptivePaneTestSupport.resize(controller, state: state, to: .outerPortrait)
+            @MainActor func regionCard() -> NSObject? {
+                HostedAccessibility.objects(in: controller.view).first {
+                    $0.accessibilityLabel?.hasPrefix("California:") == true
+                        && $0.accessibilityTraits.contains(.button)
+                }
+            }
+            try await waitForStage("compact region card") { regionCard() != nil }
+            let card = try #require(regionCard())
+            if let control = card as? UIControl { control.sendActions(for: .touchUpInside) }
+            else { try #require(card.accessibilityActivate()) }
+
+            @MainActor func pushedStack(in root: UIViewController) -> UINavigationController? {
+                if let stack = root as? UINavigationController,
+                   stack.viewControllers.count > 1 { return stack }
+                return root.children.lazy.compactMap { pushedStack(in: $0) }.first
+            }
+            try await waitForStage("compact calendar push") {
+                guard let stack = pushedStack(in: controller),
+                      stack.transitionCoordinator == nil else { return false }
+                return HostedAccessibility.isVisible(
+                    String(localized: .calendarShowYear),
+                    in: stack.view,
+                )
+            }
+            let stack = try #require(pushedStack(in: controller))
+            let calendarController = try #require(stack.topViewController)
+            let destination = try #require(calendarController.view)
+            // Capture the moving destination alone. The tab's paper would mask a transparent push.
+            let format = UIGraphicsImageRendererFormat()
+            format.scale = 1
+            format.opaque = false
+            format.preferredRange = .standard
+            let image = UIGraphicsImageRenderer(bounds: destination.bounds, format: format)
+                .image { _ in
+                    #expect(destination.drawHierarchy(
+                        in: destination.bounds,
+                        afterScreenUpdates: true,
+                    ))
+                }
+            let calendar = try #require(CIImage(image: image))
+            let minimum = CIFilter.areaMinimum()
+            minimum.inputImage = calendar
+            minimum.extent = calendar.extent
+            let result = try #require(minimum.outputImage)
+            var rgba = [UInt8](repeating: 0, count: 4)
+            CIContext().render(
+                result,
+                toBitmap: &rgba,
+                rowBytes: 4,
+                bounds: result.extent,
+                format: .RGBA8,
+                colorSpace: nil,
+            )
+            #expect(rgba[3] == 255)
+
+            stack.popViewController(animated: true)
+            try await waitForStage("back to compact region cards") {
+                stack.transitionCoordinator == nil
+                    && !stack.viewControllers.contains(calendarController)
+                    && regionCard() != nil
+            }
+        }
+    }
+
     @Test func openingWithoutARegionShowsAnEmptyDetailUntilSelection() async throws {
         let world = try await WhereFlyoverWorld.build()
         let state = AdaptivePaneHostState()
