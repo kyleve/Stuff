@@ -9,6 +9,8 @@ struct LocationsDetailContent: View {
     let selection: LocationsView.CalendarSelection?
     let arrangement: AdaptivePaneArrangement
 
+    @Environment(LocationsView.CalendarPresentations.self) private var calendars
+
     var body: some View {
         Group {
             if arrangement == .columns {
@@ -30,6 +32,9 @@ struct LocationsDetailContent: View {
             }
         }
         .toolbar { LocationsToolbar(report: report, navigation: navigation) }
+        .onChange(of: selection) { previous, _ in
+            if arrangement == .compact, let previous { calendars.discard(previous) }
+        }
     }
 }
 
@@ -41,19 +46,23 @@ struct LocationsRegionCalendar: View {
     var showsZoomAction = true
     var onPresentationReady: (() -> Void)?
 
+    @Environment(LocationsView.CalendarPresentations.self) private var calendars
+
     var body: some View {
-        CalendarContentView(
-            focusedRegion: selection.region,
-            report: report,
-            showsEstimateCard: showsEstimateCard,
-            showsPlanningAction: false,
-            showsZoomAction: showsZoomAction,
-            presentationState: selection.presentation,
-            persistenceKey: .region(selection.region),
-            scrollRole: LocationsView.ScrollRole.calendar,
-            planningDestination: $navigation.planningDestination,
-            onPresentationReady: onPresentationReady,
-        )
+        if let presentation = calendars[selection] {
+            CalendarContentView(
+                focusedRegion: selection.region,
+                report: report,
+                showsEstimateCard: showsEstimateCard,
+                showsPlanningAction: false,
+                showsZoomAction: showsZoomAction,
+                presentationState: presentation,
+                persistenceKey: .region(selection.region),
+                scrollRole: LocationsView.ScrollRole.calendar,
+                planningDestination: $navigation.planningDestination,
+                onPresentationReady: onPresentationReady,
+            )
+        }
     }
 }
 
@@ -76,14 +85,16 @@ struct LocationsNoRegion: View {
         let report = PreviewSupport.loadedYearReportModel()
         let navigation = LocationsView.Navigation()
         let _ = navigation.select(region: .california)
+        let calendars = LocationsView.makeCalendarPresentations(for: .california, report: report)
         NavigationStack {
             LocationsDetailContent(
                 report: report,
                 navigation: navigation,
-                selection: LocationsView.makeCalendarSelection(for: .california, report: report),
+                selection: calendars.selected,
                 arrangement: .compact,
             )
         }
+        .environment(calendars)
         .whereBroadwayRoot()
     }
 #endif

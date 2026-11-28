@@ -1,11 +1,8 @@
-import Observation
 import SwiftUI
 
 /// Animates mounted calendars so native scroll content moves in both directions.
 struct LocationsAnimatedDetail: View {
-    /// The Observation macro emits the nested type's conformance at file scope.
-    @MainActor @Observable
-    fileprivate final class Presentation {
+    private struct Presentation {
         var current: LocationsView.CalendarSelection?
         var revealedID: LocationsView.CalendarSelection.ID?
         var calendars: [LocationsView.CalendarSelection]
@@ -22,6 +19,7 @@ struct LocationsAnimatedDetail: View {
     let selection: LocationsView.CalendarSelection?
     @State private var presentation: Presentation
     @Environment(\.stylesheet) private var stylesheet
+    @Environment(LocationsView.CalendarPresentations.self) private var calendars
 
     init(
         report: YearReportModel,
@@ -61,7 +59,13 @@ struct LocationsAnimatedDetail: View {
                 .transition(.identity)
             }
         }
+        .onAppear { calendars.retain(presentation.calendars) }
         .onChange(of: selection?.id) { updateSelection() }
+        .onDisappear {
+            for calendar in presentation.calendars where calendar.id != presentation.current?.id {
+                calendars.discard(calendar)
+            }
+        }
     }
 
     private func updateSelection() {
@@ -74,14 +78,16 @@ struct LocationsAnimatedDetail: View {
                 presentation.calendars.removeAll { $0.region == selection.region }
                 presentation.calendars.append(selection)
             }
+            calendars.retain(presentation.calendars)
         } completion: {
             guard let outgoing, presentation.current?.id != outgoing.id else { return }
             presentation.calendars.removeAll { $0.id == outgoing.id }
+            calendars.discard(outgoing)
         }
     }
 
     private func reveal(_ id: LocationsView.CalendarSelection.ID) {
-        guard presentation.current?.id == id, selection?.id == id,
+        guard presentation.current?.id == id, calendars.selected?.id == id,
               presentation.revealedID != id
         else { return }
         withAnimation(stylesheet.locationsDetail.animation) {
@@ -93,11 +99,13 @@ struct LocationsAnimatedDetail: View {
 #if DEBUG
     #Preview {
         let report = PreviewSupport.loadedYearReportModel()
+        let calendars = LocationsView.makeCalendarPresentations(for: .california, report: report)
         LocationsAnimatedDetail(
             report: report,
             navigation: LocationsView.Navigation(),
-            selection: LocationsView.makeCalendarSelection(for: .california, report: report),
+            selection: calendars.selected,
         )
+        .environment(calendars)
         .whereBroadwayRoot()
     }
 #endif

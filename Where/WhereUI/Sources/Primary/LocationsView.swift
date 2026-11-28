@@ -36,23 +36,52 @@ struct LocationsView: View {
 
     enum ScrollRole: Hashable { case calendar }
 
-    /// One opening of a region's calendar. Its instance identity keeps
-    /// animation callbacks tied to that opening when a region is reselected.
-    @MainActor
-    final class CalendarSelection: Identifiable {
-        let region: Region
-        let presentation: CalendarPresentationState
+    /// Each opening has a distinct ID because an earlier opening may still be animating.
+    struct CalendarSelection: Identifiable, Hashable {
+        struct ID: Hashable {
+            private let value = UUID()
+        }
 
-        init(region: Region, presentation: CalendarPresentationState) {
-            self.region = region
-            self.presentation = presentation
+        let id = ID()
+        let region: Region
+    }
+
+    /// Keeps the zoom state of the selected calendar and any calendars still animating out.
+    @MainActor @Observable
+    final class CalendarPresentations {
+        private(set) var selected: CalendarSelection?
+        private var presentations: [CalendarSelection.ID: CalendarPresentationState] = [:]
+
+        func select(region: Region, presentation: CalendarPresentationState) {
+            let selection = CalendarSelection(region: region)
+            presentations[selection.id] = presentation
+            selected = selection
+        }
+
+        func deselect() {
+            selected = nil
+        }
+
+        subscript(_ selection: CalendarSelection) -> CalendarPresentationState? {
+            presentations[selection.id]
+        }
+
+        func discard(_ selection: CalendarSelection) {
+            guard selection.id != selected?.id else { return }
+            presentations.removeValue(forKey: selection.id)
+        }
+
+        func retain(_ displayed: [CalendarSelection]) {
+            let visibleIDs = Set(displayed.map(\.id))
+            presentations = presentations
+                .filter { $0.key == selected?.id || visibleIDs.contains($0.key) }
         }
     }
 
     let report: YearReportModel
     var openElsewhere: (() -> Void)?
     @State private var navigation: LocationsView.Navigation
-    @State private var calendarSelection: CalendarSelection?
+    @State private var calendarPresentations: CalendarPresentations
     @State private var cardPresentation: LocationCardsPresentationModel
     @State private var tilt = TiltProvider()
     @Namespace private var calendarTransition
@@ -69,9 +98,10 @@ struct LocationsView: View {
         let navigation = navigation ?? LocationsView.Navigation()
         if let initialRegion { navigation.select(region: initialRegion) }
         _navigation = State(initialValue: navigation)
-        _calendarSelection = State(initialValue: navigation.selectedRegion.map {
-            Self.makeCalendarSelection(for: $0, report: report)
-        })
+        _calendarPresentations = State(initialValue: Self.makeCalendarPresentations(
+            for: navigation.selectedRegion,
+            report: report,
+        ))
         _cardPresentation = State(initialValue: LocationCardsPresentationModel(
             preferences: report.preferences,
             year: report.selectedYear,
@@ -140,17 +170,32 @@ struct LocationsView: View {
             destination: $navigation.planningDestination,
         ))
         .onChange(of: navigation.selectedRegion) { _, region in
-            calendarSelection = region.map { Self.makeCalendarSelection(for: $0, report: report) }
+            Self.selectCalendar(for: region, in: calendarPresentations, report: report)
         }
+        .environment(calendarPresentations)
     }
 
-    static func makeCalendarSelection(
-        for region: Region,
+    static func makeCalendarPresentations(
+        for region: Region?,
         report: YearReportModel,
-    ) -> CalendarSelection {
+    ) -> CalendarPresentations {
+        let calendars = CalendarPresentations()
+        selectCalendar(for: region, in: calendars, report: report)
+        return calendars
+    }
+
+    private static func selectCalendar(
+        for region: Region?,
+        in calendars: CalendarPresentations,
+        report: YearReportModel,
+    ) {
+        guard let region else {
+            calendars.deselect()
+            return
+        }
         let overview = CalendarModel(report: report, persistenceKey: .region(region))
             .isOverview(fallback: false)
-        return CalendarSelection(
+        calendars.select(
             region: region,
             presentation: CalendarPresentationState(mode: overview ? .overview : .detail),
         )
@@ -191,7 +236,7 @@ struct LocationsView: View {
         LocationsDetailContent(
             report: report,
             navigation: navigation,
-            selection: calendarSelection,
+            selection: calendarPresentations.selected,
             arrangement: arrangement,
         )
     }

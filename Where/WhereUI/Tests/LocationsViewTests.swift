@@ -12,6 +12,26 @@ struct LocationsViewTests {
     @Test func screenCompositionKeepsViewValuesWithinStackBudget() {
         #expect(MemoryLayout<LocationsView.Body>.size < 16384)
     }
+
+    @MainActor
+    @Test func outgoingCalendarsKeepTheirOwnPresentationUntilDiscarded() throws {
+        let calendars = LocationsView.CalendarPresentations()
+        let outgoing = CalendarPresentationState(mode: .detail)
+        calendars.select(region: .california, presentation: outgoing)
+        let first = try #require(calendars.selected)
+
+        let incoming = CalendarPresentationState(mode: .overview)
+        calendars.select(region: .california, presentation: incoming)
+        let next = try #require(calendars.selected)
+
+        #expect(calendars[first] === outgoing)
+        #expect(calendars[next] === incoming)
+
+        calendars.discard(first)
+        calendars.discard(next)
+        #expect(calendars[first] == nil)
+        #expect(calendars[next] === incoming)
+    }
 }
 
 /// These tests resize native navigation in the shared test host window.
