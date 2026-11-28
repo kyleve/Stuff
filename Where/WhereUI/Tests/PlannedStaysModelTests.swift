@@ -109,8 +109,7 @@ struct PlannedStaysModelTests {
             navigation.popViewController(animated: false)
             try await waitForAsync { navigation.viewControllers.count == 1 }
             try await openHomePicker(in: host.view)
-            let reopenedSearch = try await searchField(in: host.view)
-            #expect((reopenedSearch.text ?? "").isEmpty)
+            _ = try await searchField(in: host.view) { ($0.text ?? "").isEmpty }
         }
     }
 
@@ -128,10 +127,13 @@ struct PlannedStaysModelTests {
         else { try #require(row.accessibilityActivate()) }
     }
 
-    private func searchField(in view: UIView) async throws -> UISearchTextField {
+    private func searchField(
+        in view: UIView,
+        matching predicate: (UISearchTextField) -> Bool = { _ in true },
+    ) async throws -> UISearchTextField {
         func field() -> UISearchTextField? {
             AdaptivePaneTestSupport.descendants(of: view, matching: UISearchTextField.self)
-                .first { !$0.isHidden && $0.window != nil }
+                .first { !$0.isHidden && $0.window != nil && predicate($0) }
         }
         try await waitForAsync { field() != nil }
         return try #require(field())
