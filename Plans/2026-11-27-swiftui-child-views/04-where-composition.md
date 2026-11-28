@@ -1,6 +1,6 @@
 # 04 — Where screen composition and extension hosts
 
-**Status** · executing
+**Status** · blocked
 
 Depends on [01 — Installer pilot](01-installer-pilot.md). See the [overview](README.md) for requirements and the [audit](audit.md) for source locations.
 
@@ -61,3 +61,7 @@ The timeline owns its scroll position, stable item identities, planning destinat
 ### Share sheet, widgets and intent snippets
 
 Today and Day Counts retain their WidgetKit entry, family and compatibility branches. On the iPhone 17 Pro simulator, WidgetKit displayed Today small and Day Counts small and medium. The medium widget also rendered its live zero-day state on the Home Screen. Photos shared a synthetic screenshot to Where and showed the attachment, kind, date and note. Cancel returned to the originating share sheet. A second invocation saved and returned to Photos. The snippet’s native Button(intent:) keeps LogDayIntent, the original label, style and region tint together. The maintainer requested that the Siri/Shortcuts invocation on physical hardware remain pending.
+
+### Publication and acceptance
+
+The remaining acceptance check is the physical-device Siri or Shortcuts invocation. The maintainer requested deferral. Resume on a test iPhone with the reviewed build and an eligible region. Confirm the Log Day affordance invokes the intended action, then record the outcome. The implementation PRs for the closing batches are [#602](https://github.com/kyleve/Stuff/pull/602), [#613](https://github.com/kyleve/Stuff/pull/613), [#614](https://github.com/kyleve/Stuff/pull/614).
