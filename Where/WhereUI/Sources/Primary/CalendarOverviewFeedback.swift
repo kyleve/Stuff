@@ -13,11 +13,11 @@ struct CalendarOverviewFeedback: ViewModifier {
             content
                 .offset(x: style.usesSpatialMotion && rejected ? phase * style.shakeDistance : 0)
                 .overlay {
-                    if !style.usesSpatialMotion, rejected {
-                        RoundedRectangle(cornerRadius: style.cornerRadius)
-                            .stroke(.secondary, lineWidth: 2)
-                            .opacity(abs(phase))
-                    }
+                    CalendarRejectionOutline(
+                        visible: !style.usesSpatialMotion && rejected,
+                        cornerRadius: style.cornerRadius,
+                        phase: phase,
+                    )
                 }
         } keyframes: { _ in
             LinearKeyframe(-1, duration: style.duration / 4)
@@ -27,3 +27,29 @@ struct CalendarOverviewFeedback: ViewModifier {
         }
     }
 }
+
+private struct CalendarRejectionOutline: View {
+    let visible: Bool
+    let cornerRadius: CGFloat
+    let phase: CGFloat
+
+    var body: some View {
+        if visible {
+            RoundedRectangle(cornerRadius: cornerRadius)
+                .stroke(.secondary, lineWidth: 2)
+                .opacity(abs(phase))
+        }
+    }
+}
+
+#if DEBUG
+    #Preview("Unavailable month feedback") {
+        NavigationStack {
+            CalendarContentView(
+                report: PreviewSupport.plannedStayYearReportModel(),
+                initialMode: .overview,
+            )
+        }
+        .whereBroadwayRoot()
+    }
+#endif

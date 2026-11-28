@@ -71,21 +71,14 @@
                 } else {
                     nil
                 }
-                @ViewBuilder
-                func build() -> some View {
-                    if let readiness {
-                        MountedCalendarSnapshot(readiness: readiness, content: content)
-                    } else {
-                        content(nil)
-                    }
-                }
                 if includesThemes {
                     cases.append(whereThemeSnapshot(
                         name: name,
                         configurations: configurations,
                         measurementReadiness: awaitsLayout ? .immediate : .sameAsCapture,
                         onReadyToMeasure: hook,
-                        content: build,
+                        content: { CalendarSnapshotSubject(readiness: readiness, content: content)
+                        },
                     ))
                 } else {
                     cases.append(whereSnapshot(
@@ -93,11 +86,25 @@
                         configurations: configurations,
                         measurementReadiness: awaitsLayout ? .immediate : .sameAsCapture,
                         onReadyToMeasure: hook,
-                        content: build,
+                        content: { CalendarSnapshotSubject(readiness: readiness, content: content)
+                        },
                     ))
                 }
             }
             return cases
+        }
+    }
+
+    private struct CalendarSnapshotSubject<Content: View>: View {
+        let readiness: CalendarSnapshotReadiness?
+        let content: @MainActor (CalendarPresentationState?) -> Content
+
+        var body: some View {
+            if let readiness {
+                MountedCalendarSnapshot(readiness: readiness, content: content)
+            } else {
+                content(nil)
+            }
         }
     }
 
