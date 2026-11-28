@@ -1,6 +1,6 @@
 # 02 — Shared modules
 
-**Status** · executing
+**Status** · complete
 
 Depends on [01 — Installer pilot](01-installer-pilot.md). See the [overview](README.md) for requirements and the [audit](audit.md) for file and symbol locations.
 
@@ -52,3 +52,7 @@ The complete Fit All, Reset All and Render Preview buttons live with their Flyov
 ### Inspector selection and log viewer
 
 Inspector’s 17-line table row owns selection, hit shape and plain style. RelatedRowButton measures 21 lines and owns its file. InspectorLaunchButton keeps its two mutually exclusive next-launch actions. The log viewer keeps its store, search, filters, routing and export presentation. Its complete span-navigation and export buttons remain with their parent. Both modules use the same test-only accessibility traversal to activate mounted SwiftUI controls. The mounted Inspector test selected a row, cancelled native deletion, returned to the list and paged from two to four rows. Native simulator taps opened Span Tree and Span History, returned to Logs and exercised the filter and search. The export test parsed the seeded record from the NDJSON sheet.
+
+### Publication and acceptance
+
+The source changes and owning verification are published for review. The implementation PRs for the closing batches are [#601](https://github.com/kyleve/Stuff/pull/601), [#609](https://github.com/kyleve/Stuff/pull/609), [#606](https://github.com/kyleve/Stuff/pull/606), [#615](https://github.com/kyleve/Stuff/pull/615).

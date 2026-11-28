@@ -6,6 +6,8 @@ The audit found **194 child-helper candidates in 88 files**. Their current bodie
 
 On November 27, 2026 the maintainer requested an audit and an implementation plan for the rule merged in [PR #576](https://github.com/kyleve/Stuff/pull/576). The November 27 revision covers every confirmed finding and measures buttons as complete controls. The maintainer reviewed the plan and authorized execution of the full series on November 27. Source evidence uses `5b1747d01`. The pilot passed four behavior tests and both snapshot suites. [PR #594](https://github.com/kyleve/Stuff/pull/594) publishes it above the [plan PR](https://github.com/kyleve/Stuff/pull/593). [STU-352](https://linear.app/kve/issue/STU-352) tracks the migration. On November 27, the review of plans 02–04 checked the pilot measurements, each succeeding slice’s source boundaries, suite names and overlapping open PRs. The first three batches are the region picker, the Year mode picker and the Installer browser. The coordinator integrates their isolated source changes into the stack, runs tests and publishes each verified slice. `next_horizon` owns the region picker, Settings, Developer and widget surfaces, `pilot_review` owns Where composition and system hosts, and `pilot_source` owns shared packages. The coordinator owns the remaining feature slices and the final inventory reconciliation.
 
+The implementation is published in [stack #595](https://github.com/kyleve/Stuff/stack/595). Plans 01–03 have delivered their verified changes. The physical-device Siri check in plan 04 is deferred by the maintainer. The next repository maintenance action is the merged-revision guidance check below. [STU-352](https://linear.app/kve/issue/STU-352) remains In Review.
+
 ## What the audit measured
 
 The merge introduced a rule for adding or changing a SwiftUI child view. This series applies it to existing children in tracked Swift sources, including app and extension hosts, packages, DEBUG previews, snapshots and test fixtures. For each child, count the nonblank, non-comment lines inside its formatted body, including modifiers and branches. Below five lines the rule requires no extraction. At 5–19 lines the named child belongs in the parent’s file. At 20 or more it belongs in its own Swift file. The [building-ui skill](../../.agents/skills/building-ui/SKILL.md#swiftui-view-extraction) owns the rule.
@@ -47,9 +49,9 @@ The [recount recipe](recount.md) reproduces the declaration tallies. The [inline
 | Plan | Status | Deliverable |
 | --- | --- | --- |
 | [01 · InstallerKitUI pilot](01-installer-pilot.md) | Complete | Cover two source files with examples on both sides of the threshold. Verify the public update screen and build-detail rendering. |
-| [02 · Shared modules](02-shared-modules.md) | Executing | Finish the shared packages by owning module, including view tools, catalogs and test or preview fixtures. |
-| [03 · WhereUI features](03-where-features.md) | Executing | Work through feature-owned leaves, galleries, editors, Settings, Developer and shared presentation, with their tests and fixtures. |
-| [04 · Where composition and hosts](04-where-composition.md) | Executing | Cover stateful screens, calendar and tab composition, launch, onboarding and app or extension hosts. |
+| [02 · Shared modules](02-shared-modules.md) | Complete | Finish the shared packages by owning module, including view tools, catalogs and test or preview fixtures. |
+| [03 · WhereUI features](03-where-features.md) | Complete | Work through feature-owned leaves, galleries, editors, Settings, Developer and shared presentation, with their tests and fixtures. |
+| [04 · Where composition and hosts](04-where-composition.md) | Blocked | Cover stateful screens, calendar and tab composition, launch, onboarding and app or extension hosts. |
 
 The pilot supplies measured placement examples and a checked way to preserve state. Plans 02–04 can then proceed in independent, reviewable module or screen batches. Assign a test helper used by several features to the batch that owns its rendered subject and record the reference from any other consumer. For each batch, compare with the implementation base, record concrete child sizes and dispositions, and preserve existing tests and snapshot references.
 
@@ -66,3 +68,35 @@ The pilot supplies measured placement examples and a checked way to preserve sta
 **Q-02 · closed.** How should overlapping candidates determine final file placement? The initial plan measured nested expressions first. On November 27 the maintainer clarified that the extraction unit for a button is the whole control. Select that boundary first, then measure its formatted body and remeasure an enclosing composition after the move. R-01, the region-picker example, the pilot and the whole-button inventory incorporate the correction. The maintainer also requested coverage of every finding, now explicit in R-03.
 
 The November 27 plan review checked the rule against its merge, source declarations against the two thresholds, and representative inline and named sites against their callers. The review removed protocol and modifier declarations from the helper tally, identified preview or test renderers among named bodies, and added a caller review for small views already in separate files. It traced each area to an owning deliverable and inspected the pilot’s proposed checks against actual hosted and snapshot suites. SwiftFormat lint passed on the audited tree. After [PR #592](https://github.com/kyleve/Stuff/pull/592) merged, the full scan at `5b1747d01` matched the declaration and builder totals at `51d7cbfbf`. The inline index uses the newer revision. For the whole-button revision, the review compared the independent control count with the source and checked the named region row, the inline Other Builds button and the intent-backed snippet. The diagram and Swift sketch describe proposed ownership. This static audit provides no runtime or image evidence for future extractions.
+
+## Implementation audit
+
+The final source revision is `bdbf07075`. The three original indexes refer to the Swift sources at `5b1747d01`. They contain 320 distinct paths. The shared-package review covered 81, the Settings, Developer, widget-rendering and snippet review covered 116, and the Where composition, extension and feature-flow review covered 83. The remaining 40 belong to Regions, Resolution, shared presentation, device recovery and their fixtures. The numbered plans group delivered components and retained framework, screen and fixture boundaries by owner. A path can contain several overlapping helper, label, control and modifier anchors.
+
+| Check | Baseline | Implementation |
+| --- | ---: | ---: |
+| Tracked Swift files | 1,615 | 1,687 |
+| Qualifying view-returning helpers | 194 | 0 |
+| Named bodies of 20+ lines flagged for file placement | 34 | 0 |
+| Framework or modifier boundaries retained by the recount | 14 | 14 |
+| Complete button expressions of 5+ lines | 111 | 90 |
+
+The final broad verification ran 429 behavior tests and 53 snapshot tests. The targeted reruns also covered the Inspector and Periscope interactions, the evidence gallery, the export fixture and 10 grid-pixel and reference-image checks. All passed with the baseline images in place.
+
+The button count measures initializer expressions at the implementation site. Several callers now use one shared control. All except four expressions are direct roots of named button views. Two are the mutually exclusive modes of InspectorLaunchButton. DeveloperCrashButton and DiagnosticPersonalDataToggle contain the other two inside native confirmation-dialog action builders. Their destructive roles and presentation remain attached to the original controls.
+
+The recount also reports 117 small views with a matching filename. These include public or navigable screens, independent snapshot or export roots and controls shared by several parents. The owner reviews and named placements in plans 02–04 distinguish those cases.
+
+### Native host results
+
+- Photos opened Where’s share sheet with a synthetic screenshot. Cancel returned to the share sheet. Save returned to Photos and wrote one byte-for-byte matching image to the isolated app-group store.
+- WidgetKit displayed Today small and Day Counts small and medium in the gallery. The medium Day Counts widget also rendered its live empty state on the Home Screen.
+- Inspector selected a row, cancelled its native deletion confirmation, returned to its table and loaded the next page. Periscope opened both Spans destinations, returned to Logs, filtered, searched and exported its seeded record.
+- The Privacy prompt exposed Cancel and the destructive action. Native cancellation preserved revision 2 and all three policy copies. Activating the destructive action in a fresh in-memory fixture advanced it to revision 3.
+- Broadway Catalog launched on the simulator and RegionViewer built for Mac Catalyst. The physical-device Siri or Shortcuts invocation remains pending at the maintainer’s request.
+
+After maintainer review and merge, run the recount on the merged source, update the agent guidance against the verified examples, and close STU-352 when the acceptance record is complete.
+
+### Verification
+
+The implementation passed the repository formatter and architecture checks. Owning behavior, accessibility and snapshot results are recorded with their feature batches. The snapshot runs used the original reference images with recording disabled. The full declaration recount covered all tracked Swift files at the implementation revision above.

@@ -1,6 +1,6 @@
 # 03 — Extract WhereUI feature views
 
-**Status** · executing
+**Status** · complete
 
 Depends on [01 — InstallerKitUI pilot](01-installer-pilot.md). The [shared modules](02-shared-modules.md) can proceed independently.
 
@@ -92,3 +92,7 @@ Card Designer keeps its observed configuration, native sliders, ranges and reset
 ### Explore Features galleries
 
 FeatureMarketingActionButton keeps each gallery action and accessibility label together. Siri examples keep their row identity, request and response. The widget gallery keeps real widget renderers inside the shared 24-line device frame. The Places calendar panel and Lock Screen section each measure 20 lines and own their files. Recording and privacy examples preserve their existing focus IDs and reveal order. Evidence uses the same header and footer as the other galleries. Its 16-line hero now has one parent and lives beside the shared header row.
+
+### Publication and acceptance
+
+The source changes and owning verification are published for review. The implementation PRs for the closing batches are [#607](https://github.com/kyleve/Stuff/pull/607), [#608](https://github.com/kyleve/Stuff/pull/608), [#605](https://github.com/kyleve/Stuff/pull/605), [#617](https://github.com/kyleve/Stuff/pull/617), [#611](https://github.com/kyleve/Stuff/pull/611), [#616](https://github.com/kyleve/Stuff/pull/616), [#612](https://github.com/kyleve/Stuff/pull/612), [#610](https://github.com/kyleve/Stuff/pull/610).
