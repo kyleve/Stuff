@@ -71,7 +71,7 @@ The November 27 plan review checked the rule against its merge, source declarati
 
 ## Implementation audit
 
-The final source revision is `bdbf07075`. The three original indexes refer to the Swift sources at `5b1747d01`. They contain 320 distinct paths. The shared-package review covered 81, the Settings, Developer, widget-rendering and snippet review covered 116, and the Where composition, extension and feature-flow review covered 83. The remaining 40 belong to Regions, Resolution, shared presentation, device recovery and their fixtures. The numbered plans group delivered components and retained framework, screen and fixture boundaries by owner. A path can contain several overlapping helper, label, control and modifier anchors.
+The final source revision is `7827acd18`. The three original indexes refer to the Swift sources at `5b1747d01`. They contain 320 distinct paths. The shared-package review covered 81, the Settings, Developer, widget-rendering and snippet review covered 116, and the Where composition, extension and feature-flow review covered 83. The remaining 40 belong to Regions, Resolution, shared presentation, device recovery and their fixtures. The numbered plans group delivered components and retained framework, screen and fixture boundaries by owner. A path can contain several overlapping helper, label, control and modifier anchors.
 
 | Check | Baseline | Implementation |
 | --- | ---: | ---: |
