@@ -68,7 +68,9 @@ extension PlacesYearFeaturesView: SettingsSection {
                 name: "Loaded",
                 configurations: .fullContentPhoneLightDarkWithAX5,
                 onReadyToMeasure: {
-                    if let input = loaded.elsewhereInput { await loaded.elsewhere.refresh(input) }
+                    if let input = loaded.elsewhereInput {
+                        await loaded.elsewhere.refresh(input)
+                    }
                 },
                 onReadyToSnapshot: {
                     await PreviewSupport.loadCardArtwork(
@@ -100,7 +102,9 @@ extension PlacesYearFeaturesView: SettingsSection {
                 name: "Demo",
                 configurations: .fullContentPhoneLightDark,
                 onReadyToMeasure: {
-                    if let input = demo.elsewhereInput { await demo.elsewhere.refresh(input) }
+                    if let input = demo.elsewhereInput {
+                        await demo.elsewhere.refresh(input)
+                    }
                 },
                 onReadyToSnapshot: {
                     await PreviewSupport.loadCardArtwork(

@@ -102,7 +102,9 @@ final class RegionMapGeometry: Sendable {
                 let outline = part.outline
                 guard outline.coordinates.count > 256 || outline.holes
                     .contains(where: { $0.count > 256 }) else { return outline }
-                if let cached = simplified[outline.id] { return cached }
+                if let cached = simplified[outline.id] {
+                    return cached
+                }
                 let rendered = try RegionGeometrySimplifier.simplify(
                     [outline],
                     tolerance: extent / (4 * part.extent),
@@ -123,8 +125,12 @@ extension RegionOutline {
             ring.map { coordinate in
                 var point = MKMapPoint(coordinate.clLocationCoordinate)
                 // Keep both sides of an Aleutian island in the same copy of the map.
-                if point.x - anchor > world / 2 { point.x -= world }
-                if anchor - point.x > world / 2 { point.x += world }
+                if point.x - anchor > world / 2 {
+                    point.x -= world
+                }
+                if anchor - point.x > world / 2 {
+                    point.x += world
+                }
                 return point
             }
         }
@@ -139,8 +145,7 @@ extension RegionOutline {
     }
 }
 
-/// The camera filters drawable overlays. Picker hit testing still asks the
-/// display geometry about the exact tapped coordinate at every zoom.
+/// The map camera filters the outlines drawn in its viewport.
 struct RegionPolygonMap: View {
     let geometry: RegionMapGeometry
     var selectedTitle: String?

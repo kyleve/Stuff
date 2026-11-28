@@ -1,3 +1,4 @@
+import BroadwayCore
 import Foundation
 import Observation
 import SnapshotKit
@@ -6,9 +7,16 @@ import WhereCore
 
 @MainActor @Observable
 final class OnboardingPhotoHistory {
-    enum ScanState: Equatable { case idle, scanning(Int, Int), empty, unavailable, failed }
+    enum ScanState: Equatable {
+        case idle
+        case scanning(Int, Int)
+        case empty
+        case unavailable
+        case failed
+    }
+
     var state: ScanState = .idle
-    private(set) var attempt: UUID?
+    private(set) var attempt: PresentationID<OnboardingPhotoHistory>?
     var review: PhotoStayReviewModel?
     var conflicts: PhotoHistoryConflicts?
     var useReviewedDays: Set<CalendarDay> = []
@@ -20,7 +28,7 @@ final class OnboardingPhotoHistory {
     func begin() {
         review = nil
         state = .scanning(0, 0)
-        attempt = UUID()
+        attempt = PresentationID()
     }
 
     func cancel() {
@@ -29,9 +37,9 @@ final class OnboardingPhotoHistory {
     }
 
     func scan(
-        _ id: UUID,
+        _ id: PresentationID<OnboardingPhotoHistory>,
         using model: WhereModel,
-        selection: PrimaryRegionSelectionModel,
+        selection: PrimaryRegionDraft,
     ) async -> Bool {
         guard attempt == id else { return false }
         guard let reader = model.photoLocationReader else {
@@ -61,19 +69,28 @@ final class OnboardingPhotoHistory {
             return false
         } catch {
             if attempt ==
-                id { state = (error as? PhotoScanError) == .unavailable ? .unavailable : .failed }
+                id
+            {
+                state = (error as? PhotoScanError) == .unavailable ? .unavailable : .failed
+            }
             return false
         }
     }
 
-    private func updateProgress(id: UUID, scanned: Int, total: Int) {
-        if attempt == id { state = .scanning(scanned, total) }
+    private func updateProgress(
+        id: PresentationID<OnboardingPhotoHistory>,
+        scanned: Int,
+        total: Int,
+    ) {
+        if attempt == id {
+            state = .scanning(scanned, total)
+        }
     }
 
     func save(
         using model: WhereModel,
         scope: WhereScope,
-        selection: PrimaryRegionSelectionModel,
+        selection: PrimaryRegionDraft,
     ) async throws -> Bool {
         guard let review, let reviewContext else { return true }
         let current = try model.compatibility.coordinator.requireAccess()
@@ -89,7 +106,9 @@ final class OnboardingPhotoHistory {
             return true
         }
         let token: PhotoHistoryReceipt
-        if let receipt { token = receipt } else {
+        if let receipt {
+            token = receipt
+        } else {
             token = try await scope.services.preparePhotoReceipt(in: current.domain)
             try model.compatibility.coordinator.requireAccess(current)
             try model.rememberPhotoReceipt(token)
@@ -147,7 +166,9 @@ struct OnboardingPhotoOffer: View {
                         ProgressView(value: Double(scanned), total: Double(total)) {
                             Text(.photoOfferProgress)
                         }
-                    } else { ProgressView { Text(.photoOfferProgress) } }
+                    } else {
+                        ProgressView { Text(.photoOfferProgress) }
+                    }
                     Button { photo.cancel() } label: { Text(.commonCancel) }
                 } else {
                     switch photo.state {

@@ -130,7 +130,9 @@ struct BackupCoordinatorTests {
 
         func run() throws {
             count += 1
-            if shouldFail { throw CleanupFailure() }
+            if shouldFail {
+                throw CleanupFailure()
+            }
         }
 
         func allowSuccess() {

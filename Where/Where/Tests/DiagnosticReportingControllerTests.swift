@@ -722,7 +722,9 @@ private actor RecordingBitdriftWriter: BitdriftLogWriting {
 
 @MainActor
 private final class FakeBitdriftClient: BitdriftReportingClientProtocol {
-    enum Failure: Error { case startup }
+    enum Failure: Error {
+        case startup
+    }
 
     let writer: any BitdriftLogWriting
     private(set) var hasStarted = false
@@ -736,7 +738,9 @@ private final class FakeBitdriftClient: BitdriftReportingClientProtocol {
     }
 
     func start(configuration: BitdriftLaunchConfiguration) throws {
-        if let startError { throw startError }
+        if let startError {
+            throw startError
+        }
         guard allowsStart else { return }
         hasStarted = true
         startConfiguration = configuration

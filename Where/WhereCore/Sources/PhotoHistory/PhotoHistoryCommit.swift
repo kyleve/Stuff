@@ -79,7 +79,9 @@ extension WhereServices {
     }
 
     public func reconcilePhotoHistory() async {
-        if let live = attributor as? RegionAttribution { await live.reconcile() }
+        if let live = attributor as? RegionAttribution {
+            await live.reconcile()
+        }
         await journal.reconcileAfterDayDataChange()
     }
 
@@ -127,15 +129,23 @@ extension WhereServices {
                 if try await store.backupImportReceipt(
                     id: receipt.id,
                     installationID: receipt.installationID,
-                ) != nil { return nil }
+                ) != nil {
+                    return nil
+                }
                 let existingPicks = if try await store
-                    .hasExplicitPrimaryRegions() { try await store.primaryRegions() }
-                else { [PrimaryRegion]() }
+                    .hasExplicitPrimaryRegions()
+                {
+                    try await store.primaryRegions()
+                } else {
+                    [PrimaryRegion]()
+                }
                 let entries: [DayPresence] = if let first = regionsByDay.keys.min(),
                                                 let last = regionsByDay.keys.max()
                 {
                     try await store.manualDays(in: first ... last)
-                } else { [] }
+                } else {
+                    []
+                }
                 let existing = Dictionary(
                     entries.map { ($0.day, $0) },
                     uniquingKeysWith: { first, _ in first },
@@ -157,13 +167,15 @@ extension WhereServices {
                         samples.map { ($0.id, $0) },
                         uniquingKeysWith: { first, _ in first },
                     )
-                } else { prior = [:] }
+                } else {
+                    prior = [:]
+                }
                 var affected = Set(conflicts.map(\.day))
                 var changed: [CalendarDay: [LocationSample]] = [:]
                 for point in points {
                     guard let old = prior[point.id], let next = point.source.photoAttribution,
                           old.source.photoAttribution?.day != next.day || old.source
-                          .photoAttribution?.region != next.region else { continue }
+                              .photoAttribution?.region != next.region else { continue }
                     affected.insert(next.day)
                     changed[next.day, default: []].append(old)
                 }
@@ -175,14 +187,21 @@ extension WhereServices {
                     affectedDays: affected,
                 )
                 if let resolution {
-                    if resolution.evidence != evidence { return evidence }
-                } else if !evidence.isEmpty { return evidence }
+                    if resolution.evidence != evidence {
+                        return evidence
+                    }
+                } else if !evidence.isEmpty {
+                    return evidence
+                }
                 let excluded = affected.subtracting(resolution?.useReviewedDays ?? [])
                 for point in points {
                     guard let photo = point.source.photoAttribution,
                           !excluded.contains(photo.day) else { continue }
                     if let old = prior[point.id]?.source.photoAttribution, old.day == photo.day,
-                       old.region == photo.region { continue }
+                       old.region == photo.region
+                    {
+                        continue
+                    }
                     try await store.add(sample: point)
                 }
                 for (day, regions) in regionsByDay where !excluded.contains(day) {
@@ -205,7 +224,10 @@ extension WhereServices {
                     ))
                 }
                 if evidence.primaryRegions.isEmpty || resolution?
-                    .useReviewedPicks == true { try await store.setPrimaryRegions(primary) }
+                    .useReviewedPicks == true
+                {
+                    try await store.setPrimaryRegions(primary)
+                }
                 try Task.checkCancellation()
                 try await store.addBackupImportReceipt(
                     id: receipt.id,

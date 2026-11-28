@@ -51,7 +51,9 @@
             var builds = 0
             let fixture = SnapshotWorldFixture {
                 builds += 1
-                if builds == 1 { throw BuildFailure() }
+                if builds == 1 {
+                    throw BuildFailure()
+                }
                 return world
             }
             let model = WhereDemoWorldModel(buildWorld: fixture.load)

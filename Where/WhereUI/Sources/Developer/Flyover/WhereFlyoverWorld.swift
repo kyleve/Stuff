@@ -11,8 +11,6 @@
         let model: WhereModel
         let session: WhereSession
         let report: YearReportModel
-        let reminders: RemindersSettingsModel
-        let backup: BackupModel
 
         private init(
             scope: WhereScope,
@@ -20,16 +18,12 @@
             model: WhereModel,
             session: WhereSession,
             report: YearReportModel,
-            reminders: RemindersSettingsModel,
-            backup: BackupModel,
         ) {
             self.scope = scope
             self.openSpansLogSystem = openSpansLogSystem
             self.model = model
             self.session = session
             self.report = report
-            self.reminders = reminders
-            self.backup = backup
         }
 
         static func build() async throws -> WhereFlyoverWorld {
@@ -87,12 +81,6 @@
                 model: model,
                 session: session,
                 report: report,
-                reminders: RemindersSettingsModel(
-                    services: scope.services,
-                    preferences: scope.preferences,
-                    now: now,
-                ),
-                backup: BackupModel(services: scope.services),
             )
         }
 
@@ -130,12 +118,6 @@
                 model: model,
                 session: session,
                 report: report,
-                reminders: RemindersSettingsModel(
-                    services: services,
-                    preferences: preferences,
-                    now: now,
-                ),
-                backup: BackupModel(services: services),
             )
         }
 

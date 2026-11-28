@@ -96,34 +96,40 @@ A report-year change waits for matching data before positioning. Stale visibilit
 Calendar sections and day rows measure eagerly so offscreen estimates cannot move a restored month.
 The timeline keeps its pinned overview outside the scrolling rows; large text places it in the content flow.
 Timeline stays also measure eagerly so resizing cannot shift the content origin.
-Timeline anchors refer to displayed stay segments or flight identities.
+Timeline anchors refer to displayed stays, flights, or the estimate. The timeline opens at the estimate when available, below the recorded rows through today and any directly joined planned segment. Later rows continue underneath.
 Switching between the calendar and timeline restores each view independently.
 
 On a wide window, Locations shows cards beside the selected region's calendar.
-Without a region selection, the detail pane shows the year calendar.
+The detail pane shows an empty state until a region is selected.
+Tap the selected card again to clear the detail pane. Calendars grow into view
+and shrink away as the selection changes. Reduce Motion uses a crossfade.
+One region-outline background spans both Locations panes and follows the selected year's visits.
 When Locations displays both panes, only browsing shows the estimate card.
-The compact calendar push retains its estimate card in detail and overview.
+In compact layouts, the region calendar carries its own patterned paper through the card zoom.
+It retains its estimate card in detail and overview.
 Planned-day markings and summaries remain in every layout. Other calendars retain their estimate card.
 Your Year uses one navigation stack and the bottom calendar/timeline selector at every window size.
+Its calendar and timeline share the same selected-year background as Locations.
 Settings uses native list and detail navigation.
 Settings keeps its native search field visible in the navigation drawer across compact and split layouts.
-Narrow windows and accessibility text sizes use one pane. Locations marks the selected region only while its browsing and calendar panes are shown together.
+Narrow windows and accessibility text sizes use one pane. When both Locations panes are visible,
+the selected card has an outline in its region color, darker in light mode and lighter in dark mode.
 Theme choices stack when the available pane cannot fit two readable card specimens.
 
 `AdaptivePaneGeometry` reads independent edge insets and the system's reserved regions.
 `AdaptivePaneArrangement` combines that geometry with the stylesheet's pane limits.
-Locations keeps native browse/detail columns across horizontal and vertical folds when
-both panes fit. Narrow layouts use the same split view's compact navigation.
-There is no separate tabletop calendar or navigation tree. Native containers own
-system-bar placement. The adapter uses container geometry, without device-name
-or hinge-angle checks.
+Locations keeps the browse and detail columns side by side in one navigation stack
+across horizontal and vertical folds when both panes fit. Narrow layouts use
+native compact navigation. Both layouts reuse the same region cards and calendar
+and retain their selection and scroll positions through resizing.
+The adapter uses measured container geometry.
 
 Locations shows one initial loading or failure surface before a report arrives.
-Once loaded, its expanded layout shows the index beside the calendar. SwiftUI
-removes the sidebar toggle; native split gestures retain their system behavior. Shared planning
-and review actions appear in the trailing pane; compact navigation keeps them on
-the visible screen. Calendar receives a caller-owned typed restoration role rather
-than knowing which tab hosts it. Timeline restores its own typed row IDs independently.
+In the expanded layout, card shadows can extend beyond the browse column.
+Shared planning and review actions appear once in the navigation toolbar.
+Compact navigation keeps those actions on the visible screen.
+The host supplies Calendar's typed restoration role.
+Timeline restores its own typed row IDs independently.
 Settings uses native split navigation and the stylesheet's compact-layout policy.
 
 Planning sheets remain above changing containers, with one owner per destination.
@@ -258,8 +264,8 @@ The reusable panes also support iPad layouts. There is no HomeView target.
   **`LocationForecastModel`** itinerary and Home-assumption mirror, and
   **`ElsewhereModel`** catalog resolution and optional place labels), plus
   view-scoped **`ResolveModel`** (data-issue triage), **`BackupModel`**
-  (Settings export progress and failures),
-  **`RemindersSettingsModel`** (notification prefs),
+  (Data destination export progress and failures),
+  **`RemindersSettingsModel`** (Alerts destination notification choices),
   process-scoped **`DiagnosticReportingSettingsModel`** (saved versus effective
   launch channels and revisioned live log-policy application),
   **`DevicesSettingsModel`** (installation-local recording choice plus synced names, advisory
@@ -279,6 +285,11 @@ The reusable panes also support iPad layouts. There is no HomeView target.
 
 `DataSettingsView` owns the backup share sheet and error alert outside its `Form` sections.
 `BackupSettingsSection` shows export progress and forwards the export action to that screen.
+Leaving Data Settings cancels its export request. Reopening Data lets the user export again.
+The session applies saved notification choices in order per notification family, independently of the Alerts destination.
+The Home picker owns its search and selection state. A stay editor owns its draft for one sheet,
+including nested navigation and layout changes. Privacy & Diagnostics owns its personal-data
+confirmation, and the process reporting model applies and discloses the resulting policy.
 
 ### Flight status and GPS corrections
 
@@ -318,6 +329,13 @@ journal intent.
 
 ### Reusable views & styling
 
+- **`ObservableHostingView`** — give it a factory for an observable model and a
+  view builder that receives the model. The factory runs when the host mounts,
+  and the model is retained for that SwiftUI view identity. A changed factory
+  keeps the existing model. Use a new identity when the input calls for a fresh
+  model, and keep edits that span screens in their owning flow.
+  See the [usage example](Sources/Shared/ObservableHostingView.swift).
+
 - **`RegionWelcomeCard`** — an app-wide overlay over the selected tab that combines a region's emoji,
   icon, outline, Liquid Glass card treatment, and passport ink. The card stamps into place
   with a quick tilted approach and spring settle, then lifts away on dismissal.
@@ -340,7 +358,8 @@ journal intent.
   there is no session behind it. Fresh setup offers a current-year photo scan after theme
   selection. The stay editor holds the original points and corrections in memory. Confirming
   a gap adds reviewed days to the totals. The picker ranks eligible regions by days spent
-  and preserves the user's explicit selection and appearance choices. The user can skip
+  in the searchable US and Canadian country browser. The user explicitly picks up to five regions
+  and can customize each one. The user can skip
   photos and choose regions directly before confirming automatic recording. After compatibility verification, the final page opens the real store in a dormant state to inspect recent synced advisory
   status before any services, App Intents, or GPS are active. A phone recommends On only when no
   other installation recently reported recording. Tablets, other devices, and explicit rejoins
@@ -368,11 +387,16 @@ journal intent.
   drain an obsolete outbox. `OnboardingImportRecoveryModel` owns that reconciliation rather than
   the process-wide `WhereModel`. Settings offers export only.
 - **`RegionPickerView` / `RegionCustomizeView`** — the shared primary-region
-  picker (segmented map/list) and the stepped color/emoji/icon editor for onboarding.
-  `PrimaryRegionSelectionModel` contains their shared state. The `RegionsSettingsView`
+  picker and the stepped color/emoji/icon editor for onboarding.
+  Each picker visit owns a fresh `RegionPickerModel`. The onboarding flow and the Settings
+  sheet each retain a `PrimaryRegionDraft` for edits across screens. The `RegionsSettingsView`
   screen opens on selected regions and edits one appearance at a time. It uses the shared
-  picker for membership changes. The list offers US jurisdictions and Canadian provinces and territories in catalog order.
-  A tap on the map selects the subdivision at that coordinate and highlights it in its own color.
+  picker for membership changes. Picking a region moves its row to the top of the list,
+  newest first. Tap a selected row to remove it. If a backup merge brings the total above
+  five, the latest five appear at the top and the other saved regions stay checked in the list.
+  Browse US and Canadian regions by country or use the bottom search field on iPhone to
+  find a name or postal abbreviation across both countries. Settings also offers shortcuts
+  for regions used in the selected year.
 - **`DevicesSettingsView`** — Settings’ installation rows for local recording choice, synced
   nicknames, advisory activity/permission status, and irreversible removal. Only the current row
   can toggle recording. Remote rows can be renamed or removed while preserving their earlier

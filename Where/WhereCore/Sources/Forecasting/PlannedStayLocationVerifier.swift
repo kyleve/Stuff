@@ -24,10 +24,12 @@ public struct PlannedStayLocationVerifier: Sendable {
         for region: Region,
         driftThreshold: DriftThreshold,
     ) async -> Status {
-        guard case let .success(sample) = await ingestor.currentLocation() else {
-            return .unavailable
-        }
-        guard let distance = attributor.distance(to: region, from: sample.coordinate) else {
+        guard case let .success(sample) = await ingestor.currentLocation(),
+              let distance = attributor.distance(
+                  to: region,
+                  from: sample.coordinate,
+              )
+        else {
             return .unavailable
         }
         return distance <= driftThreshold.meters ? .accepted : .outside

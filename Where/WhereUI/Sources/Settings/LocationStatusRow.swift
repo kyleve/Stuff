@@ -60,7 +60,9 @@ struct LocationStatusRow: View {
     /// The status line's title, shared with the Settings location row subtitle so
     /// the drill-in row summarizes the same state the screen shows.
     static func statusTitle(status: LocationAuthorizationStatus, isTracking: Bool) -> String {
-        if isTracking { return String(localized: .settingsStatusTracking) }
+        if isTracking {
+            return String(localized: .settingsStatusTracking)
+        }
         switch status {
             case .always: return String(localized: .settingsStatusAlwaysPaused)
             case .whenInUse: return String(localized: .settingsStatusWhenInUse)

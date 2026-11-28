@@ -159,7 +159,9 @@ struct MainTabs: View {
             #endif
             await report.activate()
             #if DEBUG
-                if !Task.isCancelled { snapshotMount?.didActivate = true }
+                if !Task.isCancelled {
+                    snapshotMount?.didActivate = true
+                }
             #endif
         }
         .task(id: isUpdateCheckActive) {
@@ -361,7 +363,9 @@ struct MainTabs: View {
                     )
                 }
                 await report.refresh()
-                if let input = report.elsewhereInput { await report.elsewhere.refresh(input) }
+                if let input = report.elsewhereInput {
+                    await report.elsewhere.refresh(input)
+                }
             }
             return whereSnapshot(
                 name: theme == .standard ? "Elsewhere" : "FlatElsewhere",
@@ -430,7 +434,9 @@ struct MainTabs: View {
                 SnapshotConfiguration.DuoPose.allCases.filter { pose in
                     // These surfaces render identically at the same viewport size.
                     // Locations still uses the reserved regions, so keep every pose.
-                    if includingEquivalentPoses { return true }
+                    if includingEquivalentPoses {
+                        return true
+                    }
                     return switch tab {
                         case .year: pose != .tabletop
                         case .settings: pose != .tabletop && pose != .book
@@ -464,6 +470,13 @@ struct MainTabs: View {
                     )
                 }
             }
+            cases.append(adaptiveSnapshot(
+                tab: .locations,
+                pose: .outerPortrait,
+                configuration: SnapshotConfiguration(device: .duoOuterPortrait),
+                selection: .region,
+                buildWorld: buildWorld,
+            ))
             for pose in [SnapshotConfiguration.DuoPose.innerPortrait, .tabletop, .book] {
                 cases.append(adaptiveSnapshot(
                     tab: .locations,

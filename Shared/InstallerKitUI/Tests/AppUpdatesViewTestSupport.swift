@@ -43,7 +43,9 @@ struct UpdatePageRefreshFixture {
     }
 
     private func refreshControl(in view: UIView) -> UIRefreshControl? {
-        if let control = view as? UIRefreshControl { return control }
+        if let control = view as? UIRefreshControl {
+            return control
+        }
         return view.subviews.lazy.compactMap { refreshControl(in: $0) }.first
     }
 }

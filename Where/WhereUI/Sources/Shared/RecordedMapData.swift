@@ -42,7 +42,7 @@ struct RecordedMapData {
             if let existing = bestByBucket[bucket] {
                 if point.horizontalAccuracy >= 0,
                    existing.horizontalAccuracy < 0 || point.horizontalAccuracy < existing
-                   .horizontalAccuracy
+                       .horizontalAccuracy
                 {
                     bestByBucket[bucket] = point
                 }
@@ -110,8 +110,12 @@ struct RecordedMapData {
     ) -> MKMapPoint {
         var point = MKMapPoint(coordinate.clLocationCoordinate)
         let width = MKMapRect.world.size.width
-        if point.x - referenceX > width / 2 { point.x -= width }
-        if point.x - referenceX < -width / 2 { point.x += width }
+        if point.x - referenceX > width / 2 {
+            point.x -= width
+        }
+        if point.x - referenceX < -width / 2 {
+            point.x += width
+        }
         return point
     }
 

@@ -133,7 +133,9 @@ struct SnapshotCaptureRetryTests {
     func cancellationPreventsAnotherAttempt(cancelBeforeCapture: Bool) async {
         var attempts = 0
         let task = Task { @MainActor in
-            if cancelBeforeCapture { withUnsafeCurrentTask { $0?.cancel() } }
+            if cancelBeforeCapture {
+                withUnsafeCurrentTask { $0?.cancel() }
+            }
             return try await SnapshotCaptureRetry.capture(
                 named: "cancelled",
                 makeViewController: { UIViewController() },
@@ -191,7 +193,9 @@ struct SnapshotCaptureRetryTests {
                         #expect(controller.view.window != nil)
                         #expect(controller.traitCollection[SnapshotCaptureTrait.self])
                         #expect(UIView.areAnimationsEnabled == false)
-                        if attempts < 3 { throw snapshotRetryTimeout(attempt: attempts) }
+                        if attempts < 3 {
+                            throw snapshotRetryTimeout(attempt: attempts)
+                        }
                     },
                     settle: .immediate,
                     onReadyToSnapshot: nil,

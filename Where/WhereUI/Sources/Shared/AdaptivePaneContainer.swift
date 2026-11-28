@@ -13,7 +13,6 @@ struct AdaptivePaneContainer<Content: View>: View {
             ))
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .background(.background)
     }
 }
 

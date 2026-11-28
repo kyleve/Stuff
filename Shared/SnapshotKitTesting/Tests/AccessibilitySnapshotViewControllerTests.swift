@@ -131,7 +131,9 @@ private final class ContainmentProbeController: UIViewController {
 
     override func willMove(toParent parent: UIViewController?) {
         super.willMove(toParent: parent)
-        if parent == nil { removals += 1 }
+        if parent == nil {
+            removals += 1
+        }
     }
 }
 

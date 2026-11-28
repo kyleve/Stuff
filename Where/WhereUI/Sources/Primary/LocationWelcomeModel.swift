@@ -124,7 +124,9 @@ public final class LocationWelcomeModel {
             preferences.showsLocationWelcome,
             sequence == resolutionSequence
         else {
-            if sequence == resolutionSequence { state = .idle }
+            if sequence == resolutionSequence {
+                state = .idle
+            }
             return
         }
 

@@ -41,7 +41,11 @@ public struct WidgetSnapshot: Hashable, Sendable, Codable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case day, year, dayRegions, totals, appearances
+        case day
+        case year
+        case dayRegions
+        case totals
+        case appearances
     }
 
     public init(from decoder: any Decoder) throws {
@@ -108,7 +112,9 @@ public struct WidgetDataReader: Sendable {
                 .regions ?? []
             var appearances: [Region: RegionAppearance] = [:]
             for primary in try await store.primaryRegions() {
-                if let appearance = primary.appearance { appearances[primary.region] = appearance }
+                if let appearance = primary.appearance {
+                    appearances[primary.region] = appearance
+                }
             }
             return WidgetSnapshot(
                 day: startOfDay,

@@ -14,7 +14,11 @@ import Foundation
 /// `RegionDataSourceTests` checks coverage for each region and purpose.
 public struct RegionDataSource: Sendable, Hashable {
     enum Product: String, CaseIterable, Decodable, Hashable {
-        case censusTIGER, censusCartographic, statcanDigital, statcanCartographic, original
+        case censusTIGER
+        case censusCartographic
+        case statcanDigital
+        case statcanCartographic
+        case original
 
         var purposes: [RegionGeometryPurpose] {
             switch self {

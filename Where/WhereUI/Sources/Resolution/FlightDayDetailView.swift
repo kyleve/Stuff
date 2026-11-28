@@ -162,7 +162,9 @@ struct FlightDayDetailView: View {
                     Button(String(localized: .flightReviewApply)) {
                         Task {
                             await model.apply()
-                            if model.saveState == .applied { dismiss() }
+                            if model.saveState == .applied {
+                                dismiss()
+                            }
                         }
                     }
                     .disabled(!model.canApply)

@@ -74,7 +74,9 @@ public struct RegionMapView: View {
                 VStack(spacing: 0) {
                     map(for: loaded)
                         .overlay {
-                            if loaded.kind != kind { ProgressView() }
+                            if loaded.kind != kind {
+                                ProgressView()
+                            }
                         }
                     legend(for: loaded)
                 }
@@ -109,7 +111,9 @@ public struct RegionMapView: View {
     private func load() async {
         // Keep the live Map mounted while switching products. MapKit owns the
         // gesture-positioned camera, which a new Map cannot restore from its binding.
-        if case .failure? = outlines { outlines = nil }
+        if case .failure? = outlines {
+            outlines = nil
+        }
         let needsInitialFrame = outlines == nil
         do {
             let loaded = try await MapData(kind: kind)
@@ -172,7 +176,9 @@ public struct RegionMapView: View {
         }
 
         func frame(for title: String?) -> MKCoordinateRegion? {
-            if let title { return frames[title] }
+            if let title {
+                return frames[title]
+            }
             return overview
         }
     }
@@ -210,7 +216,9 @@ public struct RegionMapView: View {
     /// gets a stable color derived from its title so the same feature is
     /// always the same hue across launches.
     private func color(forTitle title: String, region: Region?) -> Color {
-        if let region { return regionStyles.style(for: region).tint }
+        if let region {
+            return regionStyles.style(for: region).tint
+        }
         return Self.palette[Self.paletteIndex(for: title)]
     }
 

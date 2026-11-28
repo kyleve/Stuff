@@ -57,7 +57,9 @@ struct SnapshotImageReference {
             kCGImageDestinationMetadata: metadata,
             kCGImageDestinationMergeMetadata: true,
         ] as CFDictionary, &error) else {
-            if let error { throw error.takeRetainedValue() }
+            if let error {
+                throw error.takeRetainedValue()
+            }
             throw Failure.encodingFailed
         }
         return data as Data

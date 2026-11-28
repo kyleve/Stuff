@@ -228,7 +228,9 @@
             let catalog: UpdateCatalog
             let failure: (any Error)?
             func fetch(from _: URL) async throws -> UpdateCatalog {
-                if let failure { throw failure }
+                if let failure {
+                    throw failure
+                }
                 return catalog
             }
         }

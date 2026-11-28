@@ -230,7 +230,9 @@ public actor LocationIngestor: WhereShutdownable {
         let stream = locationSource.sampleStream
         ingestTask = Task { [weak self] in
             for await sample in stream {
-                if Task.isCancelled { break }
+                if Task.isCancelled {
+                    break
+                }
                 guard let self else { break }
                 await ingest(sample)
                 #if DEBUG
@@ -354,7 +356,11 @@ public actor LocationIngestor: WhereShutdownable {
 
     /// Whether the current device policy authorizes automatic location samples.
     public var isRecordingAuthorized: Bool {
-        if case .open = recordingAuthority { true } else { false }
+        if case .open = recordingAuthority {
+            true
+        } else {
+            false
+        }
     }
 
     /// Number of samples currently waiting to be re-persisted. Exposed for
@@ -411,7 +417,9 @@ public actor LocationIngestor: WhereShutdownable {
                 $0.source.isGPS
                     && ($0.recordingDeviceID == recordingDeviceID
                         || $0.recordingDeviceID == nil)
-            }) { return }
+            }) {
+                return
+            }
         } catch {
             // Fail closed: if today's samples can't be read we skip rather than
             // risk logging a duplicate fix. Surfaced, not silently swallowed.
@@ -622,7 +630,11 @@ public actor LocationIngestor: WhereShutdownable {
 
         /// Whether the automatic-sample authority gate is currently open.
         @_spi(Testing) public var testingIsAcceptingSamples: Bool {
-            if case .open = recordingAuthority { true } else { false }
+            if case .open = recordingAuthority {
+                true
+            } else {
+                false
+            }
         }
 
         @_spi(Testing) public func testingHasConsumedSample(id: UUID) -> Bool {

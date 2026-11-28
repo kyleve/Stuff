@@ -1,8 +1,9 @@
+@MainActor
 extension SnapshotCase {
     /// Describes independently captured panels, composed into one comparison sheet.
     /// Unlike a SwiftUI grid, every panel receives its own host and comparison budget.
     /// Empty sheets and duplicate panel identities are programmer errors.
-    @MainActor public static func cutsheet(
+    public static func cutsheet(
         name: String,
         configurations: [SnapshotConfiguration],
         referenceGroup: SnapshotReferenceGroup? = nil,

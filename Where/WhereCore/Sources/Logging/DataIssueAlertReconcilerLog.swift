@@ -2,7 +2,9 @@ import PeriscopeCore
 
 @LogScope("DataIssueAlertReconciler")
 enum DataIssueAlertReconcilerLog {
-    enum SpanName: Hashable { case reconcile }
+    enum SpanName: Hashable {
+        case reconcile
+    }
 
     @LogEvent("reconcile-failed", level: .error, version: 2)
     struct ReconcileFailed {

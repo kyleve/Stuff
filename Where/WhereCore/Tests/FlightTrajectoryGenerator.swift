@@ -6,8 +6,18 @@ import WhereCore
 /// variations. Expected ground identities come from the journey, never the detector.
 enum FlightTrajectoryGenerator {
     enum Profile: String, CaseIterable {
-        case denseJet, sparseJet, shortSparseJet, mixedSampling, longHaul, connections
-        case overnightDateLine, stationaryDrift, clusteredDrift, road, fastGround, slowerAircraft
+        case denseJet
+        case sparseJet
+        case shortSparseJet
+        case mixedSampling
+        case longHaul
+        case connections
+        case overnightDateLine
+        case stationaryDrift
+        case clusteredDrift
+        case road
+        case fastGround
+        case slowerAircraft
     }
 
     struct JourneyPoint {
@@ -69,7 +79,9 @@ enum FlightTrajectoryGenerator {
         var groundIDs: Set<LocationSample.ID> = []
         let samples = points.enumerated().map { index, point in
             let sampleID = FlightTrajectoryFixtures.sampleID(index + 1)
-            if point.isGround { groundIDs.insert(sampleID) }
+            if point.isGround {
+                groundIDs.insert(sampleID)
+            }
             let routeCoordinate = coordinate(
                 from: origin,
                 bearing: bearing,
@@ -84,7 +96,7 @@ enum FlightTrajectoryGenerator {
             )
             // Three callbacks share a remote GPS error while the underlying
             // journey stays stationary. Returning fixes bound the brief outage.
-            let observedCenter = if profile == .clusteredDrift && (2 ... 4).contains(index) {
+            let observedCenter = if profile == .clusteredDrift, (2 ... 4).contains(index) {
                 coordinate(from: trueCoordinate, bearing: bearing, distanceKM: clusterOffsetKM)
             } else {
                 trueCoordinate
@@ -148,7 +160,9 @@ enum FlightTrajectoryGenerator {
                 return [0.0, 5, 6.5, 7.5, 8.5, 10, 15, 20].map { point($0, 0, ground: true) }
             case .sparseJet, .mixedSampling, .overnightDateLine, .connections:
                 var points = departure
-                if profile == .mixedSampling { points.append(point(140, 2000, ground: false)) }
+                if profile == .mixedSampling {
+                    points.append(point(140, 2000, ground: false))
+                }
                 points += [
                     point(275, 4000, ground: true),
                     point(280, 4000, ground: true),
@@ -226,7 +240,11 @@ enum FlightTrajectoryGenerator {
             var candidate = result
             candidate.remove(at: index)
             attempts += 1
-            if fails(candidate) { result = candidate } else { index += 1 }
+            if fails(candidate) {
+                result = candidate
+            } else {
+                index += 1
+            }
         }
         return result
     }

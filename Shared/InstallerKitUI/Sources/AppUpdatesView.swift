@@ -86,7 +86,9 @@ private struct UpdatePage<SectionDecoration: ViewModifier>: View {
             case let .available(update):
                 UpdateInstallLink(title: .installerInstall, release: update.release)
             case let .retired(main):
-                if let main { UpdateInstallLink(title: .installerSwitchMain, release: main) }
+                if let main {
+                    UpdateInstallLink(title: .installerSwitchMain, release: main)
+                }
             case .current:
                 Label(String(localized: .installerCurrent), systemSymbol: .checkmarkCircle)
                     .font(stylesheet.hero.subtitleFont)
@@ -145,7 +147,9 @@ private struct UpdatePage<SectionDecoration: ViewModifier>: View {
                         .fullContentPhoneLightDark,
                     measurementReadiness: scenario.requiresRefresh ? .sameAsCapture : .immediate,
                     onReadyToMeasure: {
-                        if scenario.requiresRefresh { await model.refresh(force: true) }
+                        if scenario.requiresRefresh {
+                            await model.refresh(force: true)
+                        }
                     },
                 ) {
                     NavigationStack { AppUpdatesView(

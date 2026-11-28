@@ -25,7 +25,9 @@ struct OnboardingImportRecoveryModelTests {
         _ = await model.recoverInterruptedImport(
             requiresOnboarding: false,
             resolveScope: {
-                if cancelled { throw CancellationError() }
+                if cancelled {
+                    throw CancellationError()
+                }
                 throw DataCompatibilityFailure.updateRequired(.init(rawValue: 2), reason: nil)
             },
             endSession: { Issue.record("Admission failure must not abandon import recovery") },

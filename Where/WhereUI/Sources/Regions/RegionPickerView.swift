@@ -1,352 +1,335 @@
-import MapKit
-import PeriscopeCore
 import RegionKit
 import SFSafeSymbols
 import SnapshotKit
 import SwiftUI
-import WhereCore
 
-/// Picks the user's primary regions — up to `PrimaryRegionSelectionModel.maxSelection`
-/// — either by tapping regions on a map or from a searchable list, switched via a
-/// top-aligned segmented control. Selection lives in the shared
-/// ``PrimaryRegionSelectionModel``; this view only reads/toggles it. Used inside
-/// onboarding and the Settings region editor.
+/// Mounts a fresh picker model for each visit while the caller retains the edit draft.
 struct RegionPickerView: View {
-    @Bindable var model: PrimaryRegionSelectionModel
+    private let makeModel: () -> RegionPickerModel
 
-    /// Map vs list, the two ways to pick.
-    enum Mode: String, CaseIterable, Hashable {
-        case map
-        case list
+    init(draft: PrimaryRegionDraft, usedThisYear: Set<Region> = []) {
+        self.init { RegionPickerModel(draft: draft, usedThisYear: usedThisYear) }
     }
 
-    @State private var mode: Mode
-    @State private var mapPosition: MapCameraPosition = .automatic
-    @State private var searchText = ""
-    /// Bumped whenever a map tap is ignored because the selection is full, to
-    /// drive the warning haptic.
-    @State private var capacityBumps = 0
-    /// The loaded map geometry + its display-polygon tap lookup. One
-    /// `Result` so "loading" (`nil`), success, and failure can't be confused.
-    @State private var mapData: Result<MapData, Error>?
-
-    @Environment(\.stylesheet) private var stylesheet
-    @Environment(\.regionStyles) private var regionStyles
-    @Environment(\.isCapturingSnapshot) private var isCapturingSnapshot
-
-    private static let logger = WhereLog.session(RegionPickerViewLog.self)
-
-    init(model: PrimaryRegionSelectionModel, initialMode: Mode = .list) {
-        self.model = model
-        _mode = State(initialValue: initialMode)
+    private init(makeModel: @escaping () -> RegionPickerModel) {
+        self.makeModel = makeModel
     }
 
     var body: some View {
-        VStack(spacing: stylesheet.spacing.medium) {
-            modePicker
+        ObservableHostingView(makeModel) {
+            RegionPickerContent(model: $0)
+        }
+    }
+}
 
-            VStack(spacing: stylesheet.spacing.xSmall) {
-                Text(WhereFormat.regionPickerSelectionCount(
-                    selected: model.selectionCount,
-                    max: PrimaryRegionSelectionModel.maxSelection,
-                ))
-                .font(.subheadline.weight(.medium))
-                .foregroundStyle(.secondary)
-                .accessibilityAddTraits(.updatesFrequently)
+private struct RegionPickerContent: View {
+    @Bindable var model: RegionPickerModel
 
-                if model.isAtCapacity {
-                    Text(WhereFormat
-                        .regionPickerAtCapacity(max: PrimaryRegionSelectionModel.maxSelection))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                        .transition(.opacity)
+    @Environment(\.stylesheet) private var stylesheet
+
+    var body: some View {
+        ScrollViewReader { proxy in
+            List {
+                ForEach(rows) { row in
+                    switch row {
+                        case let .message(message):
+                            RegionPickerMessageRow(message: message, model: model)
+                        case let .country(group):
+                            RegionPickerCountryRow(
+                                group: group,
+                                isExpanded: $model.expandedCountries[includes: group.id],
+                            )
+                        case let .region(region, includesCountryCode):
+                            RegionPickerRegionRow(
+                                region: region,
+                                includesCountryCode: includesCountryCode,
+                                model: model,
+                            )
+                    }
                 }
             }
-            .animation(stylesheet.motion.captionFade, value: model.isAtCapacity)
-
-            switch mode {
-                case .map:
-                    mapContent
-                case .list:
-                    listContent
-            }
-        }
-        // A capped tap on the map is otherwise silent (unlike the list, which
-        // disables rows), so signal it with a warning haptic.
-        .sensoryFeedback(.warning, trigger: capacityBumps)
-        // Parse region geometry lazily — only once Map mode is actually shown,
-        // so a user who stays in the default List never pays the geometry parse.
-        .task(id: mode) {
-            guard mode == .map, mapData == nil else { return }
-            await loadMap()
-        }
-        // Log View Mode: reveal an inspect badge for region-picker events (map
-        // geometry load). A no-op in release.
-        .debugLogInspectable(WhereLog.session(RegionPickerViewLog.self))
-    }
-
-    private var modePicker: some View {
-        Picker(String(localized: .regionPickerModePicker), selection: $mode) {
-            Text(String(localized: .regionPickerModeMap)).tag(Mode.map)
-            Text(String(localized: .regionPickerModeList)).tag(Mode.list)
-        }
-        .pickerStyle(.segmented)
-        .padding(.horizontal, stylesheet.spacing.large)
-        .whereContentRoot()
-    }
-
-    // MARK: - Map
-
-    @ViewBuilder
-    private var mapContent: some View {
-        switch mapData {
-            case .none:
-                ProgressView()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            case let .some(.failure(error)):
-                ContentUnavailableView(
-                    String(localized: .regionPickerLoadErrorTitle),
-                    systemSymbol: .map,
-                    description: Text(error.localizedDescription),
-                )
-            case let .some(.success(data)):
-                map(data)
-        }
-    }
-
-    private func map(_ data: MapData) -> some View {
-        let style = stylesheet.regionPicker
-        return Group {
-            if isCapturingSnapshot {
-                RegionMapCanvas(
-                    geometry: data.geometry,
-                    selectedTitle: nil,
-                    region: northAmericanRegion,
-                    style: overlayStyle(for:),
-                )
-            } else {
-                MapReader { proxy in
-                    RegionPolygonMap(
-                        geometry: data.geometry,
-                        position: $mapPosition,
-                        style: overlayStyle(for:),
-                    )
-                    .onTapGesture { point in
-                        guard let coordinate = proxy.convert(point, from: .local) else { return }
-                        handleMapTap(at: coordinate, in: data)
+            .listStyle(.plain)
+            .scrollDismissesKeyboard(.interactively)
+            .whereFormRoot()
+            .onChange(of: model.draft.selectedRegions.count) { previous, current in
+                if current > previous {
+                    withAnimation(stylesheet.regionPicker.selectionAnimation) {
+                        proxy.scrollTo(Row.ID.message(.selection), anchor: .top)
                     }
                 }
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .clipShape(RoundedRectangle(cornerRadius: style.mapCornerRadius, style: .continuous))
-        .padding(.horizontal, stylesheet.spacing.large)
-        .accessibilityLabel(String(localized: .regionPickerMapAccessibility))
-    }
-
-    private func overlayStyle(for outline: RegionOutline) -> RegionMapOverlayStyle {
-        let style = stylesheet.regionPicker
-        let selected = outline.region.map(model.isSelected) == true
-        let tint = outline.region.map { regionStyles.style(for: $0).tint } ?? .gray
-        return RegionMapOverlayStyle(
-            fill: tint.opacity(selected ? style.selectedFillOpacity : style.unselectedFillOpacity),
-            stroke: tint
-                .opacity(selected ? style.selectedStrokeOpacity : style.unselectedStrokeOpacity),
-            lineWidth: selected ? style.selectedStrokeWidth : style.unselectedStrokeWidth,
+        .searchable(
+            text: $model.searchText,
+            prompt: String(localized: .regionPickerSearchPrompt),
         )
     }
 
-    func handleMapTap(at coordinate: CLLocationCoordinate2D, in data: MapData) {
-        guard let region = data.display.region(containing: Coordinate(coordinate)) else { return }
-        guard model.canToggle(region) else {
-            // At capacity and tapping a new region — the list disables its rows
-            // to show this, but the map has no such affordance, so buzz instead
-            // of silently ignoring the tap.
-            capacityBumps += 1
-            return
+    /// A region has one native list identity wherever it is displayed, so changing selection
+    /// moves the same row between the catalog and the selected rows.
+    fileprivate enum Row: Identifiable {
+        case region(Region, includesCountryCode: Bool)
+        case country(RegionPickerModel.CountryGroup)
+        case message(Message)
+
+        enum Message: Hashable {
+            case selection
+            case atCapacity
+            case suggested
+            case usedThisYear
+            case browse
+            case search
+            case noMatches
         }
-        model.toggle(region)
-    }
 
-    // MARK: - List
+        enum ID: Hashable {
+            case region(Region)
+            case country(RegionCatalog.Node.ID?)
+            case message(Message)
+        }
 
-    private var isSearching: Bool {
-        !searchText.trimmingCharacters(in: .whitespaces).isEmpty
-    }
-
-    private var filteredRegions: [Region] {
-        guard isSearching else { return model.available }
-        let query = searchText.trimmingCharacters(in: .whitespaces)
-        return model.available.filter {
-            $0.localizedName.localizedCaseInsensitiveContains(query)
+        var id: ID {
+            switch self {
+                case let .region(region, _): .region(region)
+                case let .country(group): .country(group.id)
+                case let .message(message): .message(message)
+            }
         }
     }
 
-    private func regionRow(_ region: Region) -> some View {
-        Button {
-            model.toggle(region)
-        } label: {
-            HStack {
-                RegionPickerRow(region: region, isSelected: model.isSelected(region))
-                if let days = model
-                    .suggestedDays[region]
-                {
-                    Text(WhereFormat.dayCount(days)).foregroundStyle(.secondary)
+    private var rows: [Row] {
+        var rows: [Row] = [.message(.selection)]
+        rows += model.selectedNewestFirst.map { .region($0, includesCountryCode: true) }
+        if model.draft.isAtCapacity {
+            rows.append(.message(.atCapacity))
+        }
+
+        if model.isSearching {
+            switch model.searchResults {
+                case .noMatches:
+                    rows.append(.message(.noMatches))
+                case .allSelected:
+                    break
+                case let .available(matches):
+                    rows.append(.message(.search))
+                    rows += matches.map { .region($0, includesCountryCode: true) }
+            }
+        } else {
+            let browse = model.browse
+            if !browse.suggested.isEmpty {
+                rows.append(.message(.suggested))
+                rows += browse.suggested.map { .region($0, includesCountryCode: true) }
+            }
+            if !browse.usedThisYear.isEmpty {
+                rows.append(.message(.usedThisYear))
+                rows += browse.usedThisYear.map { .region($0, includesCountryCode: true) }
+            }
+            if !browse.countryGroups.isEmpty {
+                rows.append(.message(.browse))
+                for group in browse.countryGroups {
+                    rows.append(.country(group))
+                    if model.expandedCountries.contains(group.id) {
+                        rows += group.regions.map { .region($0, includesCountryCode: false) }
+                    }
                 }
             }
         }
-        .disabled(!model.canToggle(region))
-    }
-
-    private var listContent: some View {
-        List {
-            // Grouped (Settings) shows your-regions / used-this-year / more via
-            // the shared sections; onboarding and any active search fall back to
-            // a flat list.
-            if !model.suggestedRegions.isEmpty, !isSearching {
-                Section { ForEach(model.suggestedRegions, id: \.self, content: regionRow) }
-                    header: { Text(.photoReviewSuggestions) }
-                Section { ForEach(
-                    model.available.filter { model.suggestedDays[$0] == nil },
-                    id: \.self,
-                    content: regionRow,
-                ) }
-                header: { Text(.photoReviewMore) }
-            } else if model.isGrouped, !isSearching {
-                GroupedRegionSections(grouping: model.grouping, row: regionRow)
-            } else {
-                ForEach(filteredRegions, id: \.self, content: regionRow)
-            }
-        }
-        .listStyle(.plain)
-        .whereFormRoot()
-        .searchable(text: $searchText, prompt: String(localized: .regionPickerSearchPrompt))
-        .overlay {
-            if isSearching, filteredRegions.isEmpty {
-                ContentUnavailableView.search(text: searchText)
-            }
-        }
-    }
-
-    // MARK: - Loading
-
-    /// The display lookup and MapKit geometry built from its outlines,
-    /// so a map tap resolves to exactly the regions the outlines drew.
-    struct MapData {
-        let geometry: RegionMapGeometry
-        let display: RegionDisplayGeometry
-
-        @concurrent init(regions: [Region]) async throws {
-            try Task.checkCancellation()
-            display = try await RegionGeometryCatalog.displayGeometry(for: regions)
-            try Task.checkCancellation()
-            geometry = RegionMapGeometry(outlines: display.outlines)
-        }
-    }
-
-    private func loadMap() async {
-        let regions = model.available
-        do {
-            let data = try await MapData(regions: regions)
-            guard !Task.isCancelled else { return }
-            mapPosition = .region(northAmericanRegion)
-            mapData = .success(data)
-        } catch {
-            guard !Task.isCancelled else { return }
-            // Keep the failure observable in both the UI (error state) and the
-            // logs rather than showing a blank map.
-            Self.logger.mapGeometryLoadFailed(
-                error: .restricted(.errorDetails, error),
-            )
-            mapData = .failure(error)
-        }
-    }
-
-    /// Start with both countries in reach. The list also offers offshore jurisdictions.
-    private var northAmericanRegion: MKCoordinateRegion {
-        let style = stylesheet.regionPicker
-        return MKCoordinateRegion(
-            center: CLLocationCoordinate2D(
-                latitude: style.mapCenterLatitude,
-                longitude: style.mapCenterLongitude,
-            ),
-            span: MKCoordinateSpan(
-                latitudeDelta: style.mapSpanLatitude,
-                longitudeDelta: style.mapSpanLongitude,
-            ),
-        )
+        return rows
     }
 }
 
-/// A selectable region row: the region's emoji + name with a trailing checkmark
-/// when picked.
-private struct RegionPickerRow: View {
+private struct RegionPickerMessageRow: View {
+    let message: RegionPickerContent.Row.Message
+    let model: RegionPickerModel
+
+    var body: some View {
+        Group {
+            switch message {
+                case .selection:
+                    if model.draft.hasSelection {
+                        heading(WhereFormat.regionPickerSelectionCount(
+                            selected: model.draft.selectedRegions.count,
+                            max: PrimaryRegionDraft.maxSelection,
+                        ))
+                        .accessibilityAddTraits(.updatesFrequently)
+                    } else {
+                        Text(String(localized: .regionPickerSubtitle))
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                case .atCapacity:
+                    Text(WhereFormat
+                        .regionPickerAtCapacity(max: PrimaryRegionDraft.maxSelection))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                case .suggested: heading(String(localized: .photoReviewSuggestions))
+                case .usedThisYear: heading(String(localized: .regionGroupUsedThisYear))
+                case .browse: heading(String(localized: .regionPickerBrowseByCountry))
+                case .search: heading(String(localized: .regionPickerSearchResults))
+                case .noMatches: ContentUnavailableView.search(text: model.searchText)
+            }
+        }
+        .listRowSeparator(.hidden)
+    }
+
+    private func heading(_ title: String) -> some View {
+        Text(title)
+            .font(.headline)
+            .accessibilityAddTraits(.isHeader)
+    }
+}
+
+private struct RegionPickerCountryRow: View {
+    let group: RegionPickerModel.CountryGroup
+    @Binding var isExpanded: Bool
+    @Environment(\.stylesheet) private var stylesheet
+
+    var body: some View {
+        // The country's children are sibling list rows so they can move directly into selection.
+        DisclosureGroup(isExpanded: $isExpanded) {
+            EmptyView()
+        } label: {
+            label
+        }
+    }
+
+    private var label: some View {
+        let name = group.country?.localizedName ?? String(localized: .regionGroupMore)
+        let count = WhereFormat.regionPickerRegionCount(group.regions.count)
+        return HStack(spacing: stylesheet.spacing.medium) {
+            Group {
+                switch group.country?.id {
+                    case .some(.unitedStates): Text(verbatim: "🇺🇸")
+                    case .some(.canada): Text(verbatim: "🇨🇦")
+                    default: Image(systemSymbol: .globe)
+                }
+            }
+            .accessibilityHidden(true)
+            LabeledContent(name) { Text(count) }
+        }
+    }
+}
+
+private struct RegionPickerRegionRow: View {
     let region: Region
-    let isSelected: Bool
+    let includesCountryCode: Bool
+    let model: RegionPickerModel
 
     @Environment(\.stylesheet) private var stylesheet
     @Environment(\.regionStyles) private var regionStyles
 
     var body: some View {
         let style = regionStyles.style(for: region)
-        return HStack(spacing: stylesheet.spacing.medium) {
-            Text(style.emoji)
-                .accessibilityHidden(true)
+        let selected = model.draft.isSelected(region)
+        let codeLabel = model.code(for: region).map { code in
+            includesCountryCode ? "\(code.country) · \(code.subdivision)" : code.subdivision
+        }
+        let dayCount = model.draft.suggestedDays[region].map { WhereFormat.dayCount($0) }
+        Button {
+            withAnimation(stylesheet.regionPicker.selectionAnimation) {
+                model.draft.toggle(region)
+            }
+        } label: {
+            HStack(spacing: stylesheet.spacing.medium) {
+                Text(style.emoji)
+                    .accessibilityHidden(true)
+                LabeledContent {
+                    if let codeLabel {
+                        Text(verbatim: codeLabel)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                } label: {
+                    RegionPickerRegionLabel(region: region, dayCount: dayCount)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                if selected {
+                    Image(systemSymbol: .checkmark)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(style.tint)
+                        .accessibilityHidden(true)
+                }
+            }
+            .foregroundStyle(.primary)
+            .contentShape(.rect)
+        }
+        .accessibilityLabel(region.localizedName)
+        .accessibilityValue([codeLabel, dayCount].compactMap(\.self).joined(separator: ", "))
+        .accessibilityHint(selected ? WhereFormat.regionPickerRemoveSelection(region) : "")
+        .accessibilityAddTraits(selected ? .isSelected : [])
+        .disabled(!model.draft.canToggle(region))
+    }
+}
+
+private struct RegionPickerRegionLabel: View {
+    let region: Region
+    let dayCount: String?
+
+    var body: some View {
+        VStack(alignment: .leading) {
             Text(region.localizedName)
-                .foregroundStyle(.primary)
-            Spacer(minLength: 0)
-            if isSelected {
-                Image(systemSymbol: .checkmark)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(style.tint)
+                .multilineTextAlignment(.leading)
+            if let dayCount {
+                Text(dayCount)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
             }
         }
-        .contentShape(.rect)
-        .accessibilityElement(children: .combine)
-        .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
+    }
+}
+
+/// Writable membership lets each native disclosure keep its expansion across searches.
+extension Set<RegionCatalog.Node.ID?> {
+    fileprivate subscript(includes id: Element) -> Bool {
+        get { contains(id) }
+        set {
+            if newValue {
+                insert(id)
+            } else {
+                remove(id)
+            }
+        }
     }
 }
 
 #if DEBUG
     extension RegionPickerView: SnapshotProviding {
-        private init(model: PrimaryRegionSelectionModel, prepared: MapData) {
-            self.init(model: model, initialMode: .map)
-            _mapData = State(initialValue: .success(prepared))
-        }
-
-        @MainActor @Observable fileprivate final class SnapshotGeometry {
-            var map: MapData?
-        }
-
-        private struct SnapshotMap: View {
-            let model: PrimaryRegionSelectionModel
-            let prepared: SnapshotGeometry
-            var body: some View {
-                if let map = prepared.map { RegionPickerView(model: model, prepared: map) }
-            }
+        private static func selectedSnapshotModel(search: String = "") -> RegionPickerModel {
+            let draft = PrimaryRegionDraft()
+            draft.toggle(.california)
+            draft.toggle(.ontario)
+            let model = RegionPickerModel(draft: draft)
+            model.searchText = search
+            return model
         }
 
         static var snapshots: [SnapshotCase] {
-            let model = PrimaryRegionSelectionModel()
-            model.toggle(.california)
-            model.toggle(.ontario)
-            let prepared = SnapshotGeometry()
+            // The system search toolbar needs an attached scene to render its glass.
+            var phone = SnapshotConfiguration.Frame.iPhoneFullContent
+            phone.scenePolicy = .retained
             return [
                 whereSnapshot(
                     name: "AvailableRegions",
-                    configurations: [.init(device: .iPhoneFullContent)],
+                    configurations: [
+                        .init(device: phone),
+                        .init(dynamicType: .accessibility5, device: phone),
+                    ],
                 ) {
-                    NavigationStack { RegionPickerView(model: model) }
+                    NavigationStack {
+                        RegionPickerView { selectedSnapshotModel() }
+                    }
                 },
                 whereSnapshot(
-                    name: "NorthAmericanMap",
-                    configurations: [.init(device: .iPhone)],
-                    prepareForCapture: {
-                        prepared.map = try await MapData(regions: model.available)
-                    },
+                    name: "Search",
+                    configurations: [.init(device: phone)],
+                    // The native clear button finishes appearing after the toolbar mounts.
+                    settle: .settledAtLeast(minDuration: 1.0),
                 ) {
-                    NavigationStack { SnapshotMap(model: model, prepared: prepared) }
+                    NavigationStack {
+                        RegionPickerView { selectedSnapshotModel(search: "ON") }
+                            .navigationTitle(String(localized: .settingsRegionsManage))
+                            .navigationBarTitleDisplayMode(.inline)
+                    }
                 },
             ]
         }
@@ -354,14 +337,14 @@ private struct RegionPickerRow: View {
 #endif
 
 #if DEBUG
-    #Preview("Empty") {
-        RegionPickerView(model: PrimaryRegionSelectionModel())
-            .whereBroadwayRoot()
-    }
+    #Preview { RegionPickerView.snapshotPreviews }
 
-    #Preview("Seeded") {
-        RegionPickerView(model: PreviewSupport.primaryRegionSelectionModel())
-            .whereBroadwayRoot()
+    #Preview("Empty") {
+        NavigationStack {
+            RegionPickerView(draft: PrimaryRegionDraft())
+                .navigationTitle(String(localized: .onboardingRegionsTitle))
+        }
+        .whereBroadwayRoot()
     }
 #endif
 
@@ -377,20 +360,7 @@ private struct RegionPickerRow: View {
                         title: "List",
                         world: world,
                     ) {
-                        RegionPickerView(
-                            model: PreviewSupport.primaryRegionSelectionModel(),
-                            initialMode: .list,
-                        )
-                    },
-                    WhereFlyoverData.hostedVariant(
-                        id: "map",
-                        title: "Map",
-                        world: world,
-                    ) {
-                        RegionPickerView(
-                            model: PreviewSupport.primaryRegionSelectionModel(),
-                            initialMode: .map,
-                        )
+                        RegionPickerView(draft: PreviewSupport.primaryRegionDraft())
                     },
                 ],
             )

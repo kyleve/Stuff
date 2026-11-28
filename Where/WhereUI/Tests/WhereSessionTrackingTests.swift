@@ -295,7 +295,9 @@ struct WhereSessionTrackingTests {
     ) async {
         let deadline = ContinuousClock.now.advanced(by: timeout)
         while ContinuousClock.now < deadline {
-            if predicate() { return }
+            if predicate() {
+                return
+            }
             try? await Task.sleep(for: .milliseconds(5))
         }
         #expect(predicate(), "condition was not met before timeout")
@@ -307,7 +309,9 @@ struct WhereSessionTrackingTests {
     ) async {
         let deadline = ContinuousClock.now.advanced(by: timeout)
         while ContinuousClock.now < deadline {
-            if await predicate() { return }
+            if await predicate() {
+                return
+            }
             try? await Task.sleep(for: .milliseconds(5))
         }
         #expect(await predicate(), "condition was not met before timeout")

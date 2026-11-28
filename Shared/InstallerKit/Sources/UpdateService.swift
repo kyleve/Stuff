@@ -58,7 +58,9 @@ public final class UpdateService {
 
     public func refresh(force: Bool) async throws -> Snapshot {
         try Task.checkCancellation()
-        if !force, let cachedForAutomaticRefresh { return cachedForAutomaticRefresh }
+        if !force, let cachedForAutomaticRefresh {
+            return cachedForAutomaticRefresh
+        }
         refreshSequence += 1
         let sequence = refreshSequence
         do {

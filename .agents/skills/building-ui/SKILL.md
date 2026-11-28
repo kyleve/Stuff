@@ -16,6 +16,15 @@ Use `swiftui-pro` when a task needs additional API, performance, or platform gui
 - Previews and tests use protocol fakes or production-shaped fixtures, not DEBUG state or parallel refresh paths in product code.
 - Presentation work follows visibility. Key tasks by identity-relevant inputs; cancelled work must not publish late state, durable changes, or haptics.
 
+## SwiftUI view extraction
+
+When adding or changing a child view, count the nonblank, non-comment lines
+inside its formatted body, including modifiers and branches. Apply the same
+count to inline child views and helpers that return `some View`.
+
+- At 5–19 lines, extract a named `View` type in the parent's Swift file.
+- At 20 or more lines, put the named `View` type in its own Swift file.
+
 ## Required task references
 
 Read only the references for the affected behavior, including review work.

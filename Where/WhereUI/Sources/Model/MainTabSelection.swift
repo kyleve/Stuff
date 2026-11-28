@@ -10,6 +10,8 @@ struct MainTabSelection {
     var selected: TabID = .locations
 
     mutating func reconcile(hasElsewhere: Bool) {
-        if selected == .elsewhere, !hasElsewhere { selected = .locations }
+        if selected == .elsewhere, !hasElsewhere {
+            selected = .locations
+        }
     }
 }

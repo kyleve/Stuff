@@ -101,7 +101,9 @@ public final class DataCompatibilityCoordinator {
         }
         verification = task
         await task.value
-        if self.epoch == epoch { verification = nil }
+        if self.epoch == epoch {
+            verification = nil
+        }
     }
 
     public func onboardingReviewContext() throws -> OnboardingReviewContext {
@@ -114,7 +116,7 @@ public final class DataCompatibilityCoordinator {
     @discardableResult
     public func requireAccess() throws -> DataCompatibilityAdmission {
         switch state {
-            case let .allowed(admission), let .offline(admission, _): return admission
+            case let .allowed(admission), let .offline(admission, _): admission
             case .checking:
                 throw DataCompatibilityFailure.verificationRequired(
                     DataCompatibilityTransportError.accountChanged,
@@ -177,7 +179,9 @@ public final class DataCompatibilityCoordinator {
                 removedDeviceID = prior.removedDeviceID
             }
             if versionFloor.version > version {
-                if let prior { try save(domain: prior.domain, access: .blocked) }
+                if let prior {
+                    try save(domain: prior.domain, access: .blocked)
+                }
                 blockForUpdate()
                 return
             }
@@ -190,7 +194,9 @@ public final class DataCompatibilityCoordinator {
                 invalidateAccount()
                 return
             }
-            if prior?.domain != currentDomain { prior = nil }
+            if prior?.domain != currentDomain {
+                prior = nil
+            }
             // Conflicting writers are bounded: later triggers retry if contention persists.
             for _ in 0 ..< 3 {
                 let persisted = try await transport.read(domain: currentDomain)
@@ -285,7 +291,9 @@ public final class DataCompatibilityCoordinator {
     }
 
     private func set(_ state: State) {
-        if self.state.allowsStore, !state.allowsStore { revokeAdmission() }
+        if self.state.allowsStore, !state.allowsStore {
+            revokeAdmission()
+        }
         self.state = state
         if case let .blocked(failure) = state {
             Self.logger.blocked(reason: .restricted(.technicalState, String(describing: failure)))

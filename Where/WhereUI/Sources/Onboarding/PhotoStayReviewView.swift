@@ -1,3 +1,4 @@
+import BroadwayCore
 import RegionKit
 import SnapshotKit
 import SwiftUI
@@ -6,9 +7,9 @@ import SwiftUI
 @Observable @MainActor
 final class PhotoStayReviewModel {
     var draft: PhotoStayDraft
-    let selection: PrimaryRegionSelectionModel
+    let selection: PrimaryRegionDraft
 
-    init(draft: PhotoStayDraft, selection: PrimaryRegionSelectionModel) {
+    init(draft: PhotoStayDraft, selection: PrimaryRegionDraft) {
         self.draft = draft
         self.selection = selection
     }
@@ -28,13 +29,15 @@ struct PhotoStayReviewView: View {
 
     private struct EditSelection: Identifiable {
         let original: PhotoStay?
-        let id = UUID()
+        let id = PresentationID<EditSelection>()
     }
 
     var body: some View {
         NavigationStack {
             List {
-                if model.draft.scan.access == .limited { Text(.photoReviewLimited) }
+                if model.draft.scan.access == .limited {
+                    Text(.photoReviewLimited)
+                }
                 Section {
                     ForEach(PresenceTimeline.stints(
                         from: model.draft.report,
@@ -66,7 +69,9 @@ struct PhotoStayReviewView: View {
                             }
                         }
                     }
-                    if model.draft.report.days.isEmpty { Text(.photoReviewEmpty) }
+                    if model.draft.report.days.isEmpty {
+                        Text(.photoReviewEmpty)
+                    }
                     Button { editing = EditSelection(original: nil) } label: {
                         Text(.photoReviewAdd)
                     }
@@ -180,7 +185,9 @@ private struct PhotoStayEditor: View {
                             start: CalendarDay(from: from, in: calendar),
                             end: CalendarDay(from: through, in: calendar),
                         )
-                        if model.draft.edit(original, to: changed) { dismiss() }
+                        if model.draft.edit(original, to: changed) {
+                            dismiss()
+                        }
                     } label: { Text(.commonSave) }
                         .disabled(through < from)
                 }
@@ -188,7 +195,11 @@ private struct PhotoStayEditor: View {
         }
         .environment(\.calendar, calendar)
         .environment(\.timeZone, calendar.timeZone)
-        .onChange(of: from) { _, start in if through < start { through = start } }
+        .onChange(of: from) {
+            _, start in if through < start {
+                through = start
+            }
+        }
     }
 }
 
@@ -200,52 +211,60 @@ private struct PhotoStayEditor: View {
                 let day = CalendarDay(year: 2026, month: 6, day: index)
                 let time = day.startOfDay(in: calendar)
                 guard let observation = PhotoObservation(
-                    capturedAt: time,
-                    addedAt: time,
-                    coordinate: Coordinate(
-                        latitude: 43.65,
-                        longitude: -79.38,
-                    ),
-                    accuracy: 10,
-                ),
-                    let region = Region(rawValue: "ca-ON") else { return nil }
+                          capturedAt: time,
+                          addedAt: time,
+                          coordinate: Coordinate(
+                              latitude: 43.65,
+                              longitude: -79.38,
+                          ),
+                          accuracy: 10,
+                      ),
+                      let region = Region(rawValue: "ca-ON") else { return nil }
                 return DatedPhotoLocation(observation: observation, day: day, region: region)
             }
-            return ["Gap", "Corrected", "Suggestions"].map { state in whereSnapshot(
-                name: state,
-                configurations: [
-                    .init(device: .iPhone),
-                    .init(device: .iPad),
-                    .init(device: .iPhone, snapshotType: .accessibility),
-                    .init(
-                        dynamicType: .accessibility5,
-                        device: .iPhone,
-                    ),
-                ],
-                measurementReadiness: .immediate,
-            ) {
-                let scan = PhotoLocationScan(
-                    calendar: calendar,
-                    through: CalendarDay(year: 2026, month: 6, day: 6),
-                    access: .limited,
-                    points: points,
-                )
-                let review = PhotoStayReviewModel(
-                    draft: PhotoStayDraft(scan: scan),
-                    selection: .init(),
-                )
-                if state != "Gap", let gap = review.draft.pendingGaps.first {
-                    review.draft.decide(gap, include: true)
-                    review.preparePicker()
+            return ["Gap", "Corrected", "Suggestions"].map { state in
+                var phone = SnapshotConfiguration.Frame.iPhone
+                var pad = SnapshotConfiguration.Frame.iPad
+                if state == "Suggestions" {
+                    phone.scenePolicy = .retained
+                    pad.scenePolicy = .retained
                 }
-                return Group {
-                    if state == "Suggestions" {
-                        NavigationStack { RegionPickerView(model: review.selection) }
-                    } else {
-                        PhotoStayReviewView(model: review, onContinue: {})
+                return whereSnapshot(
+                    name: state,
+                    configurations: [
+                        .init(device: phone),
+                        .init(device: pad),
+                        .init(device: phone, snapshotType: .accessibility),
+                        .init(
+                            dynamicType: .accessibility5,
+                            device: phone,
+                        ),
+                    ],
+                    measurementReadiness: .immediate,
+                ) {
+                    let scan = PhotoLocationScan(
+                        calendar: calendar,
+                        through: CalendarDay(year: 2026, month: 6, day: 6),
+                        access: .limited,
+                        points: points,
+                    )
+                    let review = PhotoStayReviewModel(
+                        draft: PhotoStayDraft(scan: scan),
+                        selection: .init(),
+                    )
+                    if state != "Gap", let gap = review.draft.pendingGaps.first {
+                        review.draft.decide(gap, include: true)
+                        review.preparePicker()
+                    }
+                    return Group {
+                        if state == "Suggestions" {
+                            OnboardingRegionPicker(draft: review.selection, review: {}, next: {})
+                        } else {
+                            PhotoStayReviewView(model: review, onContinue: {})
+                        }
                     }
                 }
-            } }
+            }
         }
     }
 

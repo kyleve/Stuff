@@ -2,7 +2,10 @@ import Foundation
 import RegionKit
 
 public enum PhotoLibraryAccess: Sendable {
-    case undetermined, limited, full, unavailable
+    case undetermined
+    case limited
+    case full
+    case unavailable
 
     public var allowsReading: Bool {
         self == .limited || self == .full
@@ -75,7 +78,10 @@ public struct PhotoLocationScan: Sendable {
     }
 }
 
-public enum PhotoScanError: Error { case accessChanged, unavailable }
+public enum PhotoScanError: Error {
+    case accessChanged
+    case unavailable
+}
 
 /// One worker per user-initiated scan. Only value metadata crosses the host boundary.
 public actor PhotoLocationScanner {
@@ -125,8 +131,13 @@ public actor PhotoLocationScanner {
             guard key.capturedAt >= window.start, key.capturedAt <= window.end else { continue }
             if let previous = points[key],
                (previous.observation.accuracy ?? .infinity) <=
-               (observation.accuracy ?? .infinity) { continue }
-            if attributor == nil { attributor = RegionAttributor(for: RegionCatalog.shared.all) }
+               (observation.accuracy ?? .infinity)
+            {
+                continue
+            }
+            if attributor == nil {
+                attributor = RegionAttributor(for: RegionCatalog.shared.all)
+            }
             guard let attributor else { continue }
             points[key] = DatedPhotoLocation(
                 observation: observation,

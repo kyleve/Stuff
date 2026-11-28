@@ -240,7 +240,9 @@ public actor DataIssueScanner: WhereShutdownable {
         issues.sorted { lhs, rhs in
             let lhsOrder = DataIssueCategory.allCases.firstIndex(of: lhs.category) ?? 0
             let rhsOrder = DataIssueCategory.allCases.firstIndex(of: rhs.category) ?? 0
-            if lhsOrder != rhsOrder { return lhsOrder < rhsOrder }
+            if lhsOrder != rhsOrder {
+                return lhsOrder < rhsOrder
+            }
             return lhs.sortKey < rhs.sortKey
         }
     }

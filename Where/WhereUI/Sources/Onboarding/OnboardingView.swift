@@ -118,7 +118,11 @@ public struct OnboardingView: View {
             String(localized: .photoSaveFailed),
             isPresented: Binding(
                 get: { flow.photo.saveError != nil },
-                set: { if !$0 { flow.photo.saveError = nil } },
+                set: {
+                    if !$0 {
+                        flow.photo.saveError = nil
+                    }
+                },
             ),
         ) {
             Button { flow.photo.saveError = nil } label: { Text(.commonOk) }
@@ -256,21 +260,11 @@ public struct OnboardingView: View {
     // MARK: - Pick regions
 
     private var pickRegions: some View {
-        NavigationStack {
-            RegionPickerView(model: flow.selection)
-                .navigationTitle(String(localized: .onboardingRegionsTitle))
-                .toolbar {
-                    if flow.photo.review != nil {
-                        ToolbarItem(placement: .cancellationAction) {
-                            Button { flow.phase = .review } label: { Text(.photoReviewTitle) }
-                        }
-                    }
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button(String(localized: .onboardingNext)) { flow.phase = .customize }
-                            .disabled(!flow.selection.hasSelection)
-                    }
-                }
-        }
+        OnboardingRegionPicker(
+            draft: flow.selection,
+            review: flow.photo.review == nil ? nil : { flow.phase = .review },
+            next: { flow.phase = .customize },
+        )
     }
 
     // MARK: - Customize
@@ -278,7 +272,7 @@ public struct OnboardingView: View {
     private var customize: some View {
         NavigationStack {
             RegionCustomizeView(
-                model: flow.selection,
+                draft: flow.selection,
                 onBack: { flow.phase = .pickRegions },
                 onFinish: { flow.phase = .location },
             )
@@ -341,8 +335,11 @@ public struct OnboardingView: View {
                                 Toggle(isOn: Binding(
                                     get: { flow.photo.useReviewedDays.contains(day) },
                                     set: { use in
-                                        if use { flow.photo.useReviewedDays.insert(day) }
-                                        else { flow.photo.useReviewedDays.remove(day) }
+                                        if use {
+                                            flow.photo.useReviewedDays.insert(day)
+                                        } else {
+                                            flow.photo.useReviewedDays.remove(day)
+                                        }
                                     },
                                 )) {
                                     Text(day.iso8601)
@@ -485,17 +482,23 @@ final class OnboardingIntroState {
     var activity: Activity = .browsing
 
     var isRestoringBackup: Bool {
-        if case .restoringBackup = activity { return true }
+        if case .restoringBackup = activity {
+            return true
+        }
         return false
     }
 
     var isBuildingDemo: Bool {
-        if case .buildingDemo = activity { return true }
+        if case .buildingDemo = activity {
+            return true
+        }
         return false
     }
 
     var failure: Failure? {
-        if case let .failed(failure) = activity { return failure }
+        if case let .failed(failure) = activity {
+            return failure
+        }
         return nil
     }
 
@@ -503,7 +506,37 @@ final class OnboardingIntroState {
     /// which is the only way `activity` leaves `.failed`.
     var isShowingFailure: Bool {
         get { failure != nil }
-        set { if !newValue { activity = .browsing } }
+        set {
+            if !newValue {
+                activity = .browsing
+            }
+        }
+    }
+}
+
+struct OnboardingRegionPicker: View {
+    let draft: PrimaryRegionDraft
+    let review: (() -> Void)?
+    let next: () -> Void
+
+    var body: some View {
+        let title: LocalizedStringResource = review == nil ? .onboardingRegionsTitle :
+            .settingsRegionsSection
+        NavigationStack {
+            RegionPickerView(draft: draft)
+                .navigationTitle(String(localized: title))
+                .toolbar {
+                    if let review {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button(action: review) { Text(.photoReviewTitle) }
+                        }
+                    }
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button(String(localized: .onboardingNext), action: next)
+                            .disabled(!draft.hasSelection)
+                    }
+                }
+        }
     }
 }
 

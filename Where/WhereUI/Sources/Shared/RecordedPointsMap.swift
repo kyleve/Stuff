@@ -126,8 +126,11 @@ struct RecordedPointsMap: View {
             for route in data.routes {
                 let path = Path { path in
                     for (index, coordinate) in route.coordinates.enumerated() {
-                        if index == 0 { path.move(to: point(coordinate)) }
-                        else { path.addLine(to: point(coordinate)) }
+                        if index == 0 {
+                            path.move(to: point(coordinate))
+                        } else {
+                            path.addLine(to: point(coordinate))
+                        }
                     }
                 }
                 context.stroke(

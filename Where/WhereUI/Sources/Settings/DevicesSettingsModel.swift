@@ -1,3 +1,4 @@
+import BroadwayCore
 import Foundation
 import Observation
 import WhereCore
@@ -14,7 +15,7 @@ final class DevicesSettingsModel {
             case refresh
         }
 
-        let id = UUID()
+        let id = PresentationID<Failure>()
         let context: Context
         let message: String
     }
@@ -27,7 +28,11 @@ final class DevicesSettingsModel {
         case failed(Failure)
 
         var isReadyForSearchFocus: Bool {
-            if case .loaded = self { true } else { false }
+            if case .loaded = self {
+                true
+            } else {
+                false
+            }
         }
     }
 
@@ -39,7 +44,11 @@ final class DevicesSettingsModel {
 
     var isShowingError: Bool {
         get { presentedFailure != nil }
-        set { if !newValue { presentedFailure = nil } }
+        set {
+            if !newValue {
+                presentedFailure = nil
+            }
+        }
     }
 
     var presentedFailureCanRetry: Bool {
@@ -97,17 +106,25 @@ final class DevicesSettingsModel {
     }
 
     private func load(showLoading: Bool) async {
-        if showLoading, rows.isEmpty { state = .loading }
+        if showLoading, rows.isEmpty {
+            state = .loading
+        }
         do {
             try await apply(session.recordingDevices())
             state = rows.isEmpty ? .empty : .loaded
-            if presentedFailure?.context == .refresh { presentedFailure = nil }
+            if presentedFailure?.context == .refresh {
+                presentedFailure = nil
+            }
         } catch {
             let failure = Failure(
                 context: rows.isEmpty ? .initialLoad : .refresh,
                 message: error.localizedDescription,
             )
-            if rows.isEmpty { state = .failed(failure) } else { presentedFailure = failure }
+            if rows.isEmpty {
+                state = .failed(failure)
+            } else {
+                presentedFailure = failure
+            }
         }
     }
 
@@ -126,7 +143,9 @@ final class DevicesSettingsModel {
                 }
                 row.finish(operation)
                 await load(showLoading: false)
-                if operation == .remove { return }
+                if operation == .remove {
+                    return
+                }
             } catch {
                 let failure = row.fail(operation, error: error)
                 presentedFailure = Failure(

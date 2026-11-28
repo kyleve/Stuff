@@ -3,7 +3,11 @@ import SFSafeSymbols
 import SwiftUI
 
 struct UpdateChanges: View {
-    enum Scope { case installedBuild, previousBuild }
+    enum Scope {
+        case installedBuild
+        case previousBuild
+    }
+
     let changes: UpdateCatalog.Changes
     let installed: InstalledBuild
     var scope = Scope.installedBuild

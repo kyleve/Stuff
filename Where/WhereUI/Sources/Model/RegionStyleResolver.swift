@@ -28,7 +28,9 @@ public struct RegionStyleResolver: Sendable, Equatable {
     public init(primaryRegions: [PrimaryRegion]) {
         var map: [Region: RegionAppearance] = [:]
         for entry in primaryRegions {
-            if let appearance = entry.appearance { map[entry.region] = appearance }
+            if let appearance = entry.appearance {
+                map[entry.region] = appearance
+            }
         }
         self.init(appearances: map)
     }

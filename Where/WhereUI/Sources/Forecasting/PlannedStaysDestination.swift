@@ -22,9 +22,9 @@ struct PlannedStaysDestinationView: View {
             case .list:
                 PlannedStaysView(report: report)
             case let .new(region):
-                PlannedStayEditor(report: report, initialRegion: region)
+                PlannedStayEditorDestination(report: report, mode: .new(initialRegion: region))
             case let .edit(stay):
-                PlannedStayEditor(report: report, stay: stay)
+                PlannedStayEditorDestination(report: report, mode: .edit(stay))
         }
     }
 }

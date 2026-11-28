@@ -48,7 +48,11 @@ struct AddEvidenceView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(String(localized: .evidenceFormSave)) {
-                        Task { if await model.save() { dismiss() } }
+                        Task {
+                            if await model.save() {
+                                dismiss()
+                            }
+                        }
                     }
                     .disabled(model.isSaving)
                 }
@@ -173,7 +177,11 @@ struct AddEvidenceView: View {
             .contentType?.identifier
         let filename = url.lastPathComponent
         Task {
-            defer { if didAccess { url.stopAccessingSecurityScopedResource() } }
+            defer {
+                if didAccess {
+                    url.stopAccessingSecurityScopedResource()
+                }
+            }
             do {
                 let data = try await Task.detached(priority: .userInitiated) {
                     try Data(contentsOf: url)

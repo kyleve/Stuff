@@ -47,7 +47,9 @@ public final class InMemoryInstallationRecordingContextStore:
     public func confirmInitialRecording(
         isEnabled: Bool,
     ) throws -> InstallationRecordingContext {
-        if onboardingContext.automaticRecordingEnabled != nil { return onboardingContext }
+        if onboardingContext.automaticRecordingEnabled != nil {
+            return onboardingContext
+        }
         onboardingContext = onboardingContext.confirmingInitialRecording(isEnabled: isEnabled)
         return onboardingContext
     }

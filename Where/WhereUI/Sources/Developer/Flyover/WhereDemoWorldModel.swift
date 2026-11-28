@@ -1,4 +1,5 @@
 #if DEBUG
+    import BroadwayCore
     import Observation
 
     /// Loads a demo world and retains its scene across synthetic layout changes.
@@ -12,7 +13,7 @@
         }
 
         private(set) var state = State.idle
-        private(set) var request = 0
+        private(set) var retryTrigger = EventTrigger()
         @ObservationIgnored private let buildWorld: @MainActor () async throws -> WhereFlyoverWorld
 
         init(buildWorld: @escaping @MainActor () async throws
@@ -38,7 +39,7 @@
         func retry() {
             guard case .failed = state else { return }
             state = .idle
-            request += 1
+            retryTrigger.fire()
         }
     }
 #endif

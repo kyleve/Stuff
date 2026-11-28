@@ -14,7 +14,9 @@ enum RegionLocationConstellationLayout {
         let column: Int
 
         static func < (lhs: Cell, rhs: Cell) -> Bool {
-            if lhs.row != rhs.row { return lhs.row < rhs.row }
+            if lhs.row != rhs.row {
+                return lhs.row < rhs.row
+            }
             return lhs.column < rhs.column
         }
     }
@@ -57,7 +59,7 @@ enum RegionLocationConstellationLayout {
                 candidate.sampleCount += 1
                 if point.horizontalAccuracy >= 0,
                    candidate.point.horizontalAccuracy < 0 || point.horizontalAccuracy < candidate
-                   .point.horizontalAccuracy
+                       .point.horizontalAccuracy
                 {
                     candidate.point = point
                 }

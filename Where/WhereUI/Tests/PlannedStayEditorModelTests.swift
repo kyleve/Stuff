@@ -32,7 +32,9 @@ struct PlannedStayEditorModelTests {
         #expect(!model.canSave)
         if case let .failure(.invalidStay(error)) = model.draft {
             #expect(error as? PlannedStay.ValidationError == .arrivalAfterDeparture)
-        } else { Issue.record("Invalid date ordering must retain its domain error") }
+        } else {
+            Issue.record("Invalid date ordering must retain its domain error")
+        }
         #expect(model.validationMessage != nil)
         model.departure.earliest = model.arrival.latest
         #expect(model.canSave)

@@ -12,12 +12,98 @@ struct LocationsViewTests {
     @Test func screenCompositionKeepsViewValuesWithinStackBudget() {
         #expect(MemoryLayout<LocationsView.Body>.size < 16384)
     }
+
+    @MainActor
+    @Test func outgoingCalendarsKeepTheirOwnPresentationUntilDiscarded() throws {
+        let calendars = LocationsView.CalendarPresentations()
+        let outgoing = CalendarPresentationState(mode: .detail)
+        calendars.select(region: .california, presentation: outgoing)
+        let first = try #require(calendars.selected)
+
+        let incoming = CalendarPresentationState(mode: .overview)
+        calendars.select(region: .california, presentation: incoming)
+        let next = try #require(calendars.selected)
+
+        #expect(calendars[first] === outgoing)
+        #expect(calendars[next] === incoming)
+
+        calendars.discard(first)
+        calendars.discard(next)
+        #expect(calendars[first] == nil)
+        #expect(calendars[next] === incoming)
+    }
 }
 
 /// These tests resize native navigation in the shared test host window.
 @MainActor
 @Suite(.serialized)
 struct LocationsViewTestsDuo {
+    @Test func regionCardsSwitchAndClearTheExpandedCalendar() async throws {
+        let world = try await WhereFlyoverWorld.build()
+        world.report.preferences.setCalendarOverview(true, forKey: .region(.newYork))
+        let state = AdaptivePaneHostState()
+        let host = UIHostingController(rootView: AdaptivePaneHostedSurface(state: state) {
+            LocationsView(report: world.report)
+        }.bScrollRestorationScope())
+        host.safeAreaRegions = []
+        try await show(host) { controller in
+            controller.view.window?.layer.speed = 1
+            let emptyTitle = String(localized: .locationsNoRegionTitle)
+            let showYear = String(localized: .calendarShowYear)
+            let showMonths = String(localized: .calendarShowMonths)
+            @MainActor func isVisible(_ label: String) -> Bool {
+                HostedAccessibility.isVisible(label, in: controller.view)
+            }
+            @MainActor func calendarTitle(for region: Region) -> String {
+                WhereFormat.calendarRegionTitle(region: region, year: world.report.selectedYear)
+            }
+            @MainActor func tapCard(for region: Region) throws {
+                let card = try #require(HostedAccessibility.objects(in: controller.view).first {
+                    $0.accessibilityLabel?.hasPrefix("\(region.localizedName):") == true
+                        && $0.accessibilityTraits.contains(.button)
+                })
+                if let control = card as? UIControl {
+                    control.sendActions(for: .touchUpInside)
+                } else {
+                    try #require(card.accessibilityActivate())
+                }
+            }
+
+            try await AdaptivePaneTestSupport.resize(controller, state: state, to: .innerPortrait)
+            try await waitForStage("empty detail on the open Duo") {
+                isVisible(emptyTitle)
+            }
+            #expect(isVisible(String(localized: .primaryCalendar)) == false)
+            #expect(isVisible(showYear) == false)
+
+            let californiaTitle = calendarTitle(for: .california)
+            let newYorkTitle = calendarTitle(for: .newYork)
+            try tapCard(for: .california)
+            try await waitForStage("California detail calendar") {
+                isVisible(californiaTitle) && isVisible(showYear) && !isVisible(emptyTitle)
+            }
+            try tapCard(for: .newYork)
+            try await waitForStage("New York calendar in its saved overview mode") {
+                isVisible(newYorkTitle) && isVisible(showMonths) && !isVisible(showYear)
+            }
+            try tapCard(for: .newYork)
+            try await waitForStage("empty detail after deselecting New York") {
+                isVisible(emptyTitle) && !isVisible(newYorkTitle) && !isVisible(showMonths)
+            }
+            #expect(world.report.preferences.calendarOverview(forKey: .region(.newYork)) == true)
+
+            try tapCard(for: .california)
+            try await waitForStage("California detail after reselection") {
+                isVisible(californiaTitle) && isVisible(showYear) && !isVisible(emptyTitle)
+            }
+
+            try await AdaptivePaneTestSupport.resize(controller, state: state, to: .outerPortrait)
+            try await waitForStage("selected region calendar stays open when folded") {
+                isVisible(californiaTitle) && isVisible(showYear)
+            }
+        }
+    }
+
     @Test func estimateCardFollowsVisibleLocationsPanes() async throws {
         let world = try await WhereFlyoverWorld.build()
         let navigation = LocationsView.Navigation()
@@ -54,7 +140,9 @@ struct LocationsViewTestsDuo {
                 guard let target = calendar.binding?.wrappedValue
                     .viewID(type: CalendarPresentationState.Target.self)
                 else { return false }
-                if case .estimate = target { return true }
+                if case .estimate = target {
+                    return true
+                }
                 return false
             }
             let estimate = try #require(calendar.binding?.wrappedValue
@@ -73,7 +161,9 @@ struct LocationsViewTestsDuo {
                 guard let target = calendar.binding?.wrappedValue
                     .viewID(type: CalendarPresentationState.Target.self)
                 else { return false }
-                if case .month = target { return true }
+                if case .month = target {
+                    return true
+                }
                 return false
             }
             let position = try #require(browse.binding)
@@ -293,8 +383,11 @@ struct LocationsViewTestsDuo {
                 .first {
                     $0.accessibilityHint == String(localized: .flightStatusOpenReview)
                 })
-            if let control = banner as? UIControl { control.sendActions(for: .touchUpInside) }
-            else { try #require(banner.accessibilityActivate()) }
+            if let control = banner as? UIControl {
+                control.sendActions(for: .touchUpInside)
+            } else {
+                try #require(banner.accessibilityActivate())
+            }
             try await waitForStage("flight review sheet") {
                 controller.presentedViewController != nil
             }
@@ -309,8 +402,11 @@ struct LocationsViewTestsDuo {
             }
             let done = try #require(HostedAccessibility.objects(in: sheet.view)
                 .first { $0.accessibilityLabel == "Done" })
-            if let control = done as? UIControl { control.sendActions(for: .touchUpInside) }
-            else { try #require(done.accessibilityActivate()) }
+            if let control = done as? UIControl {
+                control.sendActions(for: .touchUpInside)
+            } else {
+                try #require(done.accessibilityActivate())
+            }
             try await waitForStage("return from flight review") {
                 controller.presentedViewController == nil
             }

@@ -20,7 +20,7 @@ struct NorthAmericanRegionTests {
             ("YT", 60.7212, -135.0568),
         ]
         let catalog = RegionCatalog.shared
-        let canada = try #require(catalog.node(id: .init(rawValue: "canada")))
+        let canada = try #require(catalog.node(id: .canada))
         let children = catalog.children(of: canada)
         #expect(children.count == capitals.count)
         #expect(children.count(where: { $0.kind == .territory }) == 3)
@@ -116,10 +116,10 @@ struct NorthAmericanRegionTests {
 
     @Test func countriesHaveNoGeometryFilesAndUSTerritoriesStayUntracked() throws {
         let catalog = RegionCatalog.shared
-        let us = try #require(catalog.node(id: .init(rawValue: "united-states")))
+        let us = try #require(catalog.node(id: .unitedStates))
         #expect(catalog.children(of: us).count == 52)
         #expect(us.region == nil)
-        let canada = try #require(catalog.node(id: .init(rawValue: "canada")))
+        let canada = try #require(catalog.node(id: .canada))
         #expect(us.geometry == nil && canada.geometry == nil)
         for purpose in RegionGeometryPurpose.allCases {
             #expect(RegionCatalog.geometryURL(for: us, purpose: purpose) == nil)

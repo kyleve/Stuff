@@ -1,12 +1,12 @@
 import InstallerKit
+import SnapshotKit
+import SwiftUI
 #if DEBUG
     import Flyover
     @_spi(Testing) import InstallerKitUI
 #else
     import InstallerKitUI
 #endif
-import SnapshotKit
-import SwiftUI
 
 /// Settings detail for the installed channel, incoming commits, and available build.
 struct DevelopmentUpdatesView: View {
@@ -100,7 +100,9 @@ extension DevelopmentUpdatesView: SettingsSection {
                 configurations: configurations,
                 measurementReadiness: scenario.requiresRefresh ? .sameAsCapture : .immediate,
                 onReadyToMeasure: {
-                    if scenario.requiresRefresh { await model.refresh(force: true) }
+                    if scenario.requiresRefresh {
+                        await model.refresh(force: true)
+                    }
                 },
             ) {
                 NavigationStack { DevelopmentUpdatesView(model: model, focus: nil) }

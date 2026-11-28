@@ -48,7 +48,9 @@ struct RegionArtworkProjection {
             maxX = max(maxX, point.x)
             minY = min(minY, point.y)
             maxY = max(maxY, point.y)
-            if maxX - minX >= extent || maxY - minY >= extent { return true }
+            if maxX - minX >= extent || maxY - minY >= extent {
+                return true
+            }
         }
         return false
     }

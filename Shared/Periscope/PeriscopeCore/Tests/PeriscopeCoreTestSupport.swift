@@ -75,7 +75,9 @@ func waitUntil(
     let clock = ContinuousClock()
     let deadline = clock.now.advanced(by: timeout)
     while clock.now < deadline {
-        if predicate() { return true }
+        if predicate() {
+            return true
+        }
         try? await Task.sleep(for: .milliseconds(2))
     }
     return predicate()

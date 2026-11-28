@@ -147,7 +147,9 @@ struct LargeViewCaptureTests {
             safeAreaInsets: .zero,
             onReadyToSnapshot: {
                 @MainActor func scrollViews(in view: UIView) -> [UIScrollView] {
-                    if let scrollView = view as? UIScrollView { return [scrollView] }
+                    if let scrollView = view as? UIScrollView {
+                        return [scrollView]
+                    }
                     return view.subviews.flatMap { scrollViews(in: $0) }
                 }
                 guard let scrollView = scrollViews(in: host.view).first else {
@@ -305,9 +307,15 @@ struct LargeViewCaptureTests {
                 x: 0.5,
                 y: (CGFloat(row) + 0.5) / image.size.height,
             ))
-            if pixel.red > 0.5, pixel.green < 0.5, pixel.blue < 0.5 { redRows += 1 }
-            if pixel.blue > 0.5, pixel.red < 0.5 { blueRows += 1 }
-            if pixel.green > 0.5, pixel.red < 0.5, pixel.blue < 0.5 { greenRows += 1 }
+            if pixel.red > 0.5, pixel.green < 0.5, pixel.blue < 0.5 {
+                redRows += 1
+            }
+            if pixel.blue > 0.5, pixel.red < 0.5 {
+                blueRows += 1
+            }
+            if pixel.green > 0.5, pixel.red < 0.5, pixel.blue < 0.5 {
+                greenRows += 1
+            }
         }
         #expect(abs(redRows - 1500) <= 1)
         #expect(abs(blueRows - 1500) <= 1)
@@ -401,7 +409,9 @@ struct LargeViewCaptureTests {
             onReadyToSnapshot: {
                 #expect(host.view.window?.bounds.size == host.view.bounds.size)
                 @MainActor func searchBars(in view: UIView) -> [UITextField] {
-                    if let field = view as? UITextField { return [field] }
+                    if let field = view as? UITextField {
+                        return [field]
+                    }
                     return view.subviews.flatMap { searchBars(in: $0) }
                 }
                 let bars = searchBars(in: host.view)
@@ -420,8 +430,12 @@ struct LargeViewCaptureTests {
                 x: 0.5,
                 y: (CGFloat(row) + 0.5) / image.size.height,
             ))
-            if pixel.red > 0.5, pixel.green < 0.5, pixel.blue < 0.5 { redRows += 1 }
-            if pixel.blue > 0.5, pixel.red < 0.5 { blueRows += 1 }
+            if pixel.red > 0.5, pixel.green < 0.5, pixel.blue < 0.5 {
+                redRows += 1
+            }
+            if pixel.blue > 0.5, pixel.red < 0.5 {
+                blueRows += 1
+            }
         }
         #expect(image.size.height >= 2500)
         #expect(redRows >= 1980)

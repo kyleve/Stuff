@@ -24,7 +24,11 @@ struct WhereWidgetEntry: TimelineEntry {
     }
 
     var isBlocked: Bool {
-        if case .blocked = content { true } else { false }
+        if case .blocked = content {
+            true
+        } else {
+            false
+        }
     }
 
     var snapshot: WidgetSnapshot {

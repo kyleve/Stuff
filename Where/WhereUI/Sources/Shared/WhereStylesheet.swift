@@ -18,6 +18,7 @@ struct WhereStylesheet: BStylesheet {
     var size = Size()
     var card = CardStyles.standard
     var locationsBackground = LocationsBackgroundStyle()
+    var locationsDetail = LocationsDetailStyle.standard
     var locationCardStack = LocationCardStackStyle.standard
     var locationWelcome = LocationWelcomeStyle.standard
     var flightStatus = FlightStatusStyle()
@@ -55,6 +56,8 @@ struct WhereStylesheet: BStylesheet {
         // stays constant, so a default/system context reproduces `default`.
         let traits = context.traits
         theme = context.themes[WhereTheme.self]
+        adaptivePane.selection.borderTint
+            .color = BModeVarying(light: Color.black, dark: .white)[traits.mode]
 
         if traits.horizontalSizeClass == .regular,
            traits.verticalSizeClass == .regular,
@@ -128,6 +131,7 @@ struct WhereStylesheet: BStylesheet {
         // Reduce Motion stops the cards' day count rolling its digits; it
         // crossfades to the new number instead.
         if traits.accessibility.isReduceMotionEnabled {
+            regionPicker.selectionAnimation = nil
             calendar.overview.usesSpatialMotion = false
             launch.reveal = .crossfade
             launch.revealAnimation = motion.reducedReveal
@@ -135,6 +139,7 @@ struct WhereStylesheet: BStylesheet {
             settings.flashAnimation = nil
             card.dayCount = .reducedMotion
             locationCardStack.overtake = .reducedMotion
+            locationsDetail = .reducedMotion
             locationWelcome.motion = .reduced
             developerOverlay.menu.motion = .reduced
         }
@@ -217,7 +222,11 @@ extension WhereStylesheet {
         }
 
         struct Accessory: Equatable {
-            enum Copy: Equatable { case full, compact }
+            enum Copy: Equatable {
+                case full
+                case compact
+            }
+
             var copy = Copy.full
             var contentSpacing: CGFloat
             var horizontalPadding: CGFloat
@@ -325,6 +334,25 @@ extension WhereStylesheet {
                 titleFont: .subheadline.weight(.semibold),
             ),
             motion: .standard,
+        )
+    }
+}
+
+// MARK: - Locations detail
+
+extension WhereStylesheet {
+    struct LocationsDetailStyle: Equatable {
+        var animation: Animation
+        var calendarScale: CGFloat?
+
+        static let standard = LocationsDetailStyle(
+            animation: .smooth(duration: 0.3),
+            calendarScale: 0.86,
+        )
+
+        static let reducedMotion = LocationsDetailStyle(
+            animation: Motion.standard.reducedReveal,
+            calendarScale: nil,
         )
     }
 }
@@ -1829,23 +1857,10 @@ extension WhereStylesheet {
 // MARK: - Region picker / customization
 
 extension WhereStylesheet {
-    /// Style for the primary-region picker (`RegionPickerView`) and per-region
-    /// customization (`RegionAppearanceEditor`): the selectable-region map fills,
-    /// the color swatch and emoji/symbol tile geometry, and the default North American map
-    /// framing. Generic spacing (grid gaps, section stacks) still comes from
-    /// ``Spacing``. The camera is stored as raw degrees so the stylesheet stays
-    /// MapKit-free; the view assembles the `MKCoordinateRegion`.
+    /// Selection motion for the primary-region picker, plus the swatches
+    /// and glyph tiles in the appearance editor.
     struct RegionPickerStyle: Equatable {
-        /// Corner radius of the map's rounded container.
-        var mapCornerRadius: CGFloat
-        /// Polygon fill opacity for a selected vs unselected region.
-        var selectedFillOpacity: Double
-        var unselectedFillOpacity: Double
-        /// Polygon stroke opacity + width for a selected vs unselected region.
-        var selectedStrokeOpacity: Double
-        var unselectedStrokeOpacity: Double
-        var selectedStrokeWidth: CGFloat
-        var unselectedStrokeWidth: CGFloat
+        var selectionAnimation: Animation? = .smooth(duration: 0.4)
         /// Diameter of a color swatch and the width of its selection ring.
         var colorSwatchSize: CGFloat
         var colorSwatchSelectionRing: CGFloat
@@ -1859,20 +1874,8 @@ extension WhereStylesheet {
         var glyphSelectionStrokeWidth: CGFloat
         /// Background tint opacity of a selected glyph tile.
         var glyphSelectedBackgroundOpacity: Double
-        /// Default map camera framing the US and Canada (raw degrees).
-        var mapCenterLatitude: Double
-        var mapCenterLongitude: Double
-        var mapSpanLatitude: Double
-        var mapSpanLongitude: Double
 
         static let standard = RegionPickerStyle(
-            mapCornerRadius: 12,
-            selectedFillOpacity: 0.55,
-            unselectedFillOpacity: 0.12,
-            selectedStrokeOpacity: 0.9,
-            unselectedStrokeOpacity: 0.35,
-            selectedStrokeWidth: 2,
-            unselectedStrokeWidth: 1,
             colorSwatchSize: 40,
             colorSwatchSelectionRing: 3,
             colorSwatchMinWidth: 44,
@@ -1881,10 +1884,6 @@ extension WhereStylesheet {
             glyphCornerRadius: 6,
             glyphSelectionStrokeWidth: 2,
             glyphSelectedBackgroundOpacity: 0.2,
-            mapCenterLatitude: 52,
-            mapCenterLongitude: -99,
-            mapSpanLatitude: 65,
-            mapSpanLongitude: 95,
         )
     }
 }

@@ -141,7 +141,9 @@ struct ManualDayView: View {
         // Keep the range's end from drifting before its start when the user
         // moves the start forward (the end picker's range only clamps display).
         .onChange(of: add.startDate) { _, newValue in
-            if add.endDate < newValue { add.endDate = newValue }
+            if add.endDate < newValue {
+                add.endDate = newValue
+            }
         }
 
         regionsSection(add.regions)

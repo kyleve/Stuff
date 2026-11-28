@@ -26,13 +26,11 @@ public struct InspectorView: View {
     }
 
     public var body: some View {
-        Group {
-            if model.preparationState == .ready {
-                inspector
-            } else {
-                ProgressView("Preparing Inspector")
-                    .task { await model.prepare() }
-            }
+        if model.preparationState == .ready {
+            inspector
+        } else {
+            ProgressView("Preparing Inspector")
+                .task { await model.prepare() }
         }
     }
 

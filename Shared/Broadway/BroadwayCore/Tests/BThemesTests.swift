@@ -4,13 +4,15 @@ import Testing
 private enum Palette: String, BTheme {
     static let defaultValue: Self = .light
 
-    case light, dark
+    case light
+    case dark
 }
 
 private enum Typography: String, BTheme {
     static let defaultValue: Self = .standard
 
-    case standard, compact
+    case standard
+    case compact
 }
 
 struct BThemesTests {

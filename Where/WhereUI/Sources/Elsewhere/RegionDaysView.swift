@@ -1,3 +1,4 @@
+import BroadwayCore
 import RegionKit
 import SFSafeSymbols
 import SnapshotKit
@@ -10,11 +11,11 @@ struct RegionDaysView: View {
     let region: Region
     let report: YearReportModel
     let model: ElsewhereModel
-    @State private var retrySequence = 0
+    @State private var retryTrigger = EventTrigger()
 
     private struct Request: Hashable {
         let input: ElsewhereInput?
-        let retrySequence: Int
+        let retryTrigger: EventTrigger
     }
 
     init(region: Region, report: YearReportModel, model: ElsewhereModel? = nil) {
@@ -28,7 +29,9 @@ struct RegionDaysView: View {
     }
 
     private var failureMessage: String? {
-        if case let .failed(error) = report.loadState { return error.message }
+        if case let .failed(error) = report.loadState {
+            return error.message
+        }
         return model.failure(for: report.selectedYear)?.localizedDescription
     }
 
@@ -47,9 +50,13 @@ struct RegionDaysView: View {
         content
             .navigationTitle(region.localizedName)
             .navigationBarTitleDisplayMode(.inline)
-            .task(id: Request(input: report.elsewhereInput, retrySequence: retrySequence)) {
-                if case .failed = report.loadState { await report.refresh() }
-                if let input = report.elsewhereInput { await model.refresh(input) }
+            .task(id: Request(input: report.elsewhereInput, retryTrigger: retryTrigger)) {
+                if case .failed = report.loadState {
+                    await report.refresh()
+                }
+                if let input = report.elsewhereInput {
+                    await model.refresh(input)
+                }
             }
     }
 
@@ -57,7 +64,9 @@ struct RegionDaysView: View {
     private var content: some View {
         if let history, !history.days.isEmpty {
             VStack(spacing: 0) {
-                if !mapPoints.isEmpty { RecordedPointsMap(points: mapPoints) }
+                if !mapPoints.isEmpty {
+                    RecordedPointsMap(points: mapPoints)
+                }
                 List {
                     if let failureMessage {
                         Section {
@@ -111,7 +120,7 @@ struct RegionDaysView: View {
     }
 
     private var retryButton: some View {
-        Button(String(localized: .commonRetry)) { retrySequence += 1 }
+        Button(String(localized: .commonRetry)) { retryTrigger.fire() }
     }
 }
 
@@ -166,7 +175,9 @@ private struct DayRow: View {
                 name: "WithData",
                 configurations: .fullContentScreenRepresentative,
                 onReadyToMeasure: {
-                    if let input = report.elsewhereInput { await model.refresh(input) }
+                    if let input = report.elsewhereInput {
+                        await model.refresh(input)
+                    }
                 },
             ) {
                 NavigationStack {

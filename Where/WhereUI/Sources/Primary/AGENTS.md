@@ -23,10 +23,10 @@ Read the [module contract](../../AGENTS.md) and the [repository contract](../../
 - Show Locations selection indicators only when browsing and calendar panes are displayed together. Guard: `LocationsViewTestsDuo.selectedRegionIsIndicatedOnlyBesideItsCalendar`.
 - Keep navigation paths, search, sheets, and drafts in stable owning views above adaptive branches. Keep presented editors mounted while folding. Present Locations flight reviews in a sheet.
 - Read system reserved regions only in `AdaptivePaneGeometry`. Keep authored pane limits in the stylesheet and measured geometry in the adapter. Guard: `where.reserved_region_layout_ownership`.
-- Keep Locations in native browse/detail columns across folds when both panes fit; use compact navigation otherwise. Guard: `AdaptivePaneArrangementTests.portraitTabletopRetainsBrowseAndDetailColumns`.
+- Keep Locations in fixed side-by-side browse/detail columns inside one navigation stack when both panes fit. Use native compact navigation otherwise. Guard: `AdaptivePaneArrangementTests.portraitTabletopRetainsBrowseAndDetailColumns`.
 - Use BroadwayUI scroll restoration for current-context anchors with caller-owned typed roles; scrolling must not select or move another pane.
 - Keep rendered calendar anchors typed as `CalendarPresentationState.Target`, preserving month and estimate destinations. Detail owns the retained native scroll position; overview must not overwrite it.
-- Show one initial loading or failure surface before Locations has a report. Remove the sidebar toggle through SwiftUI and leave split gestures to the system. Put shared toolbar actions only in the trailing pane when expanded. Guard: `LocationsViewSnapshotTests`.
+- Show one initial loading or failure surface before Locations has a report. Keep the expanded columns visible together and show one shared toolbar. Guard: `LocationsViewSnapshotTests`.
 - Keep reusable pane content outside native navigation shells. Present planning sheets above changing branches. Embedded demo tools use `demoExitPresentation = .embedded`.
 - Keep synthetic-region injection under `#if DEBUG` and expose it through the Testing SPI. Transition tests retain one mounted container.
 - Reconcile `LocationCardsPresentationModel` only from the visible primary

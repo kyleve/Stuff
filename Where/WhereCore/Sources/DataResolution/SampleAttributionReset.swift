@@ -9,7 +9,10 @@ enum SampleAttributionReset {
             var winners: [UUID: SampleAttributionRevision] = [:]
             for revision in revisions {
                 if let current = winners[revision.sampleID],
-                   !SampleAttributionRevision.newer(revision, than: current) { continue }
+                   !SampleAttributionRevision.newer(revision, than: current)
+                {
+                    continue
+                }
                 winners[revision.sampleID] = revision
             }
             // A correction can still be waiting to sync even when no local

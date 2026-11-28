@@ -974,7 +974,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
                 // with no suspension so a conflicting read discards every write.
                 if let startingHistoryTransactionID = activeTransaction?
                     .snapshotHistoryTransactionID,
-                    try Self.latestHistoryTransactionID(in: peer) != startingHistoryTransactionID
+                   try Self.latestHistoryTransactionID(in: peer) != startingHistoryTransactionID
                 {
                     throw WhereStoreReadConflictError.changedDuringTransaction
                 }
@@ -1224,7 +1224,9 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
                 )
                 throw RecordingPersistenceError.conflictingImmutableRecord(id: id.rawValue)
             }
-            if let value = duplicates.first { canonical.append(value) }
+            if let value = duplicates.first {
+                canonical.append(value)
+            }
         }
         return canonical
     }
@@ -1345,7 +1347,9 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         return try Self.logger.measure(.fetchSamples) {
             try context.fetch(descriptor).compactMap { record in
                 let value = record.toValue()
-                if value == nil { Self.logFault(forCorrupt: record) }
+                if value == nil {
+                    Self.logFault(forCorrupt: record)
+                }
                 return value
             }
         }
@@ -1367,8 +1371,14 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         let end = days.upperBound.iso8601
         return FetchDescriptor<SDLocationSample>(predicate: #Predicate {
             if $0.generationID == generation {
-                if let day = $0.photoDay { day >= start && day <= end } else { false }
-            } else { false }
+                if let day = $0.photoDay {
+                    day >= start && day <= end
+                } else {
+                    false
+                }
+            } else {
+                false
+            }
         })
     }
 
@@ -1388,7 +1398,9 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         )
         return try context.fetch(descriptor).compactMap { record in
             let value = record.toValue()
-            if value == nil { Self.logFault(forCorrupt: record) }
+            if value == nil {
+                Self.logFault(forCorrupt: record)
+            }
             return value
         }
     }
@@ -1485,7 +1497,9 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
                 )
             }
             .sorted {
-                if $0.lastSeenAt != $1.lastSeenAt { return $0.lastSeenAt > $1.lastSeenAt }
+                if $0.lastSeenAt != $1.lastSeenAt {
+                    return $0.lastSeenAt > $1.lastSeenAt
+                }
                 return $0.id.storeURL.absoluteString < $1.id.storeURL.absoluteString
             }
     }
@@ -1498,7 +1512,9 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         descriptor.includePendingChanges = true
         let values: [RecordingDeviceProfile] = try context.fetch(descriptor).compactMap { record in
             let value = record.toValue()
-            if value == nil { Self.logFault(forCorrupt: record) }
+            if value == nil {
+                Self.logFault(forCorrupt: record)
+            }
             return value
         }
         // CloudKit cannot enforce uniqueness. Profiles are immutable, so identical retries
@@ -1546,7 +1562,9 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         let values: [RecordingDeviceMetadataChange] = try context.fetch(descriptor)
             .compactMap { record in
                 let value = record.toValue()
-                if value == nil { Self.logFault(forCorrupt: record) }
+                if value == nil {
+                    Self.logFault(forCorrupt: record)
+                }
                 return value
             }
         return Dictionary(grouping: values, by: \.id)
@@ -1597,7 +1615,9 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         )
         let values: [RecordingDeviceCheckIn] = try context.fetch(descriptor).compactMap { record in
             let value = record.toValue()
-            if value == nil { Self.logFault(forCorrupt: record) }
+            if value == nil {
+                Self.logFault(forCorrupt: record)
+            }
             return value
         }
         return Dictionary(grouping: values, by: \.deviceID)
@@ -1726,7 +1746,9 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         return try Self.logger.measure(.fetchEvidence) {
             try context.fetch(descriptor).compactMap { record in
                 let value = record.toValue()
-                if value == nil { Self.logFault(forCorrupt: record) }
+                if value == nil {
+                    Self.logFault(forCorrupt: record)
+                }
                 return value
             }
         }
@@ -1741,7 +1763,9 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         )
         return try context.fetch(descriptor).compactMap { record in
             let value = record.toValue()
-            if value == nil { Self.logFault(forCorrupt: record) }
+            if value == nil {
+                Self.logFault(forCorrupt: record)
+            }
             return value
         }
     }
@@ -1851,7 +1875,9 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         return try Self.logger.measure(.fetchManualDays) {
             try context.fetch(descriptor).compactMap { record in
                 let value = record.toValue()
-                if value == nil { Self.logFault(forCorrupt: record) }
+                if value == nil {
+                    Self.logFault(forCorrupt: record)
+                }
                 return value
             }
         }
@@ -1866,7 +1892,9 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         )
         return try context.fetch(descriptor).compactMap { record in
             let value = record.toValue()
-            if value == nil { Self.logFault(forCorrupt: record) }
+            if value == nil {
+                Self.logFault(forCorrupt: record)
+            }
             return value
         }
     }
@@ -1913,7 +1941,9 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         )
         let ids = try context.fetch(descriptor).compactMap { record -> DataIssueID? in
             let value = record.toValue()
-            if value == nil { Self.logFault(forCorrupt: record) }
+            if value == nil {
+                Self.logFault(forCorrupt: record)
+            }
             return value?.id
         }
         return Set(ids)
@@ -1928,7 +1958,9 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         )
         return try context.fetch(descriptor).compactMap { record in
             let value = record.toValue()
-            if value == nil { Self.logFault(forCorrupt: record) }
+            if value == nil {
+                Self.logFault(forCorrupt: record)
+            }
             return value
         }
     }
@@ -1986,7 +2018,9 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         )
         return try context.fetch(descriptor).compactMap { record in
             let value = record.toValue()
-            if value == nil { Self.logFault(forCorrupt: record) }
+            if value == nil {
+                Self.logFault(forCorrupt: record)
+            }
             return value
         }
     }
@@ -2026,7 +2060,9 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         )
         return try context.fetch(descriptor).compactMap { record in
             let value = record.toValue()
-            if value == nil { Self.logFault(forCorrupt: record) }
+            if value == nil {
+                Self.logFault(forCorrupt: record)
+            }
             return value
         }
     }
@@ -2150,7 +2186,9 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         let sorted = rows.sorted { lhs, rhs in
             let l = lhs.orderIndex ?? Int.max
             let r = rhs.orderIndex ?? Int.max
-            if l != r { return l < r }
+            if l != r {
+                return l < r
+            }
             return (lhs.regionID ?? "") < (rhs.regionID ?? "")
         }
         for row in sorted {
@@ -2184,7 +2222,9 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         for row in try context.fetch(GenerationScopedFetch.trackedRegions(
             belongingTo: generationID,
         )) {
-            if let id = row.regionID, desiredIDs.contains(id) { continue }
+            if let id = row.regionID, desiredIDs.contains(id) {
+                continue
+            }
             context.delete(row)
         }
         // Upsert each desired region's row (membership + appearance + order),
@@ -2400,14 +2440,13 @@ final class SDLocationSample {
 
     func toValue() -> LocationSample? {
         guard let id, let timestamp, let latitude, let longitude, let horizontalAccuracy,
-              let sourceRaw
-        else { return nil }
-        guard let source = SampleSource.fromDiscriminator(
-            sourceRaw,
-            evidenceId: evidenceId,
-            evidenceKindRaw: evidenceKindRaw,
-            photo: photoAttribution,
-        ) else { return nil }
+              let sourceRaw,
+              let source = SampleSource.fromDiscriminator(
+                  sourceRaw,
+                  evidenceId: evidenceId,
+                  evidenceKindRaw: evidenceKindRaw,
+                  photo: photoAttribution,
+              ) else { return nil }
         // Optional motion may arrive partially without invalidating the raw
         // position. Preserve each complete measurement independently, and keep
         // these reads non-mutating so a later sync can complete the other one.
@@ -2426,10 +2465,14 @@ final class SDLocationSample {
                 metersPerSecond: speedMetersPerSecond,
                 accuracyMetersPerSecond: speedAccuracyMetersPerSecond,
             )
-        } else { nil }
+        } else {
+            nil
+        }
         let altitude: LocationMotion.Altitude? = if let altitudeMeters, let altitudeAccuracyMeters {
             .init(meters: altitudeMeters, accuracyMeters: altitudeAccuracyMeters)
-        } else { nil }
+        } else {
+            nil
+        }
         return LocationSample(
             id: id,
             timestamp: timestamp,
@@ -2518,12 +2561,20 @@ final class SDEvidence {
         self.generationID = generationID.rawValue
         id = value.id
         kindRaw = value.kind.discriminator
-        otherLabel = if case let .other(label) = value.kind { label } else { nil }
+        otherLabel = if case let .other(label) = value.kind {
+            label
+        } else {
+            nil
+        }
         capturedAt = value.capturedAt
         note = value.note
         regionRaw = value.region?.rawValue
         contentTypeDiscriminator = value.contentType.discriminator
-        contentTypeOtherLabel = if case let .other(label) = value.contentType { label } else { nil }
+        contentTypeOtherLabel = if case let .other(label) = value.contentType {
+            label
+        } else {
+            nil
+        }
         self.blob = blob
     }
 
@@ -2893,9 +2944,8 @@ final class SDRecordingDeviceMetadataChange {
               let revision,
               revision >= 0,
               let changedAt,
-              let changedByDeviceID
-        else { return nil }
-        guard field == .nickname else { return nil }
+              let changedByDeviceID,
+              field == .nickname else { return nil }
         return RecordingDeviceMetadataChange(
             id: .init(rawValue: id),
             deviceID: RecordingDeviceID(rawValue: deviceID),

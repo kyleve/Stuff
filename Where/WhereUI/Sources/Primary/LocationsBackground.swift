@@ -2,7 +2,7 @@ import BroadwayUI
 import RegionKit
 import SwiftUI
 
-/// Stationary, noninteractive paper texture shared by Locations and Elsewhere.
+/// Stationary, noninteractive paper texture for the selected year's visited regions.
 struct LocationsBackground: View {
     let regions: [Region]
 
@@ -76,6 +76,15 @@ struct LocationsBackground: View {
             sqrt(max(bounds.width, bounds.height) / shortSide),
         )
         return artwork
+    }
+}
+
+extension View {
+    func visitedRegionsBackground(_ report: YearReportModel) -> some View {
+        background {
+            LocationsBackground(regions: LocationsBackgroundArtwork.regions(in: report.ranking))
+                .ignoresSafeArea()
+        }
     }
 }
 

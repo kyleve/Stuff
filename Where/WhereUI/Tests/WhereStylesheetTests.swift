@@ -112,6 +112,7 @@ struct WhereStylesheetTests {
         context.traitOverrides.mode = mode
         context.traitOverrides.accessibility = BAccessibility(isReduceMotionEnabled: reducesMotion)
         let sheet = try context.stylesheets.get(WhereStylesheet.self)
+        #expect((sheet.regionPicker.selectionAnimation != nil) == !reducesMotion)
         #expect(sheet.settings.iconForeground == (mode == .dark ? Color.black : Color.white))
         #expect(sheet.settings
             .flashAnimation == (reducesMotion ? nil : style.settings.flashAnimation))
@@ -317,6 +318,7 @@ struct WhereStylesheetTests {
         let resolved = try context.stylesheets.get(WhereStylesheet.self)
         #expect(resolved.calendar.overview.usesSpatialMotion == false)
         #expect(resolved.calendar.overview.animation == .easeInOut(duration: 0.25))
+        #expect(resolved.locationsDetail.calendarScale == nil)
         #expect(resolved.card.dayCount == .reducedMotion)
         #expect(resolved.locationCardStack.overtake == .reducedMotion)
         #expect(resolved.locationCardStack.overtake.minimumOpacity == 0.82)

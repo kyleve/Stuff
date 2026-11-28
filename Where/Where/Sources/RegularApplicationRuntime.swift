@@ -199,7 +199,9 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
         model.onLoggedOut = { [intentServices, weak compatibility = model.compatibility] in
             if case let .blocked(failure) = compatibility?.coordinator.state {
                 await intentServices.block(failure)
-            } else { await intentServices.clear() }
+            } else {
+                await intentServices.clear()
+            }
         }
         if configuredStorage.usesCloudKit {
             // Register for silent compatibility updates; this does not request

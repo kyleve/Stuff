@@ -70,7 +70,9 @@ final class ElsewhereModel {
 
     func refresh(_ input: ElsewhereInput) async {
         guard !Task.isCancelled else { return }
-        if case let .loaded(loadedInput, _) = state, loadedInput == input { return }
+        if case let .loaded(loadedInput, _) = state, loadedInput == input {
+            return
+        }
         requestSequence += 1
         let sequence = requestSequence
         let previous = content(for: input.report.year)
@@ -81,7 +83,9 @@ final class ElsewhereModel {
             resolved = try await resolver.resolve(input)
             try Task.checkCancellation()
         } catch is CancellationError {
-            if requestSequence == sequence { state = previousState }
+            if requestSequence == sequence {
+                state = previousState
+            }
             return
         } catch {
             guard requestSequence == sequence, !Task.isCancelled else { return }
@@ -108,7 +112,9 @@ final class ElsewhereModel {
 
     func placeName(for coordinate: Coordinate) async -> String? {
         guard !Task.isCancelled else { return nil }
-        if let name = knownPlaces[coordinate] { return name }
+        if let name = knownPlaces[coordinate] {
+            return name
+        }
         let sequence = requestSequence
         let name = await namer.name(for: coordinate)
         guard requestSequence == sequence, !Task.isCancelled else { return nil }

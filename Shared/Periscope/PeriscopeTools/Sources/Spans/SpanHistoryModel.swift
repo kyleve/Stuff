@@ -51,7 +51,9 @@ enum SpanKindName: Hashable {
 
     /// Whether the name came from the message rather than the payload.
     var isRecovered: Bool {
-        if case .recovered = self { return true }
+        if case .recovered = self {
+            return true
+        }
         return false
     }
 }
@@ -316,7 +318,9 @@ final class SpanHistoryModel {
         return Dictionary(grouping: closed, by: \.kind)
             .map { kind, group in
                 let ordered = group.sorted { lhs, rhs in
-                    if lhs.event.date != rhs.event.date { return lhs.event.date > rhs.event.date }
+                    if lhs.event.date != rhs.event.date {
+                        return lhs.event.date > rhs.event.date
+                    }
                     return lhs.event.sequence > rhs.event.sequence
                 }
                 return SpanKindSummary(
@@ -326,7 +330,9 @@ final class SpanHistoryModel {
                 )
             }
             .sorted { lhs, rhs in
-                if lhs.count != rhs.count { return lhs.count > rhs.count }
+                if lhs.count != rhs.count {
+                    return lhs.count > rhs.count
+                }
                 return lhs.kind.text < rhs.kind.text
             }
     }

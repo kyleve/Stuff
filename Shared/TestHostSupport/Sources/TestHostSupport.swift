@@ -214,7 +214,9 @@ public func waitFor(timeout: TimeInterval = 10.0, predicate: () -> Bool) throws 
 public func renders(within timeout: TimeInterval = 0.5, _ condition: () -> Bool) -> Bool {
     let deadline = Date(timeIntervalSinceNow: timeout)
     while Date() < deadline {
-        if condition() { return true }
+        if condition() {
+            return true
+        }
         RunLoop.main.run(mode: .default, before: Date(timeIntervalSinceNow: 0.001))
     }
     return condition()

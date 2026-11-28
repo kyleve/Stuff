@@ -140,7 +140,9 @@ struct PhotoLocationScannerTests {
         var finalAccess: PhotoLibraryAccess = .limited
         var cancelOnReadback = false
         func access(requestIfNeeded: Bool) async -> PhotoLibraryAccess {
-            if !requestIfNeeded, cancelOnReadback { withUnsafeCurrentTask { $0?.cancel() } }
+            if !requestIfNeeded, cancelOnReadback {
+                withUnsafeCurrentTask { $0?.cancel() }
+            }
             return requestIfNeeded ? initialAccess : finalAccess
         }
 

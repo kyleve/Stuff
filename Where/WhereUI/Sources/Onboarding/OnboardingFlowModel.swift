@@ -11,7 +11,8 @@ final class OnboardingFlowModel {
     enum Phase: Hashable {
         case intro
         case theme
-        case photos, review
+        case photos
+        case review
         case pickRegions
         case customize
         case location
@@ -30,7 +31,7 @@ final class OnboardingFlowModel {
     var page = 0
     var theme: WhereTheme
     let photo = OnboardingPhotoHistory()
-    var selection = PrimaryRegionSelectionModel()
+    let selection = PrimaryRegionDraft()
     var recordingEnabled: Bool
     var deviceDiscovery = DeviceDiscovery.idle
     var isFinishing = false
@@ -178,7 +179,9 @@ final class OnboardingFlowModel {
                     }
                 } catch {
                     isFinishing = false
-                    if error is DataCompatibilityFailure || error is CancellationError { return }
+                    if error is DataCompatibilityFailure || error is CancellationError {
+                        return
+                    }
                     if (error as? RecordingPersistenceError) == .dataGenerationChanged {
                         do { try model.rememberPhotoReceipt(nil) } catch { gate.fail(error); return
                         }

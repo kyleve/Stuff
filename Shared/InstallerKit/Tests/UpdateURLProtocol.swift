@@ -18,7 +18,9 @@ final class UpdateURLProtocol: URLProtocol, @unchecked Sendable {
         do {
             precondition(request.value(forHTTPHeaderField: "Authorization") == nil)
             let scenario = url.deletingLastPathComponent().lastPathComponent
-            if scenario == "offline" { throw URLError(.notConnectedToInternet) }
+            if scenario == "offline" {
+                throw URLError(.notConnectedToInternet)
+            }
             let encoder = JSONEncoder()
             encoder.dateEncodingStrategy = .iso8601
             let data: Data = switch scenario {

@@ -73,7 +73,9 @@ final class OnboardingImportRecoveryModel {
                     completeOnboarding: completeOnboarding,
                 )
                 if installationContextStore.backupImportRecovery == nil {
-                    if !completed { await endSession() }
+                    if !completed {
+                        await endSession()
+                    }
                     return !completed && requiresOnboarding
                 }
             }

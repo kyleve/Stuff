@@ -8,12 +8,17 @@ enum HostedAccessibility {
         @MainActor func visit(_ object: NSObject) -> [NSObject] {
             guard visited.insert(ObjectIdentifier(object)).inserted else { return [] }
             var result = [object]
-            if let view = object as? UIView { result += view.subviews.flatMap(visit) }
+            if let view = object as? UIView {
+                result += view.subviews.flatMap(visit)
+            }
             let count = object.accessibilityElementCount()
             if count > 0, count < 10000 {
                 for index in 0 ..< count {
                     if let child = object
-                        .accessibilityElement(at: index) as? NSObject { result += visit(child) }
+                        .accessibilityElement(at: index) as? NSObject
+                    {
+                        result += visit(child)
+                    }
                 }
             }
             return result

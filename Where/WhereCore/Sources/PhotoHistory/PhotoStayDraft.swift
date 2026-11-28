@@ -98,7 +98,11 @@ public struct PhotoStayDraft: Sendable {
 
     public mutating func decide(_ gap: PhotoStay, include: Bool) {
         guard pendingGaps.contains(gap) else { return }
-        if include { confirmed.insert(gap) } else { dismissed.insert(gap) }
+        if include {
+            confirmed.insert(gap)
+        } else {
+            dismissed.insert(gap)
+        }
     }
 
     private var acceptedAssertions: [CalendarDay: Set<Region>] {

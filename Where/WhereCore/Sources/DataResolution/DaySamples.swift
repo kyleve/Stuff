@@ -36,7 +36,9 @@ public final class DaySamples: Sendable {
 
     private func grouped() -> [CalendarDay: [LocationSample]] {
         cache.withLock { stored in
-            if let stored { return stored }
+            if let stored {
+                return stored
+            }
             let built = Self.group(rawSamples, calendar: calendar)
             stored = built
             return built

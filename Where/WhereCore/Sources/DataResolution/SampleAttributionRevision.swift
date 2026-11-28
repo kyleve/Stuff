@@ -54,7 +54,9 @@ public struct SampleAttributionRevision: Identifiable, Hashable, Codable, Sendab
         _ lhs: SampleAttributionRevision,
         than rhs: SampleAttributionRevision,
     ) -> Bool {
-        if lhs.updatedAt != rhs.updatedAt { return lhs.updatedAt > rhs.updatedAt }
+        if lhs.updatedAt != rhs.updatedAt {
+            return lhs.updatedAt > rhs.updatedAt
+        }
         return lhs.id > rhs.id
     }
 

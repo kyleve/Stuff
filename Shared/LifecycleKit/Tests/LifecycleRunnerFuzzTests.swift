@@ -78,14 +78,18 @@ struct LifecycleRunnerFuzzTests {
                     plan = plan.thenKeeping(
                         FixtureStep<String, Void>(element.id, modes: element.modes) { _, _ in
                             executedTrunk.append(element.id)
-                            if element.throwsError { throw FuzzError() }
+                            if element.throwsError {
+                                throw FuzzError()
+                            }
                         },
                     )
                 case .detachedChild:
                     plan = plan.detached {
                         FixtureStep<String, Void>(element.id, modes: element.modes) { _, _ in
                             executedDetached.insert(element.id)
-                            if element.throwsError { throw FuzzError() }
+                            if element.throwsError {
+                                throw FuzzError()
+                            }
                         }
                     }
             }
@@ -103,12 +107,18 @@ struct LifecycleRunnerFuzzTests {
             switch element.kind {
                 case .keep:
                     expectedTrunk.append(element.id)
-                    if element.throwsError { expectedFailureID = element.id }
+                    if element.throwsError {
+                        expectedFailureID = element.id
+                    }
                 case .detachedChild:
                     expectedDetached.insert(element.id)
-                    if element.throwsError { expectedDetachedFailures.insert(element.id) }
+                    if element.throwsError {
+                        expectedDetachedFailures.insert(element.id)
+                    }
             }
-            if expectedFailureID != nil { break }
+            if expectedFailureID != nil {
+                break
+            }
         }
 
         #expect(executedTrunk == expectedTrunk)

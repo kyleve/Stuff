@@ -330,7 +330,9 @@ public final class WhereBootstrap: WhereScopeAssembling {
     /// `.failed`, so without this line the failure would leave no trace
     /// anywhere.
     public func makeServices() async throws -> WhereServices {
-        if case .retired = storeState { throw CancellationError() }
+        if case .retired = storeState {
+            throw CancellationError()
+        }
         let source = installationLocation.source
         do {
             let installationContext = try installationContextStore.resolve()
@@ -370,7 +372,9 @@ public final class WhereBootstrap: WhereScopeAssembling {
         let admission = try compatibility.requireAccess()
         let storage = storeStorage.admitted(for: admission.domain)
         let readiness = CloudKitImportReadiness()
-        if storage.usesCloudKit { readiness.start() }
+        if storage.usesCloudKit {
+            readiness.start()
+        }
         let store = try await prepareStore()
         if storage.usesCloudKit, await readiness.waitForImport() == false {
             throw CloudKitImportReadiness.Timeout()
@@ -408,7 +412,9 @@ public final class WhereBootstrap: WhereScopeAssembling {
                     throw CancellationError()
             }
         } catch {
-            if case let .opening(current) = storeState, current === opening { storeState = .empty }
+            if case let .opening(current) = storeState, current === opening {
+                storeState = .empty
+            }
             throw error
         }
     }

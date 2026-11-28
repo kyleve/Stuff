@@ -38,7 +38,9 @@ private func waitUntil(
 ) async throws {
     let deadline = ContinuousClock.now.advanced(by: timeout)
     while !predicate() {
-        if ContinuousClock.now >= deadline { throw WaitTimeout() }
+        if ContinuousClock.now >= deadline {
+            throw WaitTimeout()
+        }
         try await Task.sleep(for: .milliseconds(1))
     }
 }
@@ -52,7 +54,9 @@ private func waitUntilAsync(
 ) async throws {
     let deadline = ContinuousClock.now.advanced(by: timeout)
     while await !predicate() {
-        if ContinuousClock.now >= deadline { throw WaitTimeout() }
+        if ContinuousClock.now >= deadline {
+            throw WaitTimeout()
+        }
         try await Task.sleep(for: .milliseconds(1))
     }
 }
@@ -397,7 +401,7 @@ struct WhereLaunchTests {
         )
         await model.compatibility.refresh(model: model)
         let photo = OnboardingPhotoHistory()
-        let selection = PrimaryRegionSelectionModel()
+        let selection = PrimaryRegionDraft()
         photo.begin()
         let attempt = try #require(photo.attempt)
         let found = await photo.scan(attempt, using: model, selection: selection)
@@ -436,7 +440,7 @@ struct WhereLaunchTests {
         await coordinator.refresh { .disabled }
         #expect(!coordinator.state.allowsStore)
         let photo = OnboardingPhotoHistory()
-        let selection = PrimaryRegionSelectionModel()
+        let selection = PrimaryRegionDraft()
         photo.begin()
         let attempt = try #require(photo.attempt)
         let scanned = await photo.scan(attempt, using: model, selection: selection)
@@ -874,7 +878,9 @@ private struct FixturePhotoLibrary: PhotoLocationReading {
         in _: DateInterval,
         consume: @Sendable ([PhotoObservation], Int, Int) async throws -> Void,
     ) async throws {
-        if empty { try await consume([], 0, 0); return }
+        if empty {
+            try await consume([], 0, 0); return
+        }
         let batch = [date.addingTimeInterval(-4 * 86400), date].compactMap { time in
             PhotoObservation(
                 capturedAt: time,

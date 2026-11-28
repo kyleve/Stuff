@@ -110,7 +110,11 @@
 
         var body: some View {
             Group {
-                if let preparedContent { preparedContent } else { Color.clear }
+                if let preparedContent {
+                    preparedContent
+                } else {
+                    Color.clear
+                }
             }
             .task {
                 guard preparedContent == nil, !Task.isCancelled else { return }
@@ -144,7 +148,9 @@
             // The mounted month task reconciles the year and initial scroll commands
             // in one synchronous transaction. Observe that specific view's state.
             for await ready in Observations({ presentation.year != nil }) {
-                if ready || Task.isCancelled { return }
+                if ready || Task.isCancelled {
+                    return
+                }
             }
         }
 

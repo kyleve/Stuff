@@ -158,7 +158,9 @@ struct GeoPolygon: Hashable {
                 where y >= group.bounds.minLatitude && y < group.bounds.maxLatitude && x <= group
                 .bounds.maxLongitude
             {
-                if crosses(x: x, y: y, ring: vertices, edges: group.edges) { inside.toggle() }
+                if crosses(x: x, y: y, ring: vertices, edges: group.edges) {
+                    inside.toggle()
+                }
             }
         }
         return inside && !holes.contains { crosses(x: x, y: y, ring: $0, edges: $0.indices) }
@@ -173,7 +175,9 @@ struct GeoPolygon: Hashable {
             if (current.latitude > y) != (previous.latitude > y) {
                 let fraction = (y - current.latitude) / (previous.latitude - current.latitude)
                 let start = longitude(current.longitude)
-                if x < start + fraction * (longitude(previous.longitude) - start) { odd.toggle() }
+                if x < start + fraction * (longitude(previous.longitude) - start) {
+                    odd.toggle()
+                }
             }
             previous = current
         }
@@ -191,7 +195,11 @@ struct GeoPolygon: Hashable {
         let longitudeScale = latitudeScale * cos(coordinate.latitude * .pi / 180)
         var x = longitude(coordinate.longitude)
         let mid = (bounds.maxLongitude + bounds.minLongitude) / 2
-        if x - mid > 180 { x -= 360 } else if mid - x > 180 { x += 360 }
+        if x - mid > 180 {
+            x -= 360
+        } else if mid - x > 180 {
+            x += 360
+        }
         let y = coordinate.latitude
         func lowerBoundSquared(_ box: BoundingBox) -> Double {
             let dx = max(box.minLongitude - x, x - box.maxLongitude, 0) * longitudeScale

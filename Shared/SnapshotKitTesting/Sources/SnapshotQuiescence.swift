@@ -91,6 +91,7 @@ import UIKit
     // counter alive forever as a strong capture would.
 }
 
+@MainActor
 extension CALayer {
     /// Whether anything in this layer subtree still has work outstanding —
     /// pending layout, pending display, or a running animation.
@@ -101,10 +102,13 @@ extension CALayer {
     /// read *after* a commit has already flushed look clean even though the
     /// content changed that frame, which is why the pixel digest exists and why
     /// `both` mode is how quiescence earns the default.
-    @MainActor
     @_spi(Testing) public func hasPendingWork() -> Bool {
-        if needsLayout() || needsDisplay() { return true }
-        if let keys = animationKeys(), !keys.isEmpty { return true }
+        if needsLayout() || needsDisplay() {
+            return true
+        }
+        if let keys = animationKeys(), !keys.isEmpty {
+            return true
+        }
         guard let sublayers else { return false }
         return sublayers.contains { $0.hasPendingWork() }
     }
