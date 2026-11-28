@@ -1,6 +1,6 @@
 # Audit at 5b1747d01
 
-[Plan overview](README.md) · [Declaration recount](recount.md) · [Audited source revision](https://github.com/kyleve/Stuff/tree/5b1747d01ddb5a3392d5b0499d6f5e3784613f01)
+[Plan overview](README.md) · [Declaration recount](recount.md) · [Whole buttons](buttons.md) · [Audited source revision](https://github.com/kyleve/Stuff/tree/5b1747d01ddb5a3392d5b0499d6f5e3784613f01)
 
 The scan parsed all 1,615 files returned by `git ls-files '*.swift'` with Xcode's SwiftParser and SwiftSyntax. It walked declarations, getter bodies, local functions, call arguments, ordinary and labeled trailing closures, and conditional branches in source-accurate mode. All files parsed without syntax errors. For each body it counted distinct nonblank physical lines occupied by Swift tokens inside the declaration or closure braces. Comments are trivia. Interior braces, directives, branches and modifier lines count. New types use their final SwiftFormat layout.
 
@@ -247,7 +247,7 @@ The scan also inspected results spelled with a concrete view type. In [Locations
 
 ## Already-named views
 
-These 34 bodies reach 20 lines in a file named for a different type. Call-site review identified 27 runtime children and seven preview, capture or test renderers. The latter are marked *fixture*. Inspect private dependencies and callers, extract inner children, then measure the named body again. Each line points to the body declaration. The [small named views](small-named-views.md) index examines the reverse placement question for independent files.
+These 34 bodies reach 20 lines in a file named for a different type. Call-site review identified 27 runtime children and seven preview, capture or test renderers. The latter are marked *fixture*. Inspect private dependencies and callers. Move an existing named control as a unit. For a type composing multiple children, remeasure its body after extracting those components. Each line points to the body declaration. The [small named views](small-named-views.md) index examines the reverse placement question for independent files.
 
 ### Shared/Flyover
 
@@ -384,7 +384,7 @@ The scan also found 30 qualifying direct sibling expressions in opaque view decl
 
 The index below marks **1206 render-builder closures in 296 files** with at least five code lines between the braces, plus 335 qualifying expressions inside `if` or `switch` branches of identified builders or opaque view declarations. Each number is a source line. A single location may enclose several siblings, an already-named child, or preparation code. Choose a meaningful rendered expression and measure its complete body including attached modifiers. A closure count is a search aid. It cannot predict the number of files to create.
 
-Names and argument roles were checked against call sites. For example, `Button(action:) { … }` supplies a label, `Button { … } label: { … }` supplies an action first, and `LifecycleContainer(gates:)` uses a separate builder. The map, toolbar and tab builders retain their result types. Individual labels, annotations, tab contents, toolbar-item contents and the view-based onboarding pager can still contain children. Preview and snapshot locations include their setup. Read the source before choosing a boundary.
+Names and argument roles were checked against call sites. For example, `Button(action:) { … }` supplies a label, `Button { … } label: { … }` supplies an action first, and `LifecycleContainer(gates:)` uses a separate builder. The map, toolbar and tab builders retain their result types. For a button hit, locate the initializer and follow its modifiers. The [whole-button inventory](buttons.md) includes controls with short labels or no label closure. Associate nested label and stack entries with the complete button. Annotations, tab contents, toolbar-item contents and the view-based onboarding pager can still contain separate children. Preview and snapshot locations include their setup. Read the source before choosing a boundary.
 
 SwiftSyntax supplies syntax without type checking. The closure table indexes known render APIs at this revision. Check concrete and inferred render values, local bindings, wrappers with a short closure and a long modifier chain, and unfamiliar builder overloads during the feature pass. For example, the closure in a test factory typed `() -> AnyView` at [RegionArtworkTaskTests.swift](../../Where/WhereUI/Tests/RegionArtworkTaskTests.swift#L55) includes model creation and must build anew per capture.
 
