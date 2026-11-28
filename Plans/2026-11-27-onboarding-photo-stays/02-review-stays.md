@@ -24,7 +24,7 @@ Someone who has scanned photos can review where they spent time, correct the dat
 
 A recorded stay is a run of consecutive days in one region. Two stays can share a travel day. `PresenceTimeline.stints(from:calendar:)` already groups report days in this way. Use its semantics for the display of accepted days, supplying the scan calendar. Additional presentation is needed for proposed gaps and edits. `ManualDayView` saves immediately through a live report model and its edit mode covers one fixed date. Reuse its date and region controls where suitable. `PlannedStayEditor` edits forecast intent. [PresenceTimeline](../../Where/WhereUI/Sources/Model/PresenceTimeline.swift) · [Manual day form](../../Where/WhereUI/Sources/Manual/ManualDayView.swift) · [Date contract](../../Where/Guidance/dates.md)
 
-The onboarding picker already enforces selection limits, preserves pick order and carries appearance drafts into customization. Its Settings grouping takes an unordered set. Give the onboarding list a ranked section with day counts, leaving map picking, search and access to the rest of the eligible catalog available. The catalog-order tie-break already exists in Core. [Selection model](../../Where/WhereUI/Sources/Regions/PrimaryRegionSelectionModel.swift) · [Region picker](../../Where/WhereUI/Sources/Regions/RegionPickerView.swift) · [Day-count ordering](../../Where/WhereCore/Sources/Days/Region+Ordering.swift)
+The onboarding picker already enforces selection limits, preserves pick order and carries appearance drafts into customization. Its Settings grouping takes an unordered set. Give the onboarding list a ranked section with day counts. Users can also search by name or postal code and browse the eligible regions by country. The catalog-order tie-break already exists in Core. [Selection model](../../Where/WhereUI/Sources/Regions/PrimaryRegionDraft.swift) · [Region picker](../../Where/WhereUI/Sources/Regions/RegionPickerView.swift) · [Day-count ordering](../../Where/WhereCore/Sources/Days/Region+Ordering.swift)
 
 ## Data flow
 
@@ -54,7 +54,7 @@ struct PhotoStayDraft {
 // Proposed view state, owned for the lifetime of the fresh onboarding flow.
 @MainActor @Observable final class StayReviewModel {
     var draft: PhotoStayDraft
-    let selection: PrimaryRegionSelectionModel   // Existing explicit picks and appearances.
+    let selection: PrimaryRegionDraft   // Existing explicit picks and appearances.
     var suggestedRegions: [RegionDays] { /* rank eligible positive counts from correctedDays */ }
 }
 ```
